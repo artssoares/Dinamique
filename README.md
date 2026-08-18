@@ -72,6 +72,17 @@ packages/database        migrations, RLS, functions, views, tests
 assets/brand             logo and brand colours
 ```
 
+## Monorepo layout note
+
+`.npmrc` hoists everything into the root `node_modules` **except React**.
+
+Metro resolves from the filesystem rather than Node's algorithm, and parts of
+the Expo toolchain require transitive dependencies they never declare, so a
+strict pnpm layout cannot bundle the app. React is excluded because the mobile
+app is on React 18 (React Native 0.76) and the admin on React 19 — hoisting
+either makes Next's `styled-jsx` bind a second React copy and every prerender
+fails. Both builds are verified after any dependency change.
+
 ## Commands
 
 ```bash
