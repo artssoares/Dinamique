@@ -74,7 +74,16 @@ mockup. Nothing listed as not built is stubbed with a button that does nothing.
 
 ## Phase 8 — exports
 
-**Not built.** The `exports` table records them for audit; no generator exists.
+| Item | State |
+| --- | --- |
+| XLSX com 7 abas, moeda, datas, larguras e totais | **built** |
+| CSV com separador `;` e vírgula decimal | **built** |
+| Períodos predefinidos e personalizado | **built** |
+| Compartilhamento nativo no celular, download na web | **built** |
+| Registro de cada exportação em `exports` | **built** |
+| Exportação no Admin | **not built** — Fase 12, reaproveita `@dinamique/exports` |
+
+15 testes, incluindo abrir o XLSX gerado de volta e conferir valores e formatos.
 
 ## Phase 9 — plans
 
