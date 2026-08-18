@@ -1,0 +1,23 @@
+{
+  "name": "dinamique",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dinamique — financial and performance app for drivers and delivery professionals.",
+  "packageManager": "pnpm@10.33.0",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "lint": "pnpm -r --if-present run lint",
+    "test": "pnpm -r --if-present run test",
+    "build": "pnpm -r --if-present run build",
+    "check": "pnpm run typecheck && pnpm run test",
+    "mobile": "pnpm --filter @dinamique/mobile start",
+    "admin": "pnpm --filter @dinamique/admin dev",
+    "db:reset": "supabase db reset",
+    "db:push": "supabase db push"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

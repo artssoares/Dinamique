@@ -1,0 +1,49 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# builds
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+.expo/
+.expo-shared/
+web-build/
+
+# env & secrets — NEVER commit
+.env
+.env.*
+!.env.example
+*.pem
+service-role*.txt
+
+# supabase local
+.branches/
+.temp/
+supabase/.temp/
+
+# testing
+coverage/
+
+# os / editor
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# turbo
+.turbo/
+
+# native
+android/
+ios/
+!apps/mobile/android/
+!apps/mobile/ios/
