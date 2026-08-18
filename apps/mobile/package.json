@@ -9,7 +9,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
   },
   "dependencies": {
     "@dinamique/business-logic": "workspace:*",
@@ -19,6 +19,7 @@
     "@dinamique/utils": "workspace:*",
     "@expo/metro-runtime": "~5.0.5",
     "@react-native-async-storage/async-storage": "2.1.2",
+    "@react-native-community/netinfo": "11.4.1",
     "@supabase/supabase-js": "^2.48.1",
     "expo": "~53.0.27",
     "expo-clipboard": "~7.1.5",

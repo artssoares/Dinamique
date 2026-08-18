@@ -3,6 +3,10 @@ import type { Cents } from '@dinamique/types';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 import { useSession } from '@/hooks/useSession';
+import type { SyncableTable } from '@/features/offline/queue';
+
+/** Assinatura de `save` do OfflineProvider. */
+type SaveFn = (table: SyncableTable, payload: Record<string, unknown>) => Promise<boolean>;
 
 export interface ActiveJourney {
   id: string;
@@ -124,16 +128,24 @@ export function useActiveJourney() {
   return { journey, loading, refresh, start, pause, resume, finish };
 }
 
-export async function addRevenue(input: {
-  userId: string;
-  journeyId: string | null;
-  platformId: string | null;
-  amount: Cents;
-  tips: Cents;
-  tripCount: number | null;
-  date: string;
-}): Promise<void> {
-  await supabase.from('revenues').insert({
+/**
+ * Lançamentos passam pela camada offline (§111): com rede vão direto, sem rede
+ * ficam guardados no aparelho e sobem sozinhos depois. `save` devolve false
+ * quando o registro foi para a fila, para a tela poder avisar.
+ */
+export async function addRevenue(
+  save: SaveFn,
+  input: {
+    userId: string;
+    journeyId: string | null;
+    platformId: string | null;
+    amount: Cents;
+    tips: Cents;
+    tripCount: number | null;
+    date: string;
+  },
+): Promise<boolean> {
+  const sent = await save('revenues', {
     user_id: input.userId,
     journey_id: input.journeyId,
     platform_id: input.platformId,
@@ -142,22 +154,27 @@ export async function addRevenue(input: {
     trip_count: input.tripCount,
     date: input.date,
   });
-  void track('revenue_added', { platform_id: input.platformId });
+  void track('revenue_added', { platform_id: input.platformId, offline: !sent });
+  return sent;
 }
 
-export async function addExpense(input: {
-  userId: string;
-  journeyId: string | null;
-  categoryId: string;
-  amount: Cents;
-  date: string;
-}): Promise<void> {
-  await supabase.from('expenses').insert({
+export async function addExpense(
+  save: SaveFn,
+  input: {
+    userId: string;
+    journeyId: string | null;
+    categoryId: string;
+    amount: Cents;
+    date: string;
+  },
+): Promise<boolean> {
+  const sent = await save('expenses', {
     user_id: input.userId,
     journey_id: input.journeyId,
     category_id: input.categoryId,
     amount: input.amount,
     date: input.date,
   });
-  void track('expense_added', { category_id: input.categoryId });
+  void track('expense_added', { category_id: input.categoryId, offline: !sent });
+  return sent;
 }

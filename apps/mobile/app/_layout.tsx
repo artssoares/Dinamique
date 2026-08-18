@@ -6,6 +6,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from '@dinamique/ui';
 import { SessionProvider, useSession } from '@/hooks/useSession';
+import { OfflineProvider } from '@/features/offline/useOfflineSync';
+import { OfflineBanner } from '@/features/offline/OfflineBanner';
 
 /**
  * Routing guard. Three destinations depending on session state:
@@ -41,7 +43,9 @@ function RootNavigator() {
   }, [loading, session, profile, segments, router]);
 
   return (
-    <Stack
+    <>
+      <OfflineBanner />
+      <Stack
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: theme.colors.backgroundPrimary },
@@ -52,7 +56,8 @@ function RootNavigator() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="support" options={{ presentation: 'card' }} />
-    </Stack>
+      </Stack>
+    </>
   );
 }
 
@@ -77,7 +82,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <SessionProvider>
-          <ThemedApp />
+          <OfflineProvider>
+            <ThemedApp />
+          </OfflineProvider>
         </SessionProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

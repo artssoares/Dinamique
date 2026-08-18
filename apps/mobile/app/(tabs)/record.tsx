@@ -7,6 +7,7 @@ import { Button, Card, Chip, Text, useTheme } from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/useSession';
 import { addExpense, addRevenue, useActiveJourney } from '@/features/journey/useJourney';
+import { useOffline } from '@/features/offline/useOfflineSync';
 
 type Mode = 'revenue' | 'expense';
 
@@ -19,6 +20,7 @@ export default function Record() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { session } = useSession();
+  const { save } = useOffline();
   const { journey, start, pause, resume, refresh } = useActiveJourney();
 
   const [mode, setMode] = useState<Mode>('revenue');
@@ -29,7 +31,7 @@ export default function Record() {
   const [platforms, setPlatforms] = useState<{ id: string; name: string }[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState<string | null>(null);
 
   useEffect(() => {
     void supabase
@@ -56,8 +58,10 @@ export default function Record() {
     setSaving(true);
     const date = toDateOnly(new Date());
 
+    let sent = true;
+
     if (mode === 'revenue') {
-      await addRevenue({
+      sent = await addRevenue(save, {
         userId: session.user.id,
         journeyId: journey?.id ?? null,
         platformId,
@@ -67,7 +71,7 @@ export default function Record() {
         date,
       });
     } else if (categoryId) {
-      await addExpense({
+      sent = await addExpense(save, {
         userId: session.user.id,
         journeyId: journey?.id ?? null,
         categoryId,
@@ -79,8 +83,10 @@ export default function Record() {
     setAmount('');
     setTrips('');
     setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    // Sem rede o registro fica guardado; a barra no topo já explica isso, mas
+    // o botão precisa dizer a verdade sobre o que aconteceu.
+    setSaved(sent ? 'Salvo' : 'Guardado neste aparelho');
+    setTimeout(() => setSaved(null), 2500);
     await refresh();
   }
 
@@ -184,7 +190,7 @@ export default function Record() {
       </Card>
 
       <Button
-        label={saved ? 'Salvo' : 'Salvar'}
+        label={saved ?? 'Salvar'}
         size="lg"
         fullWidth
         loading={saving}
