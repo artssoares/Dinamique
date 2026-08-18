@@ -20,12 +20,14 @@ export default function SignUp() {
   const [password, setPassword] = useState('');
   const [code, setCode] = useState(params.code ?? '');
   const [error, setError] = useState<string | null>(null);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSignUp() {
     setLoading(true);
     setError(null);
+    setErrorDetail(null);
 
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
@@ -34,7 +36,9 @@ export default function SignUp() {
     });
 
     if (signUpError) {
-      setError(toFriendlyError(signUpError).message);
+      const friendly = toFriendlyError(signUpError);
+      setError(friendly.message);
+      setErrorDetail(friendly.detail ?? null);
       setLoading(false);
       return;
     }
@@ -136,9 +140,16 @@ export default function SignUp() {
         </View>
 
         {error ? (
-          <Text variant="caption" color="danger">
-            {error}
-          </Text>
+          <View style={{ gap: theme.spacing.xs }}>
+            <Text variant="caption" color="danger">
+              {error}
+            </Text>
+            {errorDetail ? (
+              <Text variant="caption" color="muted">
+                Detalhe técnico: {errorDetail}
+              </Text>
+            ) : null}
+          </View>
         ) : null}
         {notice ? (
           <Text variant="caption" color="success">

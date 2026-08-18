@@ -13,16 +13,22 @@ export default function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSignIn() {
     setLoading(true);
     setError(null);
+    setErrorDetail(null);
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
-    if (signInError) setError(toFriendlyError(signInError).message);
+    if (signInError) {
+      const friendly = toFriendlyError(signInError);
+      setError(friendly.message);
+      setErrorDetail(friendly.detail ?? null);
+    }
     setLoading(false);
   }
 
@@ -85,9 +91,16 @@ export default function SignIn() {
         </View>
 
         {error ? (
-          <Text variant="caption" color="danger">
-            {error}
-          </Text>
+          <View style={{ gap: theme.spacing.xs }}>
+            <Text variant="caption" color="danger">
+              {error}
+            </Text>
+            {errorDetail ? (
+              <Text variant="caption" color="muted">
+                Detalhe técnico: {errorDetail}
+              </Text>
+            ) : null}
+          </View>
         ) : null}
 
         <Button
