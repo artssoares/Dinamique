@@ -39,6 +39,7 @@ export function Sidebar({
           badge: unansweredTickets,
         },
         { href: '/usuarios', label: 'Usuários' },
+        { href: '/notificacoes', label: 'Notificações', roles: ['superadmin', 'admin'] },
       ],
     },
     {

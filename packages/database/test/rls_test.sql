@@ -237,3 +237,83 @@ begin
   raise notice 'ALL DATABASE TESTS PASSED';
 end;
 $$;
+
+-- ============================================================================
+-- Segunda bateria: motor de notificações e lembretes.
+-- ============================================================================
+do $$
+declare
+  v_a uuid := gen_random_uuid();
+  v_b uuid := gen_random_uuid();
+  v_c uuid := gen_random_uuid();
+  v_sent integer;
+begin
+  insert into auth.users (id, email, raw_user_meta_data) values
+    (v_a, 'sp@example.com', '{"full_name":"Ana Paulista"}'::jsonb),
+    (v_b, 'rj@example.com', '{"full_name":"Bruno Carioca"}'::jsonb),
+    (v_c, 'off@example.com','{"full_name":"Carla Silenciosa"}'::jsonb);
+
+  update profiles set city='São Paulo', state='SP', work_modes='{rideshare}' where id=v_a;
+  update profiles set city='Rio de Janeiro', state='RJ', work_modes='{delivery}' where id=v_b;
+  update profiles set city='São Paulo', state='SP', work_modes='{rideshare}' where id=v_c;
+
+  -- Carla desligou notificações promocionais.
+  update notification_preferences set in_app=false
+  where user_id=v_c and category='promotions';
+
+  -- Segmentação por cidade
+  select send_notification(
+    row(null, array['São Paulo'], null, null, null, null, null)::notification_audience,
+    'news', 'Novidade', 'Chegou o relatório em Excel.', null, null, null
+  ) into v_sent;
+  perform assert(v_sent = 2, 'segmentação por cidade atinge só quem é da cidade (§100)');
+
+  -- Preferência do usuário é respeitada
+  select send_notification(
+    row(null, array['São Paulo'], null, null, null, null, null)::notification_audience,
+    'promotions', 'Promoção', 'Pro com desconto.', null, null, null
+  ) into v_sent;
+  perform assert(v_sent = 1, 'quem desativou a categoria não recebe (§58)');
+
+  -- Segmentação por modalidade
+  select send_notification(
+    row(null, null, null, array['delivery']::work_mode[], null, null, null)::notification_audience,
+    'news', 'Delivery', 'Novidade para entregadores.', null, null, null
+  ) into v_sent;
+  perform assert(v_sent = 1, 'segmentação por modalidade funciona');
+
+  -- Contas de demonstração ficam de fora de qualquer envio
+  update profiles set is_demo = true where id = v_b;
+  select send_notification(
+    row(null, null, null, array['delivery']::work_mode[], null, null, null)::notification_audience,
+    'news', 'Delivery', 'Segunda tentativa.', null, null, null
+  ) into v_sent;
+  perform assert(v_sent = 0, 'contas de demonstração nunca recebem envio real');
+  update profiles set is_demo = false where id = v_b;
+
+  -- ------------------------------------------------------------ lembretes --
+  insert into free_flow_records (user_id, operator, passed_at, remind_at)
+  values (v_a, 'Bandeirantes', current_date, now() - interval '1 hour');
+
+  insert into fines (user_id, description, issued_at, amount, discount_deadline)
+  values (v_a, 'Velocidade', current_date, 19500, current_date + 1);
+
+  insert into maintenance_logs (user_id, date, amount, next_due_date)
+  values (v_a, current_date, 30000, current_date + 2);
+
+  select process_reminders() into v_sent;
+  perform assert(v_sent = 3, 'lembretes vencidos viram notificações (§50, §51, §34)');
+
+  -- Rodar de novo não pode duplicar nada.
+  select process_reminders() into v_sent;
+  perform assert(v_sent = 0, 'processar lembretes duas vezes não duplica notificações');
+
+  perform assert(
+    (select count(*) from user_notifications
+     where user_id = v_a and category = 'free_flow') = 1,
+    'a notificação de Free Flow aponta para a categoria certa');
+
+  raise notice '';
+  raise notice 'TESTES DE NOTIFICAÇÃO PASSARAM';
+end;
+$$;

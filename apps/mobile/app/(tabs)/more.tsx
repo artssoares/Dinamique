@@ -45,6 +45,7 @@ export default function More() {
       title: 'PREFERÊNCIAS',
       items: [
         { label: 'Notificações', href: '/notifications' },
+        { label: 'Preferências de aviso', href: '/settings/notifications' },
         { label: 'Aparência', href: '/settings/appearance' },
         { label: 'Exportar meus dados', href: '/export' },
       ],
