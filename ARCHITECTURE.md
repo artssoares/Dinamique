@@ -1,0 +1,116 @@
+# Architecture
+
+## The shape
+
+A pnpm monorepo with two apps and five packages. The split exists for one
+reason: **a financial rule must have exactly one implementation.**
+
+```
+apps/mobile ─┐
+             ├─→ packages/business-logic ─→ packages/utils ─→ packages/types
+apps/admin  ─┘                          ↘
+                                         packages/ui (mobile only)
+                    both ─→ packages/database (schema, RLS, functions, views)
+```
+
+### `packages/types`
+
+The domain model and the enums. Every enum here has a matching Postgres enum or
+check constraint — they are kept in step by hand, and the database tests fail if
+a value the code emits is rejected.
+
+### `packages/utils`
+
+Money, units and calendar arithmetic. Money is integer cents; distance is
+integer metres; volume is millilitres; duration is seconds. Floats appear only
+at the formatting boundary and in ratios, which are never money.
+
+Dates are `YYYY-MM-DD` strings, not `Date` objects, because a driver's "day" is
+a calendar day where they live rather than a UTC window. Weeks start on Monday.
+
+### `packages/business-logic`
+
+Pure functions, no I/O, no framework. This is where profit, R$/hour, R$/km,
+cost/km, goals, projections, the daily score, benchmark gating, insights, code
+validation, referral benefits, plan resolution and the support state machine
+live.
+
+A screen that does arithmetic is a bug. Both apps import from here, which is
+what makes it impossible for the app and the panel to disagree about what a
+number means.
+
+### `packages/ui`
+
+Design tokens plus React Native components. The tokens are plain TypeScript and
+platform-agnostic; the components are React Native and mobile-only. The admin
+deliberately does **not** depend on this package — it mirrors the same token
+values as CSS custom properties, which keeps a React 19 app free of React
+Native's React 18 types.
+
+### `packages/database`
+
+Migrations, RLS policies, grants, server-side functions and read-model views.
+Tested by applying every migration to a real Postgres and asserting behaviour,
+not by reading the DDL.
+
+## Where each decision is enforced
+
+The same rule is often stated in more than one place. The question that matters
+is where it is *enforced* — where a mistake becomes impossible rather than
+merely discouraged.
+
+| Rule | Enforced by |
+| --- | --- |
+| one active journey per user | unique partial index |
+| one primary vehicle per user | unique partial index |
+| a referred account has one referrer | unique constraint |
+| nobody refers themselves | check constraint + `redeem_code` + business logic |
+| attribution is first-touch | `before update` trigger that raises |
+| a support internal note never reaches the user | RLS policy on `support_messages` |
+| a user cannot post as the support team | RLS `with check` on `author_kind` |
+| a user cannot grant themselves Pro | no client `insert`/`update` grant on `subscriptions` |
+| a discount is used at most once | benefit status + `redeem_benefit` |
+| a metric with no denominator is null | `summarisePeriod`, asserted by tests |
+| colour contrast meets AA | token tests |
+
+## Security model
+
+Three levels of access, and the boundary between them is a deployment boundary,
+not a code convention.
+
+1. **anon** — nothing. Every screen requires a session.
+2. **authenticated** — `select` on everything, narrowed to their own rows by
+   RLS; `insert`/`update`/`delete` only on tables where a user legitimately
+   creates their own data. Tables that grant value (`subscriptions`,
+   `promotion_codes`, `referrals`, `discount_benefits`, `user_attribution`) are
+   read-only to the client.
+3. **service_role** — bypasses RLS. Exists only in the admin's server
+   environment. Every Server Action that uses it calls `requireAdmin(roles)`
+   first and `logAdminAction()` after.
+
+Value is therefore always granted by the server: `redeem_code()` is a
+`SECURITY DEFINER` function that runs every antifraud rule in one transaction,
+and plan grants come from the panel.
+
+## Data strategy
+
+Operational tables are normalised and indexed for the queries the app makes.
+Analytical reads go through views (`daily_totals`, `current_plans`,
+`notification_counts`) so a reporting query never shapes an operational table.
+
+`daily_totals` is the grain everything downstream is built from: one row per
+user per calendar day. When volume justifies it, it becomes a materialised view
+refreshed on a schedule — the query surface does not change.
+
+`analytics_events` is append-only and readable only by admins with the analyst
+role, which keeps the event stream available for a future warehouse without
+exposing it to users.
+
+## Deliberate omissions
+
+No GPS, no location permission, no background tracking, no maps, no route
+capture (§6). Distance is entered by hand or not at all, and every distance
+metric handles "not at all" as a first-class case rather than a zero.
+
+No generative AI anywhere in the financial path. Every number and every insight
+sentence comes from arithmetic a driver could redo on paper.
