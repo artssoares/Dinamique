@@ -107,11 +107,18 @@ and tested apportionment logic. **No screens.**
 **Not built.** `client_id` columns exist on journeys, revenues, expenses and
 fuel logs so idempotent sync can be added without a migration.
 
+## Verified end to end
+
+- both apps build: the admin prerenders, the mobile app exports 1,059 modules
+- 131 unit tests, 29 database assertions, 6/6 packages typecheck
+- CI runs all of the above plus both builds on every push
+- demo seed produces realistic figures (R$ 1,71–3,06/km, R$ 19–41 profit/hour)
+  and demonstrates the benchmark minimum correctly withholding city-level data
+
 ## Known gaps outside the phase plan
 
 - **The logo is not in the repository.** `<BrandMark>` renders a visible
   placeholder. See `assets/brand/README.md`.
 - **Tab icons** are placeholder glyphs, not a finished icon set.
-- **Seed data** for demo and benchmark (§122, §123) is not written.
 - **The vehicle catalogue is empty.** The three-level schema and CSV/XLSX import
   path are designed but no data is loaded.

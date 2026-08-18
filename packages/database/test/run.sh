@@ -17,6 +17,12 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # These tests need a real Postgres. Without one we skip loudly rather than
 # failing the whole workspace test run on a machine that has no database.
 if ! pg_isready -q 2>/dev/null; then
+  # CI always has a database, so a skip there would silently drop the security
+  # assertions. Skipping is only ever a local-convenience behaviour.
+  if [ -n "${CI:-}" ]; then
+    echo "FAIL  no Postgres reachable at ${PGHOST}:${PGPORT} (required in CI)."
+    exit 1
+  fi
   echo "SKIP  no Postgres reachable at ${PGHOST}:${PGPORT}."
   echo "      Start one with \`supabase start\`, or set PGHOST/PGPORT."
   exit 0
@@ -34,6 +40,8 @@ for migration in "$here/../migrations/"*.sql; do
   psql -q -d "$DB" -v ON_ERROR_STOP=1 -f "$migration"
 done
 
+# `set -o pipefail` plus ON_ERROR_STOP means a failed assertion — which raises
+# in plpgsql — exits non-zero rather than merely printing.
 psql -d "$DB" -v ON_ERROR_STOP=1 -f "$here/rls_test.sql" 2>&1 \
   | sed 's/^psql[^ ]* NOTICE:  //' \
-  | grep -E 'PASS|FAIL|ALL DATABASE'
+  | grep -E 'PASS|FAIL|ERROR|ALL DATABASE'
