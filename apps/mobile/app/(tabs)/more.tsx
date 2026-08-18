@@ -25,6 +25,15 @@ export default function More() {
       ],
     },
     {
+      title: 'CUSTOS E OBRIGAÇÕES',
+      items: [
+        { label: 'Custos fixos', href: '/costs/recurring' },
+        { label: 'Manutenção', href: '/costs/maintenance' },
+        { label: 'Multas', href: '/costs/fines' },
+        { label: 'Free Flow', href: '/costs/free-flow' },
+      ],
+    },
+    {
       title: 'AJUDA E PROGRAMAS',
       items: [
         { label: 'Suporte', href: '/support', badge: unreadSupport },

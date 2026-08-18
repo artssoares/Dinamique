@@ -52,8 +52,13 @@ mockup. Nothing listed as not built is stubbed with a button that does nothing.
 
 ## Phase 6 — recurring costs and obligations
 
-Maintenance, recurring costs, fines and Free Flow all have tables, constraints
-and tested apportionment logic. **No screens.**
+| Item | State |
+| --- | --- |
+| Custos fixos com rateio por dia | **built** |
+| Manutenção com lembrete por km ou data | **built** |
+| Multas com prazo de desconto | **built** |
+| Free Flow manual com lembrete | **built** |
+| Notificações automáticas dos lembretes | **not built** — o campo `remind_at` é gravado; falta o job que dispara |
 
 ## Phase 7 — notifications and support
 
