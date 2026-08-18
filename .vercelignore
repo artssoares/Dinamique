@@ -1,5 +1,0 @@
-# O aplicativo móvel é publicado separadamente; não entra no build do painel.
-apps/mobile
-**/.expo
-**/android
-**/ios
