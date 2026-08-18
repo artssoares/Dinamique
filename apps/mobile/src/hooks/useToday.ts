@@ -6,8 +6,8 @@ import {
   type GoalProgress,
 } from '@dinamique/business-logic';
 import { toDateOnly } from '@dinamique/utils';
-import { supabase } from '../lib/supabase.js';
-import { useSession } from './useSession.js';
+import { supabase } from '../lib/supabase';
+import { useSession } from './useSession';
 
 /**
  * Everything the Home screen needs, in one query per concern.

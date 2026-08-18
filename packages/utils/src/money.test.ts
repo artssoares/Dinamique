@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyDiscount, formatCents, parseCents, roundCents, sumCents } from './money.js';
+import { applyDiscount, formatCents, parseCents, roundCents, sumCents } from './money';
 
 describe('parseCents', () => {
   it('parses Brazilian formatting', () => {

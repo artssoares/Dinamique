@@ -5,14 +5,14 @@ import {
   normaliseCode,
   validateCode,
   type CodeRecord,
-} from './codes.js';
+} from './codes';
 import {
   DEFAULT_REFERRAL_DISCOUNT,
   evaluateReferralEligibility,
   isBenefitRedeemable,
   redeemBenefit,
   type BenefitRecord,
-} from './referrals.js';
+} from './referrals';
 
 const NOW = '2026-08-18T12:00:00.000Z';
 

@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import type { AnalyticsEvent } from '@dinamique/types';
-import { supabase } from './supabase.js';
+import { supabase } from './supabase';
 
 /**
  * Product analytics (§110). Fire-and-forget on purpose: a failed event must

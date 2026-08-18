@@ -11,7 +11,7 @@ import {
   typography,
   type ColorSchemeName,
   type ThemeTokens,
-} from '../tokens/index.js';
+} from '../tokens/index';
 
 /**
  * Theme context (§16). Components read tokens from here and never import a

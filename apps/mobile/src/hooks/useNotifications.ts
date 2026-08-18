@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase.js';
-import { useSession } from './useSession.js';
+import { supabase } from '../lib/supabase';
+import { useSession } from './useSession';
 
 export interface NotificationCounts {
   unreadTotal: number;

@@ -1,4 +1,4 @@
-import { amber, blue, coral, green, neutral, red } from './palette.js';
+import { amber, blue, coral, green, neutral, red } from './palette';
 
 /**
  * Semantic design tokens (§16). Components consume ONLY these names — a raw

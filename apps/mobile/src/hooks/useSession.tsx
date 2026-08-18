@@ -8,7 +8,7 @@ import {
 } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import type { PlanCode, ThemePreference } from '@dinamique/types';
-import { supabase } from '../lib/supabase.js';
+import { supabase } from '../lib/supabase';
 
 /**
  * Session, profile and effective plan in one place. Every screen reads plan

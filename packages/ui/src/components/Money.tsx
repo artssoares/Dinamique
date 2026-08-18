@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { StyleProp, TextStyle } from 'react-native';
 import type { Cents } from '@dinamique/types';
 import { formatCents } from '@dinamique/utils';
-import { useTheme } from '../theme/ThemeProvider.js';
-import type { TypographyToken } from '../tokens/index.js';
-import { Text } from './Text.js';
+import { useTheme } from '../theme/ThemeProvider';
+import type { TypographyToken } from '../tokens/index';
+import { Text } from './Text';
 
 export interface MoneyProps {
   value: Cents;

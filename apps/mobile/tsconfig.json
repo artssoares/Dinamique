@@ -4,6 +4,11 @@
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM"],
     "noEmit": true,
+    // Apps never emit declaration files. Leaving `declaration` on from the base
+    // config forces TS to name every inferred type portably, which fails on a
+    // page whose return type resolves through a transitive @types/react.
+    "declaration": false,
+    "declarationMap": false,
     "types": ["react", "react-native"],
     "paths": { "@/*": ["./src/*"] },
     "baseUrl": "."

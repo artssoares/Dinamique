@@ -1,6 +1,6 @@
 import type { Cents, DateOnly, GoalBasis, GoalPeriod } from '@dinamique/types';
 import { elapsedDays, periodRange, rangeLengthDays, roundCents } from '@dinamique/utils';
-import type { PeriodSummary } from './financials.js';
+import type { PeriodSummary } from './financials';
 
 /**
  * Goal maths is fully deterministic — no model, no heuristics. Everything here

@@ -1,6 +1,6 @@
 import { Image, View } from 'react-native';
 import { Text, useTheme } from '@dinamique/ui';
-import { LOGO_ASPECT_RATIO, LOGO_SOURCE } from './logo.js';
+import { LOGO_ASPECT_RATIO, LOGO_SOURCE } from './logo';
 
 const HEIGHTS = { sm: 20, md: 28, lg: 40 } as const;
 

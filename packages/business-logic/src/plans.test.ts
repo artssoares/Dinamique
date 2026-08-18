@@ -6,7 +6,7 @@ import {
   resolveEffectivePlan,
   TRIAL_DAYS,
   type PlanGrant,
-} from './plans.js';
+} from './plans';
 
 const NOW = '2026-08-18T12:00:00.000Z';
 

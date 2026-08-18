@@ -7,7 +7,7 @@ import {
   type ExpenseInput,
   type JourneyInput,
   type RevenueInput,
-} from './financials.js';
+} from './financials';
 
 const journey = (over: Partial<JourneyInput> = {}): JourneyInput => ({
   id: 'j1',

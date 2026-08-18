@@ -3,8 +3,8 @@ import {
   computeGoalProgress,
   deriveGoalSuggestions,
   estimateSecondsToGoal,
-} from './goals.js';
-import { estimateGoalReachDate, projectPeriodTotal } from './projections.js';
+} from './goals';
+import { estimateGoalReachDate, projectPeriodTotal } from './projections';
 
 describe('computeGoalProgress', () => {
   it('clamps progress at 100% when the goal is exceeded', () => {

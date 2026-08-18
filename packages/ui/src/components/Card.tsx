@@ -1,6 +1,6 @@
 import { View, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
-import { useTheme } from '../theme/ThemeProvider.js';
-import type { SpacingToken } from '../tokens/index.js';
+import { useTheme } from '../theme/ThemeProvider';
+import type { SpacingToken } from '../tokens/index';
 
 export interface CardProps extends ViewProps {
   padding?: SpacingToken;

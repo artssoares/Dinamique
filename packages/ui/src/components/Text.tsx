@@ -1,6 +1,6 @@
 import { Text as RNText, type StyleProp, type TextProps as RNTextProps, type TextStyle } from 'react-native';
-import { useTheme } from '../theme/ThemeProvider.js';
-import type { TypographyToken } from '../tokens/index.js';
+import { useTheme } from '../theme/ThemeProvider';
+import type { TypographyToken } from '../tokens/index';
 
 type ColorRole =
   | 'primary'

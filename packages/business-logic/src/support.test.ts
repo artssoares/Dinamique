@@ -7,7 +7,7 @@ import {
   nextTicketStatus,
   timeToFirstResponse,
   timeToResolution,
-} from './support.js';
+} from './support';
 
 describe('nextTicketStatus', () => {
   it('opens as new', () => {

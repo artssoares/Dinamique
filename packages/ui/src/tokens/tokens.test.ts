@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { contrastRatio, WCAG_AA_LARGE, WCAG_AA_NORMAL } from './contrast.js';
-import { blue, coral } from './palette.js';
-import { darkTokens, lightTokens, themes } from './semantic.js';
-import { MIN_TOUCH_TARGET, motion, radius, spacing } from './scale.js';
+import { contrastRatio, WCAG_AA_LARGE, WCAG_AA_NORMAL } from './contrast';
+import { blue, coral } from './palette';
+import { darkTokens, lightTokens, themes } from './semantic';
+import { MIN_TOUCH_TARGET, motion, radius, spacing } from './scale';
 
 describe('brand anchors', () => {
   it('uses the exact logo colours at the 500 step', () => {

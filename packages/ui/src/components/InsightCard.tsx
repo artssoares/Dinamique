@@ -1,8 +1,8 @@
 import { View } from 'react-native';
 import type { Insight } from '@dinamique/business-logic';
-import { useTheme } from '../theme/ThemeProvider.js';
-import { Card } from './Card.js';
-import { Text } from './Text.js';
+import { useTheme } from '../theme/ThemeProvider';
+import { Card } from './Card';
+import { Text } from './Text';
 
 export interface InsightCardProps {
   insight: Insight;

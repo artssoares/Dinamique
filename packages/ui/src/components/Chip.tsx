@@ -1,7 +1,7 @@
 import { Pressable, type StyleProp, type ViewStyle } from 'react-native';
-import { useTheme } from '../theme/ThemeProvider.js';
-import { MIN_TOUCH_TARGET } from '../tokens/index.js';
-import { Text } from './Text.js';
+import { useTheme } from '../theme/ThemeProvider';
+import { MIN_TOUCH_TARGET } from '../tokens/index';
+import { Text } from './Text';
 
 export interface ChipProps {
   label: string;

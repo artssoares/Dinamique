@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { computeDailyScore, scoreLabel, type ScoreInput } from './score.js';
-import { compareToBenchmark, medianCents, MIN_BENCHMARK_SAMPLE } from './benchmark.js';
+import { computeDailyScore, scoreLabel, type ScoreInput } from './score';
+import { compareToBenchmark, medianCents, MIN_BENCHMARK_SAMPLE } from './benchmark';
 
 const input = (over: Partial<ScoreInput> = {}): ScoreInput => ({
   goalTarget: 30_000,

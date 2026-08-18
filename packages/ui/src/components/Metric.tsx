@@ -1,8 +1,8 @@
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 import type { Cents } from '@dinamique/types';
 import { formatCents } from '@dinamique/utils';
-import { useTheme } from '../theme/ThemeProvider.js';
-import { Text } from './Text.js';
+import { useTheme } from '../theme/ThemeProvider';
+import { Text } from './Text';
 
 export interface MetricProps {
   label: string;

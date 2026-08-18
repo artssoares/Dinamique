@@ -8,7 +8,7 @@ import {
   rangeLengthDays,
   startOfWeek,
   weekdayLabel,
-} from './dates.js';
+} from './dates';
 
 describe('date ranges', () => {
   it('starts the week on Monday', () => {

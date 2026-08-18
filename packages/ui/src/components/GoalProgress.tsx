@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 import { Animated, Easing, View, type StyleProp, type ViewStyle } from 'react-native';
 import { formatCents } from '@dinamique/utils';
 import type { GoalProgress as GoalProgressData } from '@dinamique/business-logic';
-import { useTheme } from '../theme/ThemeProvider.js';
-import { Text } from './Text.js';
+import { useTheme } from '../theme/ThemeProvider';
+import { Text } from './Text';
 
 export interface GoalProgressProps {
   progress: GoalProgressData;

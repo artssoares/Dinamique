@@ -1,3 +1,3 @@
-export * from './tokens/index.js';
-export * from './theme/ThemeProvider.js';
-export * from './components/index.js';
+export * from './tokens/index';
+export * from './theme/ThemeProvider';
+export * from './components/index';

@@ -1,6 +1,6 @@
 import type { Cents } from '@dinamique/types';
 import { formatCents, formatPercent } from '@dinamique/utils';
-import type { PeriodSummary } from './financials.js';
+import type { PeriodSummary } from './financials';
 
 /**
  * Insights (§42) are rule-based comparisons, not generated text. Each rule is

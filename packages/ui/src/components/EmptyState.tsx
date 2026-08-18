@@ -1,7 +1,7 @@
 import { View, type StyleProp, type ViewStyle } from 'react-native';
-import { useTheme } from '../theme/ThemeProvider.js';
-import { Button } from './Button.js';
-import { Text } from './Text.js';
+import { useTheme } from '../theme/ThemeProvider';
+import { Button } from './Button';
+import { Text } from './Text';
 
 export interface EmptyStateProps {
   title: string;

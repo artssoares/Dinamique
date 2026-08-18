@@ -6,7 +6,7 @@ import {
   resolveConsumption,
   shouldSuggestMeasuredConsumption,
   suggestMaintenanceReserve,
-} from './vehicle.js';
+} from './vehicle';
 
 describe('computeMeasuredConsumption', () => {
   it('measures consumption tank-to-tank', () => {

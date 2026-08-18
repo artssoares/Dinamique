@@ -7,7 +7,7 @@ import type {
   Seconds,
   Timestamp,
   UUID,
-} from './primitives.js';
+} from './primitives';
 import type {
   AdminRole,
   BenefitStatus,
@@ -32,7 +32,7 @@ import type {
   VehicleOwnership,
   VehicleType,
   WorkMode,
-} from './enums.js';
+} from './enums';
 
 /* ---------------------------------------------------------------- identity */
 
