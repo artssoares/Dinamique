@@ -17,6 +17,12 @@ export interface AdminIdentity {
  * rather than when a token expires.
  */
 export async function requireAdmin(allowed?: AdminRole[]): Promise<AdminIdentity> {
+  // Sem configuração não há sessão possível. O /login explica o que falta;
+  // deixar a exceção subir aqui só produziria um 500 sem informação.
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    redirect('/login');
+  }
+
   const supabase = await getSessionClient();
   const { data: auth } = await supabase.auth.getUser();
 
