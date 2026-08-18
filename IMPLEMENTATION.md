@@ -91,8 +91,8 @@ mockup. Nothing listed as not built is stubbed with a button that does nothing.
 | --- | --- |
 | 7-day trial on signup | **built** |
 | Plan resolution and feature gating | **built** and tested |
-| Upgrade / payment flow | **not built** — no payment provider is integrated, and none is faked |
-| Admin plan grants | **not built** — `subscriptions` supports it; no UI |
+| Upgrade / payment flow | **not built** — nenhum meio de pagamento integrado; a tela diz isso e manda pro suporte |
+| Admin plan grants | **built** — conceder, prazo, cancelar, com Audit Log |
 
 ## Phase 10 — growth
 
@@ -110,7 +110,7 @@ mockup. Nothing listed as not built is stubbed with a button that does nothing.
 | Item | State |
 | --- | --- |
 | Dashboard, support, users, influencers, referrals, codes, audit log | **built** |
-| User detail page, block, promote to admin | **not built** |
+| User detail page, block, promote to admin | **built** — ninguém altera o próprio acesso |
 | Analytics & reports, report builder, cross-filtering | **not built** |
 | Admin exports | **not built** |
 | Vehicle / platform / category CRUD | **not built** |
