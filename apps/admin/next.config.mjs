@@ -7,6 +7,7 @@ const nextConfig = {
     '@dinamique/utils',
     '@dinamique/business-logic',
     '@dinamique/exports',
+    '@dinamique/billing',
   ],
   eslint: { ignoreDuringBuilds: false },
 };

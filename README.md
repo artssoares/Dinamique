@@ -108,6 +108,7 @@ pnpm admin       # Next.js dev server
 | [`NOTIFICATIONS.md`](./NOTIFICATIONS.md) | canais, segmentação, lembretes |
 | [`ADMIN.md`](./ADMIN.md) | papéis, áreas, deploy na Vercel |
 | [`EXPORTS.md`](./EXPORTS.md) | formatos, regras herdadas do app |
+| [`BILLING.md`](./BILLING.md) | Stripe, planos, webhook, desconto de indicação |
 
 ## Two rules the codebase enforces structurally
 

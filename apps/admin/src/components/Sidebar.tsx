@@ -40,6 +40,7 @@ export function Sidebar({
         },
         { href: '/usuarios', label: 'Usuários' },
         { href: '/notificacoes', label: 'Notificações', roles: ['superadmin', 'admin'] },
+        { href: '/assinaturas', label: 'Assinaturas', roles: ['superadmin', 'admin'] },
       ],
     },
     {

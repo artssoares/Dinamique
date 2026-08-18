@@ -91,7 +91,7 @@ mockup. Nothing listed as not built is stubbed with a button that does nothing.
 | --- | --- |
 | 7-day trial on signup | **built** |
 | Plan resolution and feature gating | **built** and tested |
-| Upgrade / payment flow | **not built** — nenhum meio de pagamento integrado; a tela diz isso e manda pro suporte |
+| Upgrade / payment flow | **built** — Stripe com plano anual (R$ 49,90) e mensal (R$ 19,90) |
 | Admin plan grants | **built** — conceder, prazo, cancelar, com Audit Log |
 
 ## Phase 10 — growth

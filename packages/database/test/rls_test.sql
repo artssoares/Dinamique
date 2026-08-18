@@ -390,3 +390,154 @@ begin
   raise notice 'TESTES DE PERMISSÃO PASSARAM';
 end;
 $$;
+
+-- ============================================================================
+-- Quarta bateria: cobrança.
+-- ============================================================================
+do $$
+declare
+  v_user  uuid := gen_random_uuid();
+  v_ref   uuid := gen_random_uuid();
+  v_code  text;
+  v_sub   uuid;
+  v_res   jsonb;
+  v_end   timestamptz := now() + interval '30 days';
+begin
+  insert into auth.users (id, email, raw_user_meta_data) values
+    (v_ref,  'indicador@example.com', '{"full_name":"Indicador"}'::jsonb),
+    (v_user, 'assinante@example.com', '{"full_name":"Assinante"}'::jsonb);
+
+  -- Preços vieram da migration com os valores comerciais.
+  perform assert(
+    (select amount from billing_prices where interval = 'month' and is_active) = 1990,
+    'preço mensal é R$ 19,90');
+  perform assert(
+    (select amount from billing_prices where interval = 'year' and is_active) = 4990,
+    'preço anual é R$ 49,90');
+
+  -- O assinante entrou por indicação e ganhou o desconto.
+  select code into v_code from promotion_codes where owner_user_id = v_ref;
+  perform login_as(v_user);
+  perform redeem_code(v_code);
+  reset role;
+
+  perform assert(
+    (select amount from discount_benefits where user_id = v_user and status = 'granted') = 1000,
+    'o indicado recebeu R$ 10 de desconto');
+
+  -- ------------------------------------------------- assinatura ativada -----
+  select apply_subscription_state(
+    v_user, 'sub_teste', 'price_mensal', 'month'::billing_interval,
+    'active'::billing_status, v_end, false
+  ) into v_sub;
+
+  perform assert(
+    (select plan from current_plans where user_id = v_user) = 'pro',
+    'assinatura ativa concede Pro');
+  perform assert(
+    (select expires_at from subscriptions where id = v_sub) = v_end,
+    'o fim do período pago vira a validade do plano');
+
+  -- Reprocessar o MESMO evento não pode criar segunda assinatura.
+  perform apply_subscription_state(
+    v_user, 'sub_teste', 'price_mensal', 'month'::billing_interval,
+    'active'::billing_status, v_end, false
+  );
+  perform assert(
+    (select count(*) from subscriptions where stripe_subscription_id = 'sub_teste') = 1,
+    'reenvio do webhook não duplica assinatura');
+
+  -- ---------------------------------------------------- desconto usado ------
+  select consume_discount_benefit(v_user, 'sub_teste') into v_res;
+  perform assert((v_res ->> 'applied')::boolean, 'o desconto é consumido na assinatura');
+  perform assert((v_res ->> 'amount')::bigint = 1000, 'o valor consumido é R$ 10');
+
+  -- E não pode ser usado de novo numa renovação.
+  select consume_discount_benefit(v_user, 'sub_teste') into v_res;
+  perform assert(not (v_res ->> 'applied')::boolean,
+    'o desconto vale uma vez só, mesmo na renovação (§85)');
+
+  perform mark_referral_converted(v_user);
+  perform assert(
+    (select status from referrals where referred_user_id = v_user) = 'converted',
+    'a indicação é marcada como convertida quando o indicado assina (§87)');
+
+  -- -------------------------------------------------- cobrança falhando -----
+  perform apply_subscription_state(
+    v_user, 'sub_teste', 'price_mensal', 'month'::billing_interval,
+    'past_due'::billing_status, v_end, false
+  );
+  perform assert(
+    (select plan from current_plans where user_id = v_user) = 'pro',
+    'past_due mantém o Pro enquanto o Stripe ainda tenta cobrar');
+
+  -- ------------------------------------------------------- cancelamento -----
+  perform apply_subscription_state(
+    v_user, 'sub_teste', 'price_mensal', 'month'::billing_interval,
+    'canceled'::billing_status, now() - interval '1 day', false
+  );
+
+  -- A assinatura paga deixa de valer imediatamente...
+  perform assert(
+    (select count(*) from subscriptions
+     where stripe_subscription_id = 'sub_teste'
+       and cancelled_at is not null) = 1,
+    'cancelamento marca a assinatura como cancelada');
+
+  -- ...mas o trial de 7 dias do cadastro continua de pé, e isso está certo:
+  -- quem cancela dentro do período de teste não perde os dias que sobraram.
+  perform assert(
+    (select plan from current_plans where user_id = v_user) = 'pro'
+    and (select is_trial from current_plans where user_id = v_user),
+    'cancelar a assinatura paga não tira o trial que ainda está valendo');
+
+  -- Sem o trial, aí sim volta para o Free.
+  update subscriptions set cancelled_at = now()
+  where user_id = v_user and source = 'trial';
+
+  perform assert(
+    (select plan from current_plans where user_id = v_user) = 'free',
+    'sem assinatura e sem trial, o usuário volta ao Free');
+
+  -- --------------------------------------------- cancelamento agendado ------
+  perform apply_subscription_state(
+    v_user, 'sub_agendada', 'price_anual', 'year'::billing_interval,
+    'active'::billing_status, v_end, true
+  );
+  perform assert(
+    (select plan from current_plans where user_id = v_user) = 'pro',
+    'cancelamento agendado mantém o acesso até o fim do período pago');
+  perform assert(
+    (select cancel_at_period_end from subscriptions where stripe_subscription_id = 'sub_agendada'),
+    'o cancelamento agendado fica registrado');
+
+  -- ------------------------------------------------------- permissões -------
+  perform login_as(v_user);
+  begin
+    insert into billing_prices (plan, interval, amount) values ('pro', 'month', 1);
+    reset role;
+    perform assert(false, 'usuário não deveria criar preço');
+  exception when others then
+    reset role;
+    perform assert(true, 'o usuário não pode inventar um preço para si');
+  end;
+
+  perform login_as(v_user);
+  begin
+    update subscriptions set billing_status = 'active', expires_at = now() + interval '10 years'
+    where user_id = v_user;
+    reset role;
+    perform assert(
+      (select plan from current_plans where user_id = v_user) = 'pro'
+      and (select count(*) from subscriptions
+           where user_id = v_user and expires_at > now() + interval '5 years') = 0,
+      'o usuário não consegue estender a própria assinatura');
+  exception when insufficient_privilege then
+    reset role;
+    perform assert(true, 'o usuário não pode alterar a própria assinatura');
+  end;
+
+  raise notice '';
+  raise notice 'TESTES DE COBRANÇA PASSARAM';
+end;
+$$;

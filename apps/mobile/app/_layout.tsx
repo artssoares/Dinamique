@@ -57,6 +57,7 @@ function RootNavigator() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="support" options={{ presentation: 'card' }} />
+      <Stack.Screen name="assinatura" options={{ presentation: 'card' }} />
       </Stack>
     </>
   );
