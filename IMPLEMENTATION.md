@@ -23,8 +23,8 @@ mockup. Nothing listed as not built is stubbed with a button that does nothing.
 | Onboarding (work modes, platforms, first goals) | **built** |
 | Navigation shell, 5 tabs | **built** |
 | Theme switching, persisted | **built** |
-| Profile editing, avatar upload | **not built** — `/profile` says so |
-| Vehicle registration and catalogue picker | **not built** — `/vehicle` says so |
+| Profile editing, avatar upload | **built** — image compressed before upload |
+| Vehicle registration and catalogue picker | **built** — 16 makes, 54 models, 58 versions |
 | Product tour | **not built** — `tour_steps` seeded and admin-editable |
 
 ## Phase 3–4 — the daily loop
@@ -37,7 +37,7 @@ mockup. Nothing listed as not built is stubbed with a button that does nothing.
 | Home: goal, profit, R$/h, R$/km, time-to-goal | **built** |
 | Fuel entry screen | **not built** — schema and consumption maths done and tested |
 | Guided journey close (revenue per platform, km, quick expense chips) | **not built** — the parts exist separately |
-| Goal management screen | **not built** — `/goals` says so; onboarding creates the first goals |
+| Goal management screen | **built** — create, edit and remove per period |
 
 ## Phase 5 — history and insights
 
@@ -120,5 +120,3 @@ fuel logs so idempotent sync can be added without a migration.
 - **The logo is not in the repository.** `<BrandMark>` renders a visible
   placeholder. See `assets/brand/README.md`.
 - **Tab icons** are placeholder glyphs, not a finished icon set.
-- **The vehicle catalogue is empty.** The three-level schema and CSV/XLSX import
-  path are designed but no data is loaded.

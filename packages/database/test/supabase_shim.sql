@@ -31,3 +31,37 @@ exception when duplicate_object then null; end $$;
 do $$ begin
   create role service_role nologin bypassrls;
 exception when duplicate_object then null; end $$;
+
+-- ---------------------------------------------------------------- storage --
+-- Reprodução mínima do schema de arquivos da Supabase, só o suficiente para
+-- que as políticas dos buckets sejam validadas localmente.
+create schema if not exists storage;
+
+create table if not exists storage.buckets (
+  id                 text primary key,
+  name               text not null,
+  public             boolean default false,
+  file_size_limit    bigint,
+  allowed_mime_types text[],
+  created_at         timestamptz default now()
+);
+
+create table if not exists storage.objects (
+  id         uuid primary key default gen_random_uuid(),
+  bucket_id  text references storage.buckets(id),
+  name       text not null,
+  owner      uuid,
+  created_at timestamptz default now()
+);
+
+alter table storage.objects enable row level security;
+
+-- A Supabase expõe esta função; as políticas dependem dela para descobrir a
+-- primeira pasta do caminho (que é sempre o id do usuário).
+create or replace function storage.foldername(name text)
+returns text[]
+language sql
+immutable
+as $$
+  select string_to_array(name, '/');
+$$;

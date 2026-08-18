@@ -29,11 +29,11 @@ export default function TabsLayout() {
     >
       <Tabs.Screen
         name="index"
-        options={{ title: 'Hoje', tabBarIcon: ({ color }) => <TabGlyph label="◎" color={color} /> }}
+        options={{ title: 'Hoje', tabBarIcon: ({ color }: { color: string }) => <TabGlyph label="◎" color={color} /> }}
       />
       <Tabs.Screen
         name="history"
-        options={{ title: 'Histórico', tabBarIcon: ({ color }) => <TabGlyph label="▤" color={color} /> }}
+        options={{ title: 'Histórico', tabBarIcon: ({ color }: { color: string }) => <TabGlyph label="▤" color={color} /> }}
       />
       <Tabs.Screen
         name="record"
@@ -44,13 +44,13 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="insights"
-        options={{ title: 'Insights', tabBarIcon: ({ color }) => <TabGlyph label="◈" color={color} /> }}
+        options={{ title: 'Insights', tabBarIcon: ({ color }: { color: string }) => <TabGlyph label="◈" color={color} /> }}
       />
       <Tabs.Screen
         name="more"
         options={{
           title: 'Mais',
-          tabBarIcon: ({ color }) => <TabGlyph label="⋯" color={color} />,
+          tabBarIcon: ({ color }: { color: string }) => <TabGlyph label="⋯" color={color} />,
           tabBarBadge: unreadTotal > 0 ? unreadTotal : undefined,
         }}
       />

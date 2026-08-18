@@ -9,3 +9,6 @@ export * from './Chip';
 export * from './Badge';
 export * from './InsightCard';
 export * from './Skeleton';
+export * from './Avatar';
+export * from './Field';
+export * from './Select';
