@@ -14,6 +14,14 @@ export PGHOST PGPORT PGUSER PGPASSWORD="${PGPASSWORD:-postgres}"
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# These tests need a real Postgres. Without one we skip loudly rather than
+# failing the whole workspace test run on a machine that has no database.
+if ! pg_isready -q 2>/dev/null; then
+  echo "SKIP  no Postgres reachable at ${PGHOST}:${PGPORT}."
+  echo "      Start one with \`supabase start\`, or set PGHOST/PGPORT."
+  exit 0
+fi
+
 psql -q -c "drop database if exists ${DB};" -c "create database ${DB};"
 
 # The shim provides the auth schema locally; a real Supabase project has it.

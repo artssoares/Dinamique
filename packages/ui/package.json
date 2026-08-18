@@ -9,7 +9,24 @@
     ".": "./src/index.ts",
     "./tokens": "./src/tokens/index.ts"
   },
-  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run" },
-  "dependencies": { "@dinamique/types": "workspace:*" },
-  "devDependencies": { "typescript": "^5.7.3", "vitest": "^3.0.5" }
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dinamique/types": "workspace:*",
+    "@dinamique/utils": "workspace:*",
+    "@dinamique/business-logic": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5",
+    "react": "18.3.1",
+    "react-native": "0.76.7",
+    "@types/react": "~18.3.12"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-native": ">=0.76"
+  }
 }
