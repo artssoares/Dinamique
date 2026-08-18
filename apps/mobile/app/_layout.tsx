@@ -8,6 +8,7 @@ import { ThemeProvider, useTheme } from '@dinamique/ui';
 import { SessionProvider, useSession } from '@/hooks/useSession';
 import { OfflineProvider } from '@/features/offline/useOfflineSync';
 import { OfflineBanner } from '@/features/offline/OfflineBanner';
+import { Tour } from '@/features/tour/Tour';
 
 /**
  * Routing guard. Three destinations depending on session state:
@@ -67,6 +68,7 @@ function ThemedApp() {
     <ThemeProvider initialPreference={profile?.theme ?? 'system'}>
       <StatusBarBridge />
       <RootNavigator />
+      <Tour />
     </ThemeProvider>
   );
 }

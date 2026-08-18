@@ -25,7 +25,7 @@ mockup. Nothing listed as not built is stubbed with a button that does nothing.
 | Theme switching, persisted | **built** |
 | Profile editing, avatar upload | **built** — image compressed before upload |
 | Vehicle registration and catalogue picker | **built** — 16 makes, 54 models, 58 versions |
-| Product tour | **not built** — `tour_steps` seeded and admin-editable |
+| Product tour | **built** — conteúdo vem do banco, editável pelo Admin |
 
 ## Phase 3–4 — the daily loop
 

@@ -24,6 +24,7 @@ export interface SessionProfile {
   state: string | null;
   workModes: string[];
   onboardingCompletedAt: string | null;
+  tourCompletedAt: string | null;
   theme: ThemePreference;
 }
 
@@ -50,7 +51,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const [profileResult, planResult] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, first_name, preferred_name, avatar_path, city, state, work_modes, onboarding_completed_at, user_preferences(theme)')
+        .select('id, first_name, preferred_name, avatar_path, city, state, work_modes, onboarding_completed_at, tour_completed_at, user_preferences(theme)')
         .eq('id', userId)
         .maybeSingle(),
       supabase.from('current_plans').select('plan, is_trial').eq('user_id', userId).maybeSingle(),
@@ -71,6 +72,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             state: (row.state as string | null) ?? null,
             workModes: (row.work_modes as string[] | null) ?? [],
             onboardingCompletedAt: (row.onboarding_completed_at as string | null) ?? null,
+            tourCompletedAt: (row.tour_completed_at as string | null) ?? null,
             theme: row.user_preferences?.theme ?? 'system',
           }
         : null,
