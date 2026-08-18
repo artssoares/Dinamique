@@ -541,3 +541,134 @@ begin
   raise notice 'TESTES DE COBRANÇA PASSARAM';
 end;
 $$;
+
+-- ============================================================================
+-- Quinta bateria: superfície exposta pela API.
+--
+-- Esta bateria existe porque um furo real passou despercebido: as funções de
+-- servidor estavam chamáveis SEM LOGIN no projeto de produção, e os testes não
+-- pegaram porque o ambiente local não reproduzia os default privileges da
+-- Supabase. Agora reproduz, e estas asserções falham se alguém adicionar uma
+-- função nova sem trancar a porta.
+-- ============================================================================
+do $$
+declare
+  v_aberta text;
+  v_view   text;
+begin
+  -- A verificação é por LISTA DE PERMISSÃO, não por lista de proibição: toda
+  -- função nossa é considerada fechada até prova em contrário. Assim, uma
+  -- função criada amanhã sem `revoke` quebra este teste sozinha, sem ninguém
+  -- precisar lembrar de vir aqui adicioná-la.
+  --
+  -- Ficam de fora as funções que vêm de extensões (citext, pgcrypto), que o
+  -- Postgres instala abertas e não expõem nada nosso, e as duas ajudantes
+  -- deste próprio arquivo de teste.
+
+  -- Nada nosso pode ser executável SEM LOGIN.
+  --
+  -- Atenção ao detalhe que causou a segunda rodada de correção: o Postgres
+  -- concede EXECUTE ao pseudo-papel PUBLIC em toda função nova, e `anon`
+  -- herda de PUBLIC. Por isso `has_function_privilege` continua verdadeiro
+  -- mesmo depois de revogar de `anon` — só revogar de `public` fecha.
+  select string_agg(p.proname, ', ' order by p.proname) into v_aberta
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public'
+    and p.prokind = 'f'
+    and not exists (
+      select 1 from pg_depend d
+      where d.objid = p.oid
+        and d.classid = 'pg_proc'::regclass
+        and d.deptype = 'e'
+    )
+    and p.proname not in (
+      -- Abertas de propósito: só respondem sobre quem está perguntando ou
+      -- sobre uma configuração pública, e são usadas dentro das políticas
+      -- de RLS — sem execução, toda política que as usa falharia.
+      'is_admin', 'has_admin_role', 'benchmark_min_sample',
+      -- Ajudantes deste arquivo de teste, que não existem em produção.
+      'assert', 'login_as'
+    )
+    and has_function_privilege('anon', p.oid, 'EXECUTE');
+
+  perform assert(v_aberta is null,
+    'nenhuma função nossa é chamável sem login' ||
+    coalesce(' — ABERTAS: ' || v_aberta, ''));
+
+  -- Nem por usuário logado, salvo as duas que são ação dele mesmo.
+  select string_agg(p.proname, ', ' order by p.proname) into v_aberta
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public'
+    and p.prokind = 'f'
+    and not exists (
+      select 1 from pg_depend d
+      where d.objid = p.oid
+        and d.classid = 'pg_proc'::regclass
+        and d.deptype = 'e'
+    )
+    and p.proname not in (
+      'is_admin', 'has_admin_role', 'benchmark_min_sample',
+      'assert', 'login_as',
+      -- Ações do próprio usuário: resgatar um código (com todo o antifraude
+      -- rodando dentro) e marcar o próprio atendimento como lido.
+      'redeem_code', 'mark_ticket_read'
+    )
+    and has_function_privilege('authenticated', p.oid, 'EXECUTE');
+
+  perform assert(v_aberta is null,
+    'nenhuma função de servidor é chamável por usuário logado' ||
+    coalesce(' — ABERTAS: ' || v_aberta, ''));
+
+  -- O que É para o usuário chamar continua funcionando. Um `revoke` largo
+  -- demais quebraria o resgate de código e o suporte sem quebrar nada acima,
+  -- então as duas portas que devem ficar abertas são afirmadas explicitamente.
+  perform assert(
+    has_function_privilege('authenticated', 'redeem_code(text)'::regprocedure, 'EXECUTE'),
+    'o usuário logado continua podendo resgatar um código');
+  perform assert(
+    not has_function_privilege('anon', 'redeem_code(text)'::regprocedure, 'EXECUTE'),
+    'resgatar código exige login');
+  perform assert(
+    has_function_privilege('authenticated', 'mark_ticket_read(uuid)'::regprocedure, 'EXECUTE'),
+    'o usuário logado continua podendo marcar o atendimento como lido');
+  perform assert(
+    not has_function_privilege('anon', 'mark_ticket_read(uuid)'::regprocedure, 'EXECUTE'),
+    'marcar atendimento como lido exige login');
+
+  -- O cadastro depende do gatilho em auth.users: se o papel de autenticação
+  -- da Supabase existir, ele precisa continuar podendo executá-lo.
+  if exists (select 1 from pg_roles where rolname = 'supabase_auth_admin') then
+    perform assert(
+      has_function_privilege('supabase_auth_admin', 'handle_new_user()'::regprocedure, 'EXECUTE'),
+      'o serviço de autenticação continua podendo criar a conta');
+  end if;
+
+  -- Toda view legível pelo usuário precisa respeitar o RLS, com uma exceção
+  -- nomeada: as agregadas do benchmark, que existem justamente para cruzar
+  -- usuários e nunca devolvem linha individual.
+  select string_agg(c.relname, ', ') into v_view
+  from pg_class c
+  join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public'
+    and c.relkind = 'v'
+    and has_table_privilege('authenticated', c.oid, 'SELECT')
+    and coalesce(
+          (select option_value from pg_options_to_table(c.reloptions)
+           where option_name = 'security_invoker'), 'false') <> 'true'
+    and c.relname not in ('benchmark_buckets', 'benchmark_national');
+
+  perform assert(v_view is null,
+    'toda view legível pelo usuário respeita o RLS' ||
+    coalesce(' — IGNORAM: ' || v_view, ''));
+
+  -- A view por usuário do benchmark não pode ser lida por ninguém.
+  perform assert(
+    not has_table_privilege('authenticated', 'benchmark_user_metrics'::regclass, 'SELECT'),
+    'a base do benchmark não é legível pelo usuário');
+
+  raise notice '';
+  raise notice 'TESTES DE SUPERFÍCIE EXPOSTA PASSARAM';
+end;
+$$;

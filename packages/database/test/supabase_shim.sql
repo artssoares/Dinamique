@@ -32,6 +32,12 @@ do $$ begin
   create role service_role nologin bypassrls;
 exception when duplicate_object then null; end $$;
 
+-- Papel do serviço de autenticação da Supabase. É ele quem insere em
+-- auth.users, e portanto quem dispara o gatilho de criação de conta.
+do $$ begin
+  create role supabase_auth_admin nologin;
+exception when duplicate_object then null; end $$;
+
 -- ---------------------------------------------------------------- storage --
 -- Reprodução mínima do schema de arquivos da Supabase, só o suficiente para
 -- que as políticas dos buckets sejam validadas localmente.
@@ -65,3 +71,14 @@ immutable
 as $$
   select string_to_array(name, '/');
 $$;
+
+-- ---------------------------------------------------------------- padrões --
+-- A Supabase concede EXECUTE em toda função nova para `anon` e `authenticated`
+-- por meio de default privileges. O ambiente de teste NÃO reproduzia isso, e
+-- foi por isso que os testes passaram enquanto `apply_subscription_state`
+-- estava acessível sem login no projeto real.
+--
+-- Reproduzir o padrão aqui faz com que um `revoke ... from public` sozinho
+-- volte a falhar no teste, como falha na produção.
+alter default privileges in schema public grant execute on functions to anon, authenticated;
+alter default privileges in schema public grant select on tables to anon, authenticated;
