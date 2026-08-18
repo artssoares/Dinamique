@@ -147,7 +147,9 @@ export default async function Users({
               {users.map((user) => (
                 <tr key={user.id}>
                   <td style={{ fontWeight: 600 }}>
-                    {[user.first_name, user.last_name].filter(Boolean).join(' ')}
+                    <Link href={`/usuarios/${user.id}`}>
+                      {[user.first_name, user.last_name].filter(Boolean).join(' ')}
+                    </Link>
                   </td>
                   <td className="small">{user.email}</td>
                   <td className="small">
