@@ -7,10 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@dinamique/business-logic": "workspace:*",
+    "@dinamique/exports": "workspace:*",
     "@dinamique/types": "workspace:*",
     "@dinamique/utils": "workspace:*",
     "@supabase/ssr": "^0.5.2",
@@ -23,6 +25,7 @@
     "@types/node": "^22.10.7",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
   }
 }

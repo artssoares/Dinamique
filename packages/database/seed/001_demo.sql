@@ -141,8 +141,13 @@ begin
   end loop;
 
   -- Support conversation, mid-flight
-  insert into support_tickets (user_id, category_id, subject, status, app_version)
-  values (v_arthur, v_support_cat, 'Não consigo exportar meu relatório', 'awaiting_user', '0.1.0')
+  -- O ticket precisa ser mais antigo que suas mensagens, senão o tempo até a
+  -- primeira resposta sai negativo nos relatórios.
+  insert into support_tickets (
+    user_id, category_id, subject, status, app_version, created_at, first_agent_reply_at
+  )
+  values (v_arthur, v_support_cat, 'Não consigo exportar meu relatório', 'awaiting_user', '0.1.0',
+          now() - interval '2 days' - interval '10 minutes', null)
   returning id into v_ticket;
 
   insert into support_messages (ticket_id, author_kind, author_id, body, created_at)
@@ -204,6 +209,24 @@ begin
         is_demo = true
     where id = v_peer;
 
+    -- Um veículo por motorista, escolhido do catálogo, para os relatórios de
+    -- veículo terem o que agrupar.
+    insert into user_vehicles (user_id, vehicle_type, version_id, ownership, model_year,
+                               fuel_type, estimated_consumption, is_primary)
+    select v_peer,
+           case when i % 5 = 0 then 'motorcycle'::vehicle_type else 'car'::vehicle_type end,
+           vv.id,
+           (array['owned','financed','rented']::vehicle_ownership[])[1 + (i % 3)],
+           coalesce(vv.year_from, 2020),
+           vv.fuel_type,
+           vv.urban_consumption,
+           true
+    from vehicle_versions vv
+    join vehicle_models vm on vm.id = vv.model_id
+    where vm.vehicle_type = case when i % 5 = 0 then 'motorcycle'::vehicle_type else 'car'::vehicle_type end
+    order by md5(vv.id::text || i::text)
+    limit 1;
+
     -- Two weeks of history each: enough for medians to be meaningful.
     for v_offset in 0..13 loop
       v_day := current_date - v_offset;
@@ -231,14 +254,23 @@ begin
 
     -- A few tickets and referrals so the admin lists are not empty.
     if i % 6 = 0 then
-      insert into support_tickets (user_id, subject, status)
+      insert into support_tickets (user_id, subject, status, created_at)
       values (v_peer, 'Dúvida sobre o cálculo de lucro',
               case when i % 12 = 0 then 'new'::support_ticket_status
-                   else 'in_progress'::support_ticket_status end)
+                   else 'in_progress'::support_ticket_status end,
+              now() - make_interval(days => (i % 9) + 1))
       returning id into v_ticket;
 
-      insert into support_messages (ticket_id, author_kind, author_id, body)
-      values (v_ticket, 'user', v_peer, 'O lucro mostrado considera o combustível?');
+      insert into support_messages (ticket_id, author_kind, author_id, body, created_at)
+      values (v_ticket, 'user', v_peer, 'O lucro mostrado considera o combustível?',
+              now() - make_interval(days => (i % 9) + 1));
+
+      -- Parte dos tickets já respondida, para o relatório de SLA ter dado.
+      if i % 12 <> 0 then
+        insert into support_messages (ticket_id, author_kind, body, created_at)
+        values (v_ticket, 'agent', 'Considera sim: o combustível entra como despesa.',
+                now() - make_interval(days => (i % 9) + 1) + make_interval(hours => 2 + (i % 5)));
+      end if;
     end if;
 
     if i % 4 = 0 then

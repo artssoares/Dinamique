@@ -6,6 +6,7 @@ const nextConfig = {
     '@dinamique/types',
     '@dinamique/utils',
     '@dinamique/business-logic',
+    '@dinamique/exports',
   ],
   eslint: { ignoreDuringBuilds: false },
 };

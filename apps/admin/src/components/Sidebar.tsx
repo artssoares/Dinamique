@@ -51,8 +51,18 @@ export function Sidebar({
       ],
     },
     {
+      title: 'INTELIGÊNCIA',
+      items: [
+        { href: '/analytics', label: 'Analytics', roles: ['superadmin', 'admin', 'analyst'] },
+        { href: '/relatorios', label: 'Relatórios', roles: ['superadmin', 'admin', 'analyst'] },
+      ],
+    },
+    {
       title: 'SISTEMA',
-      items: [{ href: '/logs', label: 'Audit Log', roles: ['superadmin', 'admin'] }],
+      items: [
+        { href: '/catalogos', label: 'Catálogos', roles: ['superadmin', 'admin', 'content'] },
+        { href: '/logs', label: 'Audit Log', roles: ['superadmin', 'admin'] },
+      ],
     },
   ];
 

@@ -111,10 +111,14 @@ mockup. Nothing listed as not built is stubbed with a button that does nothing.
 | --- | --- |
 | Dashboard, support, users, influencers, referrals, codes, audit log | **built** |
 | User detail page, block, promote to admin | **built** — ninguém altera o próprio acesso |
-| Analytics & reports, report builder, cross-filtering | **not built** |
-| Admin exports | **not built** |
-| Vehicle / platform / category CRUD | **not built** |
-| Insight and tour editors | **not built** — both are admin-editable tables already |
+| Analytics de aquisição, plataformas, veículos e suporte | **built** |
+| Report builder com dimensões e filtros cruzados | **built** |
+| Exportação do Admin em XLSX e CSV | **built** — com Audit Log |
+| CRUD de plataformas, categorias, manutenção, suporte, tour | **built** |
+| Importação de veículos por CSV | **built** — com erro legível por linha |
+| Editor de regras de insight | **built** |
+| Relatórios salvos | **not built** — tabela existe, tela não |
+| Gráficos | **not built** — os relatórios são tabelas |
 
 ## Phase 13 — offline
 
