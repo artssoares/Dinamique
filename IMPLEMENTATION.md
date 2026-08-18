@@ -58,7 +58,7 @@ mockup. Nothing listed as not built is stubbed with a button that does nothing.
 | Manutenção com lembrete por km ou data | **built** |
 | Multas com prazo de desconto | **built** |
 | Free Flow manual com lembrete | **built** |
-| Notificações automáticas dos lembretes | **not built** — o campo `remind_at` é gravado; falta o job que dispara |
+| Notificações automáticas dos lembretes | **built** — `process_reminders()`, idempotente, agendável por pg_cron |
 
 ## Phase 7 — notifications and support
 
@@ -68,9 +68,9 @@ mockup. Nothing listed as not built is stubbed with a button that does nothing.
 | Bell and support badges, Realtime | **built** |
 | Support inbox, new ticket, conversation | **built** |
 | Admin inbox, reply, internal notes, assign, status | **built** |
-| Push notifications | **not built** |
+| Push notifications | **parcial** — registro de token e Edge Function escritos; a chamada à API da Expo não foi verificada (exige credenciais) |
 | Attachments | **not built** — column exists |
-| Admin notification composer (§99, §100) | **not built** |
+| Admin notification composer (§99, §100) | **built** — segmentação por cidade, estado, modalidade, plano e atividade |
 
 ## Phase 8 — exports
 
