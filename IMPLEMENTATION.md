@@ -35,8 +35,8 @@ mockup. Nothing listed as not built is stubbed with a button that does nothing.
 | Revenue entry with platform and trip count | **built** |
 | Expense entry with category | **built** |
 | Home: goal, profit, R$/h, R$/km, time-to-goal | **built** |
-| Fuel entry screen | **not built** — schema and consumption maths done and tested |
-| Guided journey close (revenue per platform, km, quick expense chips) | **not built** — the parts exist separately |
+| Fuel entry screen | **built** — informe dois valores, o terceiro é calculado |
+| Guided journey close (revenue per platform, km, quick expense chips) | **built** — três passos e um resumo |
 | Goal management screen | **built** — create, edit and remove per period |
 
 ## Phase 5 — history and insights

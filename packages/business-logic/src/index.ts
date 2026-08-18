@@ -3,6 +3,7 @@ export * from './goals';
 export * from './projections';
 export * from './score';
 export * from './vehicle';
+export * from './fuel';
 export * from './benchmark';
 export * from './insights';
 export * from './codes';

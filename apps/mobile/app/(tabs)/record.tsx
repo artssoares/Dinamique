@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatDuration, parseCents, toDateOnly } from '@dinamique/utils';
 import { Button, Card, Chip, Text, useTheme } from '@dinamique/ui';
@@ -16,8 +17,9 @@ type Mode = 'revenue' | 'expense';
 export default function Record() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { session } = useSession();
-  const { journey, start, pause, resume, finish, refresh } = useActiveJourney();
+  const { journey, start, pause, resume, refresh } = useActiveJourney();
 
   const [mode, setMode] = useState<Mode>('revenue');
   const [amount, setAmount] = useState('');
@@ -97,12 +99,13 @@ export default function Record() {
         onStart={() => start(null)}
         onPause={pause}
         onResume={resume}
-        onFinish={() => finish({ odometerEnd: null, distanceOverride: null })}
+        onFinish={() => router.push('/journey/close')}
       />
 
-      <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+      <View style={{ flexDirection: 'row', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
         <Chip label="Ganho" selected={mode === 'revenue'} onPress={() => setMode('revenue')} />
         <Chip label="Gasto" selected={mode === 'expense'} onPress={() => setMode('expense')} />
+        <Chip label="Abastecimento" onPress={() => router.push('/fuel')} />
       </View>
 
       <Card padding="xl" style={{ gap: theme.spacing.lg }}>
