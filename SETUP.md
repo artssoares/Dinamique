@@ -100,6 +100,23 @@ outra fonte.
 
 ---
 
+## Arquivos para colar no SQL Editor da Supabase
+
+Estes dois arquivos existem para serem copiados inteiros e colados no SQL
+Editor do projeto na Supabase. Os dois podem ser rodados quantas vezes quiser,
+sem estragar nada.
+
+| Arquivo | Para quê | Quando rodar |
+| --- | --- | --- |
+| [`supabase/setup.sql`](./supabase/setup.sql) | Cria o banco inteiro: tabelas, permissões, funções e dados de referência. | Uma vez, no começo. |
+| [`supabase/correcao-seguranca.sql`](./supabase/correcao-seguranca.sql) | Fecha as permissões que a Supabase e o Postgres deixam abertas por padrão. Já está dentro do `setup.sql`; existe separado para quem criou o banco antes desta correção. | Se você rodou o `setup.sql` antes de 18/08. |
+| [`supabase/virar-admin.sql`](./supabase/virar-admin.sql) | Transforma a sua conta em administrador do painel. | Depois de criar sua conta no aplicativo. |
+
+O `virar-admin.sql` procura pelo e-mail do cadastro — troque o e-mail dentro do
+arquivo se você usou outro.
+
+---
+
 ## Rodando na sua máquina
 
 ```bash
