@@ -104,6 +104,10 @@ pnpm admin       # Next.js dev server
 | [`IMPLEMENTATION.md`](./IMPLEMENTATION.md) | phase plan and current status |
 | [`SUPPORT.md`](./SUPPORT.md) | ticket lifecycle, notifications, internal notes |
 | [`REFERRALS.md`](./REFERRALS.md) | codes, referrals, influencers, discounts, antifraud |
+| [`ANALYTICS.md`](./ANALYTICS.md) | camada analítica, report builder, eventos |
+| [`NOTIFICATIONS.md`](./NOTIFICATIONS.md) | canais, segmentação, lembretes |
+| [`ADMIN.md`](./ADMIN.md) | papéis, áreas, deploy na Vercel |
+| [`EXPORTS.md`](./EXPORTS.md) | formatos, regras herdadas do app |
 
 ## Two rules the codebase enforces structurally
 

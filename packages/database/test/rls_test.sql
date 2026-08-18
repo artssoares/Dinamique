@@ -317,3 +317,76 @@ begin
   raise notice 'TESTES DE NOTIFICAÇÃO PASSARAM';
 end;
 $$;
+
+-- ============================================================================
+-- Terceira bateria: permissões finas.
+-- ============================================================================
+do $$
+declare
+  v_user uuid := gen_random_uuid();
+  v_note uuid;
+begin
+  insert into auth.users (id, email) values (v_user, 'grants@example.com');
+
+  insert into user_notifications (user_id, category, title, body)
+  values (v_user, 'system', 'Original', 'Corpo original')
+  returning id into v_note;
+
+  -- Marcar como lida precisa funcionar.
+  perform login_as(v_user);
+  update user_notifications set read_at = now() where id = v_note;
+  reset role;
+  perform assert(
+    (select read_at is not null from user_notifications where id = v_note),
+    'o usuário consegue marcar a própria notificação como lida');
+
+  -- Reescrever o texto NÃO pode.
+  perform login_as(v_user);
+  begin
+    update user_notifications set title = 'ADULTERADO' where id = v_note;
+    reset role;
+    perform assert(false, 'usuário não deveria reescrever o texto da notificação');
+  exception when insufficient_privilege then
+    reset role;
+    perform assert(true, 'o usuário não pode reescrever o texto da notificação');
+  end;
+
+  -- Criar notificação para si mesmo também não.
+  perform login_as(v_user);
+  begin
+    insert into user_notifications (user_id, category, title, body)
+    values (v_user, 'promotions', 'Ganhei Pro', 'Sério');
+    reset role;
+    perform assert(false, 'usuário não deveria criar notificação');
+  exception when insufficient_privilege then
+    reset role;
+    perform assert(true, 'o usuário não pode criar notificação para si mesmo');
+  end;
+
+  -- E não pode se dar um plano.
+  perform login_as(v_user);
+  begin
+    insert into subscriptions (user_id, plan, source) values (v_user, 'pro', 'subscription');
+    reset role;
+    perform assert(false, 'usuário não deveria conceder plano a si mesmo');
+  exception when insufficient_privilege then
+    reset role;
+    perform assert(true, 'o usuário não pode conceder Pro a si mesmo');
+  end;
+
+  -- Nem criar um código de indicação com o benefício que quiser.
+  perform login_as(v_user);
+  begin
+    insert into promotion_codes (code, kind, owner_user_id, benefit_amount)
+    values ('GRATIS99', 'campaign', v_user, 9900000);
+    reset role;
+    perform assert(false, 'usuário não deveria criar código promocional');
+  exception when insufficient_privilege then
+    reset role;
+    perform assert(true, 'o usuário não pode criar código promocional');
+  end;
+
+  raise notice '';
+  raise notice 'TESTES DE PERMISSÃO PASSARAM';
+end;
+$$;

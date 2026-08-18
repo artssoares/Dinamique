@@ -28,8 +28,10 @@ grant update on profiles to authenticated;
 grant insert, update on support_tickets to authenticated;
 grant insert on support_messages to authenticated;
 
--- A user may mark their own notifications read, but never create one.
-grant update on user_notifications to authenticated;
+-- Marcar como lida é a ÚNICA coisa que o usuário faz numa notificação. Um
+-- grant de update na tabela inteira deixaria ele reescrever o próprio título e
+-- corpo — inofensivo para os outros, mas é dado nosso e não dele.
+grant update (read_at) on user_notifications to authenticated;
 
 -- Influencer applications are user-submitted.
 grant insert, update on influencer_applications to authenticated;

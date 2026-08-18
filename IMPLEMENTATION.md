@@ -122,8 +122,26 @@ mockup. Nothing listed as not built is stubbed with a button that does nothing.
 
 ## Phase 13 — offline
 
-**Not built.** `client_id` columns exist on journeys, revenues, expenses and
-fuel logs so idempotent sync can be added without a migration.
+| Item | State |
+| --- | --- |
+| Fila de sincronização persistida no aparelho | **built** — 10 testes |
+| Reenvio idempotente por `client_id` | **built** — índice único garante uma linha só |
+| Sincronização ao reconectar e ao voltar para o app | **built** |
+| Barra avisando que o registro foi guardado | **built** |
+| Jornadas offline | **not built** — receitas, despesas e abastecimentos entram na fila |
+
+## Phase 14 — testes, segurança e revisão
+
+| Item | State |
+| --- | --- |
+| Testes das regras de negócio | **built** — 109 |
+| Testes de exportação | **built** — 15, com reabertura do XLSX |
+| Testes da fila offline | **built** — 10 |
+| Testes do report builder | **built** — 6 |
+| Asserções de banco (RLS, antifraude, notificações, permissões) | **built** — 41 |
+| Testes de contraste dos tokens | **built** — 14 |
+| Varredura de segurança no CI | **built** |
+| Documentação | **built** — 12 arquivos |
 
 ## Verified end to end
 
