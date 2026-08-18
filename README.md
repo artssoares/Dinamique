@@ -28,6 +28,11 @@ plan and exactly where each area stands.
 - [Supabase CLI](https://supabase.com/docs/guides/cli) for the database
 - Expo Go, or an iOS/Android simulator, for the app
 
+## Colocar no ar
+
+Veja [`SETUP.md`](./SETUP.md) — instalação do banco em um passo, depois as
+variáveis de ambiente.
+
 ## Setup
 
 ```bash
