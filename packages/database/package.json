@@ -1,0 +1,12 @@
+{
+  "name": "@dinamique/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "db:reset": "supabase db reset",
+    "db:push": "supabase db push",
+    "db:diff": "supabase db diff",
+    "test": "bash ./test/run.sh"
+  }
+}
