@@ -26,6 +26,11 @@ export function SetupScreen() {
       detail:
         'Em Settings → API, copie a Project URL e a chave anon. Coloque em EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY.',
     },
+    {
+      title: 'Refaça o deploy',
+      detail:
+        'Este passo é obrigatório e costuma ser esquecido: as chaves são embutidas quando o site é construído, então adicioná-las depois não muda o que já está no ar. Na Vercel: Deployments → ⋯ no primeiro da lista → Redeploy, com "Use existing Build Cache" DESMARCADO.',
+    },
   ];
 
   return (
@@ -44,9 +49,17 @@ export function SetupScreen() {
         <BrandMark size="lg" />
         <Text variant="titleLg">Falta conectar o banco de dados</Text>
         <Text variant="body" color="secondary">
-          O aplicativo está publicado, mas ainda não sabe onde ficam os dados. São três passos e
-          leva cerca de cinco minutos.
+          O aplicativo está publicado, mas ainda não sabe onde ficam os dados.
         </Text>
+        <Card padding="lg" style={{ backgroundColor: theme.colors.warningSubtle }}>
+          <Text variant="captionStrong" color="warning">
+            Já preencheu as variáveis e continua vendo esta tela?
+          </Text>
+          <Text variant="caption" color="secondary">
+            Falta refazer o deploy. As chaves entram no site na hora em que ele é construído, então
+            elas não valem para uma construção que já aconteceu. É o passo 4 abaixo.
+          </Text>
+        </Card>
       </View>
 
       {steps.map((step, index) => (
