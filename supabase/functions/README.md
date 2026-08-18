@@ -31,3 +31,16 @@ select cron.schedule(
 
 A função é idempotente: rodar duas vezes não duplica notificação (coberto por
 teste).
+
+## Instalação do banco
+
+Para um projeto Supabase novo, use `supabase/setup.sql`: é a concatenação de
+todas as migrations, na ordem, num arquivo só. Cole no SQL Editor e execute.
+
+As migrations continuam separadas em `packages/database/migrations` — elas são
+o que serve para evoluir o schema. O `setup.sql` é só o pacote de instalação, e
+é regenerado com:
+
+```bash
+pnpm --filter @dinamique/database run build:setup
+```

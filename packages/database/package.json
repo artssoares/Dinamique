@@ -7,6 +7,7 @@
     "db:reset": "supabase db reset",
     "db:push": "supabase db push",
     "db:diff": "supabase db diff",
-    "test": "bash ./test/run.sh"
+    "test": "bash ./test/run.sh",
+    "build:setup": "node build-setup.mjs"
   }
 }

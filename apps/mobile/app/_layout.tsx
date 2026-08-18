@@ -5,6 +5,8 @@ import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from '@dinamique/ui';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { SetupScreen } from '@/features/setup/SetupScreen';
 import { SessionProvider, useSession } from '@/hooks/useSession';
 import { OfflineProvider } from '@/features/offline/useOfflineSync';
 import { OfflineBanner } from '@/features/offline/OfflineBanner';
@@ -65,6 +67,17 @@ function RootNavigator() {
 
 function ThemedApp() {
   const { profile } = useSession();
+
+  // Sem configuração não há o que navegar; mostramos o que falta fazer.
+  if (!isSupabaseConfigured) {
+    return (
+      <ThemeProvider initialPreference="system">
+        <StatusBarBridge />
+        <SetupScreen />
+      </ThemeProvider>
+    );
+  }
+
   return (
     <ThemeProvider initialPreference={profile?.theme ?? 'system'}>
       <StatusBarBridge />
