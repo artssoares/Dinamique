@@ -672,3 +672,57 @@ begin
   raise notice 'TESTES DE SUPERFÍCIE EXPOSTA PASSARAM';
 end;
 $$;
+
+-- ============================================================================
+-- Sexta bateria: as extensões não moram em `public`.
+--
+-- Numa Supabase, `pgcrypto` e `citext` vêm instaladas no schema `extensions`.
+-- Toda função nossa fixa o `search_path` por segurança, e um caminho preso em
+-- `public` faz `gen_random_bytes` e o operador de comparação de `citext`
+-- sumirem — em produção, e só em produção.
+--
+-- Foi assim que o cadastro quebrou: ninguém conseguia criar conta, e o teste
+-- local passava porque instalava as extensões em `public`.
+-- ============================================================================
+do $$
+declare
+  v_presa  text;
+  v_user   uuid := gen_random_uuid();
+begin
+  perform assert(
+    (select nspname from pg_namespace n
+     join pg_extension e on e.extnamespace = n.oid
+     where e.extname = 'pgcrypto') = 'extensions',
+    'o ambiente de teste instala as extensões onde a Supabase instala');
+
+  -- Nenhuma função pode ter o caminho preso só em `public`.
+  select string_agg(p.proname, ', ' order by p.proname) into v_presa
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public'
+    and p.proconfig is not null
+    and exists (
+      select 1 from unnest(p.proconfig) c
+      where c like 'search\_path=%' and c not like '%extensions%'
+    );
+
+  perform assert(v_presa is null,
+    'nenhuma função fica cega para o schema extensions' ||
+    coalesce(' — PRESAS EM public: ' || v_presa, ''));
+
+  -- E o caminho crítico de verdade: criar uma conta ponta a ponta.
+  insert into auth.users (id, email, raw_user_meta_data)
+  values (v_user, 'extensoes@example.com', '{"full_name": "Teste Extensoes"}'::jsonb);
+
+  perform assert(
+    (select count(*) from profiles where id = v_user) = 1,
+    'o cadastro funciona com as extensões fora de public');
+  perform assert(
+    (select code from promotion_codes where owner_user_id = v_user) ~ '^[A-Z]+[2-9A-H]{2}$',
+    'o código de indicação sai sem caracteres ambíguos: ' ||
+    (select code from promotion_codes where owner_user_id = v_user));
+
+  raise notice '';
+  raise notice 'TESTES DE EXTENSÕES PASSARAM';
+end;
+$$;

@@ -38,6 +38,30 @@ do $$ begin
   create role supabase_auth_admin nologin;
 exception when duplicate_object then null; end $$;
 
+-- ------------------------------------------------------------- extensões --
+-- Numa Supabase, `pgcrypto` e `citext` JÁ VÊM instaladas, e no schema
+-- `extensions` — não em `public`. O `create extension if not exists` das
+-- migrations não muda isso: a extensão já existe, então o comando não faz
+-- nada e ela continua onde estava.
+--
+-- Instalar em `public` aqui era uma mentira confortável: `gen_random_bytes`
+-- ficava visível para qualquer função com `search_path = public`, e o
+-- cadastro passava no teste enquanto quebrava em produção. Foi exatamente o
+-- que aconteceu.
+create schema if not exists extensions;
+create extension if not exists "pgcrypto" with schema extensions;
+create extension if not exists "citext"   with schema extensions;
+
+-- A busca padrão da Supabase inclui `extensions`, e é por isso que as
+-- migrations conseguem declarar uma coluna `citext` sem qualificar o schema.
+-- Sem esta linha o ambiente de teste ficaria MAIS restrito que a produção, e
+-- passaria a acusar erro onde não há.
+do $$ begin
+  execute format(
+    'alter database %I set search_path to "$user", public, extensions',
+    current_database());
+end $$;
+
 -- ---------------------------------------------------------------- storage --
 -- Reprodução mínima do schema de arquivos da Supabase, só o suficiente para
 -- que as políticas dos buckets sejam validadas localmente.

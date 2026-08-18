@@ -110,6 +110,8 @@ sem estragar nada.
 | --- | --- | --- |
 | [`supabase/setup.sql`](./supabase/setup.sql) | Cria o banco inteiro: tabelas, permissões, funções e dados de referência. | Uma vez, no começo. |
 | [`supabase/correcao-seguranca.sql`](./supabase/correcao-seguranca.sql) | Fecha as permissões que a Supabase e o Postgres deixam abertas por padrão. Já está dentro do `setup.sql`; existe separado para quem criou o banco antes desta correção. | Se você rodou o `setup.sql` antes de 18/08. |
+| [`supabase/correcao-cadastro.sql`](./supabase/correcao-cadastro.sql) | Faz o cadastro funcionar quando as extensões do Postgres estão no schema `extensions`, como na Supabase. Já está dentro do `setup.sql`. | Se você rodou o `setup.sql` antes de 18/08. |
+| [`supabase/testar-cadastro.sql`](./supabase/testar-cadastro.sql) | Diz se o cadastro está funcionando, sem criar nada. | Quando o cadastro falhar. |
 | [`supabase/virar-admin.sql`](./supabase/virar-admin.sql) | Transforma a sua conta em administrador do painel. | Depois de criar sua conta no aplicativo. |
 
 O `virar-admin.sql` procura pelo e-mail do cadastro — troque o e-mail dentro do
