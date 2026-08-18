@@ -13,10 +13,9 @@
 -- Undo: select demo_teardown();
 -- ============================================================================
 
--- Every demo profile carries this marker so teardown is exact rather than
--- "delete anything that looks fake".
-alter table profiles add column if not exists is_demo boolean not null default false;
-create index if not exists profiles_demo_idx on profiles (is_demo) where is_demo;
+-- `profiles.is_demo` faz parte do schema (migration 000200); aqui só marcamos
+-- as contas criadas, para que o teardown seja exato em vez de "apagar tudo que
+-- parece falso".
 
 create or replace function demo_teardown()
 returns void
@@ -180,8 +179,11 @@ begin
   on conflict (code) do nothing;
 
   -- ------------------------------------------------- peers for benchmark ---
-  -- 24 users, above the 20-user minimum, spread across cities and modalities.
-  for i in 1..24 loop
+  -- 60 usuários. O mínimo de 20 vale POR GRUPO (cidade × modalidade), não no
+  -- total: com 24 usuários espalhados, nenhum grupo chegava ao mínimo e o
+  -- benchmark corretamente não aparecia. 60 fazem São Paulo/aplicativo cruzar
+  -- a linha, para o demo mostrar o recurso funcionando de verdade.
+  for i in 1..60 loop
     v_peer := gen_random_uuid();
     v_peer_name := 'Motorista ' || i;
 
@@ -190,10 +192,12 @@ begin
             jsonb_build_object('full_name', v_peer_name));
 
     update profiles
-    set city = v_cities[1 + (i % 6)],
-        state = v_states[1 + (i % 6)],
-        work_modes = case when i % 3 = 0 then '{delivery}'::work_mode[]
-                          when i % 7 = 0 then '{taxi}'::work_mode[]
+    -- Dois terços em São Paulo, como na base real, para o grupo maior ter
+    -- amostra suficiente.
+    set city = case when i % 3 = 0 then v_cities[1 + (i % 6)] else 'São Paulo' end,
+        state = case when i % 3 = 0 then v_states[1 + (i % 6)] else 'SP' end,
+        work_modes = case when i % 5 = 0 then '{delivery}'::work_mode[]
+                          when i % 11 = 0 then '{taxi}'::work_mode[]
                           else '{rideshare}'::work_mode[] end,
         onboarding_completed_at = now() - make_interval(days => 20 + i),
         last_seen_at = now() - make_interval(days => (i % 45)),
@@ -252,7 +256,7 @@ begin
     end if;
   end loop;
 
-  raise notice 'Demo data created: Arthur + 24 peers, ~30 and ~14 days of history.';
+  raise notice 'Dados de demonstração criados: Arthur + 60 motoristas, ~30 e ~14 dias de histórico.';
   raise notice 'Remove it with: select demo_teardown();';
 end;
 $$;

@@ -1,128 +1,55 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { useState } from 'react';
+import { RefreshControl, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { GoalPeriod } from '@dinamique/types';
+import { generateInsights, scoreLabel } from '@dinamique/business-logic';
 import {
-  generateInsights,
-  summarisePeriod,
-  type Insight,
-  type PeriodSummary,
-} from '@dinamique/business-logic';
-import { addDays, periodRange, toDateOnly, weekdayLabel } from '@dinamique/utils';
-import { EmptyState, InsightCard, Skeleton, Text, useTheme } from '@dinamique/ui';
-import { supabase } from '@/lib/supabase';
-import { useSession } from '@/hooks/useSession';
+  formatCents,
+  formatDistanceKm,
+  formatDuration,
+  formatPercent,
+  monthLabel,
+  toDateOnly,
+  weekdayLabel,
+} from '@dinamique/utils';
+import {
+  Card,
+  Chip,
+  EmptyState,
+  InsightCard,
+  Skeleton,
+  Text,
+  useTheme,
+} from '@dinamique/ui';
+import { usePeriodReport } from '@/features/insights/useSummary';
+import { useBenchmark } from '@/features/insights/useBenchmark';
 
-interface DayRow {
-  date: string;
-  gross_revenue: number;
-  total_expenses: number;
-  vehicle_expenses: number;
-  net_profit: number;
-  worked_seconds: number;
-  distance: number;
-  trip_count: number;
-}
-
-/** Minimum days of history before an insight means anything. */
-const MIN_DAYS_FOR_INSIGHTS = 5;
+/** Dias com registro antes de qualquer insight fazer sentido. */
+const MIN_DAYS = 5;
 
 /**
- * Insights (§42). Interpretation, not dashboards — every sentence comes from a
- * deterministic rule in @dinamique/business-logic, so it can be explained.
+ * Insights (§42–46). Interpretação, não painel: nota do dia, comparação com a
+ * própria média, projeção, benchmark e o resumo do período em frases.
  */
 export default function Insights() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { session } = useSession();
-  const [insights, setInsights] = useState<Insight[]>([]);
-  const [dayCount, setDayCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<GoalPeriod>('weekly');
+  const { report, loading, refresh } = usePeriodReport(period);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!session?.user) return;
-    setLoading(true);
+  const benchmark = useBenchmark(report?.summary.revenuePerKm ?? null);
 
-    const today = toDateOnly(new Date());
-    const current = periodRange('weekly', today);
-    const previous = { start: addDays(current.start, -7), end: addDays(current.end, -7) };
-
-    const [rowsResult, fuelResult] = await Promise.all([
-      supabase
-        .from('daily_totals')
-        .select('date, gross_revenue, total_expenses, vehicle_expenses, net_profit, worked_seconds, distance, trip_count')
-        .eq('user_id', session.user.id)
-        .gte('date', previous.start)
-        .lte('date', current.end),
-      supabase
-        .from('fuel_logs')
-        .select('total_amount')
-        .eq('user_id', session.user.id)
-        .gte('date', current.start)
-        .lte('date', current.end),
-    ]);
-
-    const rows = (rowsResult.data as DayRow[] | null) ?? [];
-    setDayCount(rows.filter((r) => r.gross_revenue > 0 || r.worked_seconds > 0).length);
-
-    const summarise = (subset: DayRow[]): PeriodSummary =>
-      summarisePeriod({
-        // Each day is folded into one synthetic journey so the shared
-        // calculator stays the single source of truth for these metrics.
-        journeys: subset.map((row) => ({
-          id: row.date,
-          startedAt: `${row.date}T00:00:00.000Z`,
-          endedAt: new Date(Date.parse(`${row.date}T00:00:00.000Z`) + row.worked_seconds * 1000).toISOString(),
-          pausedSeconds: 0,
-          odometerStart: null,
-          odometerEnd: null,
-          distanceOverride: row.distance > 0 ? row.distance : null,
-        })),
-        revenues: subset.map((row) => ({
-          date: row.date,
-          amount: row.gross_revenue,
-          tips: 0,
-          tripCount: row.trip_count || null,
-          platformId: null,
-        })),
-        expenses: [
-          ...subset.map((row) => ({
-            date: row.date,
-            amount: row.vehicle_expenses,
-            isVehicleCost: true,
-          })),
-          ...subset.map((row) => ({
-            date: row.date,
-            amount: row.total_expenses - row.vehicle_expenses,
-            isVehicleCost: false,
-          })),
-        ],
-      });
-
-    const currentRows = rows.filter((r) => r.date >= current.start);
-    const previousRows = rows.filter((r) => r.date < current.start);
-
-    const fuelSpend = ((fuelResult.data as { total_amount: number }[] | null) ?? []).reduce(
-      (acc, row) => acc + row.total_amount,
-      0,
-    );
-
-    setInsights(
-      generateInsights({
-        current: summarise(currentRows),
-        previous: summarise(previousRows),
-        fuelSpend,
-        bestWeekday: bestWeekday(rows),
-        worstWeekday: worstWeekday(rows),
+  const insights = report
+    ? generateInsights({
+        current: report.summary,
+        previous: report.previous,
+        fuelSpend: report.fuelSpend,
+        bestWeekday: report.bestWeekday,
+        worstWeekday: report.worstWeekday,
         goalStreakDays: 0,
-      }).sort((a, b) => b.magnitude - a.magnitude),
-    );
-
-    setLoading(false);
-  }, [session?.user?.id]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+      }).sort((a, b) => b.magnitude - a.magnitude)
+    : [];
 
   return (
     <ScrollView
@@ -133,63 +60,183 @@ export default function Insights() {
         gap: theme.spacing.lg,
         flexGrow: 1,
       }}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={async () => {
+            setRefreshing(true);
+            await refresh();
+            setRefreshing(false);
+          }}
+        />
+      }
     >
       <Text variant="titleLg">Insights</Text>
 
+      <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+        <Chip label="Semana" selected={period === 'weekly'} onPress={() => setPeriod('weekly')} />
+        <Chip label="Mês" selected={period === 'monthly'} onPress={() => setPeriod('monthly')} />
+        <Chip label="Ano" selected={period === 'yearly'} onPress={() => setPeriod('yearly')} />
+      </View>
+
       {loading ? (
         <>
+          <Skeleton height={120} radius={theme.radius['2xl']} />
           <Skeleton height={72} radius={theme.radius['2xl']} />
           <Skeleton height={72} radius={theme.radius['2xl']} />
         </>
-      ) : dayCount < MIN_DAYS_FOR_INSIGHTS ? (
+      ) : !report || report.daysWithData < MIN_DAYS ? (
         <EmptyState
           title="Ainda estamos conhecendo sua rotina"
-          description={`Depois de ${MIN_DAYS_FOR_INSIGHTS} dias com registros, o Dinamique começa a comparar seus resultados e apontar o que mudou.`}
-        />
-      ) : insights.length === 0 ? (
-        <EmptyState
-          title="Nada fora do comum esta semana"
-          description="Seus números estão em linha com sua média. Isso também é uma informação."
+          description={`Depois de ${MIN_DAYS} dias com registros, o Dinamique começa a comparar seus resultados e apontar o que mudou.`}
         />
       ) : (
-        <View style={{ gap: theme.spacing.md }}>
-          {insights.map((insight) => (
-            <InsightCard key={insight.key} insight={insight} />
-          ))}
-        </View>
+        <>
+          {report.score.hasData ? (
+            <Card padding="xl" style={{ gap: theme.spacing.sm }}>
+              <Text variant="caption" color="secondary">
+                NOTA DE HOJE
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.sm }}>
+                <Text variant="display" color="brand">
+                  {report.score.score.toFixed(1).replace('.', ',')}
+                </Text>
+                <Text variant="body" color="secondary">
+                  de 10
+                </Text>
+              </View>
+              <Text variant="bodyStrong">{scoreLabel(report.score.score)}</Text>
+              <Text variant="caption" color="muted">
+                A nota compara seu dia com a sua própria média e com a meta. Ela sobe quando você
+                supera o que costuma fazer.
+              </Text>
+            </Card>
+          ) : null}
+
+          <Card padding="xl" style={{ gap: theme.spacing.md }}>
+            <Text variant="caption" color="secondary">
+              RESUMO {period === 'weekly' ? 'DA SEMANA' : period === 'monthly' ? 'DO MÊS' : 'DO ANO'}
+            </Text>
+            {summaryLines(report, period).map((line) => (
+              <Text key={line} variant="body">
+                {line}
+              </Text>
+            ))}
+          </Card>
+
+          {report.projection?.hasEnoughData ? (
+            <Card padding="lg" style={{ gap: theme.spacing.xs }}>
+              <Text variant="caption" color="secondary">
+                PROJEÇÃO
+              </Text>
+              <Text variant="body">
+                Mantendo a média atual, sua projeção para{' '}
+                {period === 'monthly'
+                  ? monthLabel(toDateOnly(new Date()))
+                  : period === 'yearly'
+                    ? 'o ano'
+                    : 'a semana'}{' '}
+                é {formatCents(report.projection.projectedTotal)}.
+              </Text>
+              <Text variant="caption" color="muted">
+                É uma estimativa baseada nos {report.projection.daysElapsed} dias já registrados.
+              </Text>
+            </Card>
+          ) : null}
+
+          {benchmark ? (
+            <Card padding="xl" style={{ gap: theme.spacing.md }}>
+              <Text variant="caption" color="secondary">
+                COMPARAÇÃO ANÔNIMA
+              </Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <View>
+                  <Text variant="caption" color="secondary">
+                    {benchmark.scope}
+                  </Text>
+                  <Text variant="moneyMedium">
+                    {formatCents(benchmark.comparison.peerValue)}/km
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text variant="caption" color="secondary">
+                    você
+                  </Text>
+                  <Text variant="moneyMedium" color="brand">
+                    {formatCents(benchmark.comparison.userValue)}/km
+                  </Text>
+                </View>
+              </View>
+              <Text
+                variant="bodyStrong"
+                color={benchmark.comparison.difference >= 0 ? 'success' : 'warning'}
+              >
+                {benchmark.comparison.difference >= 0 ? '+' : ''}
+                {formatPercent(benchmark.comparison.difference, 1)} em relação a eles
+              </Text>
+              <Text variant="caption" color="muted">
+                Média de {benchmark.comparison.sampleSize} motoristas. Nenhum dado individual de
+                outra pessoa é mostrado aqui.
+              </Text>
+            </Card>
+          ) : null}
+
+          {insights.length > 0 ? (
+            <View style={{ gap: theme.spacing.md }}>
+              <Text variant="captionStrong" color="secondary">
+                O QUE MUDOU
+              </Text>
+              {insights.map((insight) => (
+                <InsightCard key={insight.key} insight={insight} />
+              ))}
+            </View>
+          ) : (
+            <Card padding="lg">
+              <Text variant="body" color="secondary">
+                Seus números estão em linha com a sua média. Isso também é uma informação.
+              </Text>
+            </Card>
+          )}
+        </>
       )}
     </ScrollView>
   );
 }
 
-/** Average net profit per weekday, over whatever history was loaded. */
-function weekdayAverages(rows: DayRow[]): { label: string; average: number }[] {
-  const buckets = new Map<string, { total: number; count: number }>();
-  for (const row of rows) {
-    if (row.gross_revenue <= 0) continue;
-    const label = weekdayLabel(row.date);
-    const bucket = buckets.get(label) ?? { total: 0, count: 0 };
-    bucket.total += row.net_profit;
-    bucket.count += 1;
-    buckets.set(label, bucket);
+/** Resumo automático em frases (§54) — cada uma só aparece se tiver dado real. */
+function summaryLines(
+  report: NonNullable<ReturnType<typeof usePeriodReport>['report']>,
+  period: GoalPeriod,
+): string[] {
+  const { summary, bestDay } = report;
+  const lines: string[] = [];
+
+  if (summary.workedSeconds > 0) {
+    lines.push(`Você trabalhou ${formatDuration(summary.workedSeconds)}.`);
   }
-  return [...buckets.entries()]
-    .map(([label, b]) => ({ label, average: Math.round(b.total / b.count) }))
-    .sort((a, b) => b.average - a.average);
-}
+  if (summary.distance > 0) {
+    lines.push(`Percorreu ${formatDistanceKm(summary.distance)}.`);
+  }
+  lines.push(`Faturou ${formatCents(summary.grossRevenue)}.`);
+  lines.push(`Teve ${formatCents(summary.totalExpenses)} em custos estimados.`);
+  lines.push(`Seu lucro estimado foi ${formatCents(summary.netProfit)}.`);
 
-function bestWeekday(rows: DayRow[]): { label: string; average: number } | null {
-  const averages = weekdayAverages(rows);
-  // With fewer than three distinct weekdays, "best day" is noise.
-  return averages.length >= 3 ? averages[0]! : null;
-}
+  if (summary.profitPerHour !== null) {
+    lines.push(`Isso dá ${formatCents(summary.profitPerHour)} por hora trabalhada.`);
+  }
+  if (summary.revenuePerKm !== null) {
+    lines.push(`E ${formatCents(summary.revenuePerKm)} por quilômetro rodado.`);
+  }
+  if (summary.tripCount > 0 && summary.averageTicket !== null) {
+    lines.push(
+      `Foram ${summary.tripCount} corridas ou entregas, a ${formatCents(summary.averageTicket)} cada.`,
+    );
+  }
+  if (bestDay && period !== 'daily') {
+    lines.push(
+      `Seu melhor dia foi ${weekdayLabel(bestDay.date)}, com ${formatCents(bestDay.profit)} de lucro.`,
+    );
+  }
 
-function worstWeekday(
-  rows: DayRow[],
-): { label: string; average: number; overallAverage: number } | null {
-  const averages = weekdayAverages(rows);
-  if (averages.length < 3) return null;
-  const worst = averages[averages.length - 1]!;
-  const overall = Math.round(averages.reduce((acc, a) => acc + a.average, 0) / averages.length);
-  return { ...worst, overallAverage: overall };
+  return lines;
 }

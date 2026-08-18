@@ -45,10 +45,10 @@ mockup. Nothing listed as not built is stubbed with a button that does nothing.
 | --- | --- |
 | History with period totals | **built** |
 | Rule-based insights | **built** |
-| Automatic period summaries (§54) | **not built** |
-| Projections in the UI | **not built** — logic done and tested |
-| Daily score in the UI | **not built** — logic done and tested |
-| Benchmark | **not built** — gating logic done; the aggregation job does not exist |
+| Automatic period summaries (§54) | **built** — frases, não gráficos |
+| Projections in the UI | **built** — só a partir de 3 dias de dados |
+| Daily score in the UI | **built** — com a fórmula explicada na tela |
+| Benchmark | **built** — agregação por cidade e nacional, mínimo de 20 usuários |
 
 ## Phase 6 — recurring costs and obligations
 

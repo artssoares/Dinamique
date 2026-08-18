@@ -23,12 +23,16 @@ create table profiles (
   blocked_at             timestamptz,
   created_at             timestamptz not null default now(),
   updated_at             timestamptz not null default now(),
-  last_seen_at           timestamptz
+  last_seen_at           timestamptz,
+  -- Marca contas criadas pelo seed de demonstração. Elas são excluídas do
+  -- benchmark para não contaminar a mediana de usuários reais (§122).
+  is_demo                boolean not null default false
 );
 
 create index profiles_last_seen_idx on profiles (last_seen_at desc nulls last);
 create index profiles_city_state_idx on profiles (state, city);
 create index profiles_created_idx on profiles (created_at desc);
+create index profiles_demo_idx on profiles (is_demo) where is_demo;
 
 create trigger profiles_updated_at before update on profiles
   for each row execute function set_updated_at();
