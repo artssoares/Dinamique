@@ -1,8 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatCents, formatDistanceKm, formatDuration, periodRange, toDateOnly, weekdayLabel } from '@dinamique/utils';
-import { Card, Chip, EmptyState, Skeleton, Text, useTheme } from '@dinamique/ui';
+import {
+  Card,
+  EmptyState,
+  Screen,
+  SegmentedControl,
+  Skeleton,
+  StatTile,
+  Text,
+  useTheme,
+} from '@dinamique/ui';
+import { AppHeader } from '@/features/shell/AppHeader';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/useSession';
 
@@ -20,7 +29,6 @@ interface DayRow {
 /** Day-by-day history over a chosen period (§53). */
 export default function History() {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
   const { session } = useSession();
   const [period, setPeriod] = useState<Period>('weekly');
   const [rows, setRows] = useState<DayRow[]>([]);
@@ -59,47 +67,56 @@ export default function History() {
   );
 
   return (
+    <Screen
+      header={<AppHeader title="Histórico" subtitle="Dia a dia do que você ganhou e gastou" />}
+      scroll={false}
+      padding="none"
+      tabBarSpacing
+    >
     <FlatList
-      style={{ flex: 1, backgroundColor: theme.colors.backgroundPrimary }}
-      contentContainerStyle={{
-        padding: theme.spacing.xl,
-        paddingTop: insets.top + theme.spacing.lg,
-        gap: theme.spacing.md,
-        flexGrow: 1,
-      }}
+      contentContainerStyle={{ gap: theme.spacing.md, flexGrow: 1 }}
+      showsVerticalScrollIndicator={false}
       data={rows}
       keyExtractor={(item) => item.date}
       onRefresh={load}
       refreshing={false}
       ListHeaderComponent={
         <View style={{ gap: theme.spacing.lg, marginBottom: theme.spacing.sm }}>
-          <Text variant="titleLg">Histórico</Text>
-
-          <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-            <Chip label="Semana" selected={period === 'weekly'} onPress={() => setPeriod('weekly')} />
-            <Chip label="Mês" selected={period === 'monthly'} onPress={() => setPeriod('monthly')} />
-            <Chip label="Ano" selected={period === 'yearly'} onPress={() => setPeriod('yearly')} />
-          </View>
+          <SegmentedControl
+            label="Período"
+            value={period}
+            onChange={setPeriod}
+            options={[
+              { value: 'weekly', label: 'Semana' },
+              { value: 'monthly', label: 'Mês' },
+              { value: 'yearly', label: 'Ano' },
+            ]}
+          />
 
           {rows.length > 0 ? (
-            <Card padding="lg" style={{ gap: theme.spacing.md }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Summary label="Faturamento" value={formatCents(totals.gross)} />
-                <Summary label="Despesas" value={formatCents(totals.expenses)} />
-                <Summary label="Lucro" value={formatCents(totals.profit)} />
-              </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Summary
-                  label="Tempo"
-                  value={totals.seconds > 0 ? formatDuration(totals.seconds) : '—'}
-                />
-                <Summary
-                  label="Distância"
-                  value={totals.distance > 0 ? formatDistanceKm(totals.distance) : '—'}
-                />
-                <Summary label="Dias" value={String(rows.length)} />
-              </View>
-            </Card>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.md }}>
+              <StatTile label="Faturamento" icon="wallet" value={formatCents(totals.gross)} />
+              <StatTile
+                label="Lucro"
+                icon="trendUp"
+                tone={totals.profit < 0 ? 'danger' : 'success'}
+                value={formatCents(totals.profit)}
+              />
+              <StatTile label="Despesas" icon="receipt" tone="danger" value={formatCents(totals.expenses)} />
+              <StatTile
+                label="Tempo"
+                icon="clock"
+                value={totals.seconds > 0 ? formatDuration(totals.seconds) : null}
+                emptyHint="nenhuma jornada"
+              />
+              <StatTile
+                label="Distância"
+                icon="route"
+                value={totals.distance > 0 ? formatDistanceKm(totals.distance) : null}
+                emptyHint="sem km"
+              />
+              <StatTile label="Dias com registro" icon="history" value={String(rows.length)} />
+            </View>
           ) : null}
         </View>
       }
@@ -111,6 +128,7 @@ export default function History() {
           </View>
         ) : (
           <EmptyState
+            iconName="history"
             title="Nada registrado neste período"
             description="Quando você registrar ganhos ou jornadas, eles aparecem aqui."
           />
@@ -141,16 +159,6 @@ export default function History() {
         </Card>
       )}
     />
-  );
-}
-
-function Summary({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={{ gap: 2 }}>
-      <Text variant="caption" color="secondary">
-        {label}
-      </Text>
-      <Text variant="bodyStrong">{value}</Text>
-    </View>
+    </Screen>
   );
 }

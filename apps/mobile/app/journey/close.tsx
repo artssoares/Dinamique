@@ -1,9 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { summarisePeriod } from '@dinamique/business-logic';
 import { formatCents, formatDuration, parseCents, toDateOnly } from '@dinamique/utils';
-import { Button, Card, Chip, Field, Money, Text, useTheme } from '@dinamique/ui';
+import {
+  Button,
+  Card,
+  Chip,
+  Field,
+  Money,
+  Screen,
+  ScreenHeader,
+  StepProgress,
+  Text,
+  useTheme,
+} from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 import { useSession } from '@/hooks/useSession';
@@ -140,17 +151,17 @@ export default function CloseJourney() {
 
   if (!journey && !done) {
     return (
-      <>
-        <Stack.Screen options={{ title: 'Encerrar jornada' }} />
-        <View style={{ flex: 1, padding: theme.spacing.xl, justifyContent: 'center' }}>
-          <Card padding="xl">
-            <Text variant="subtitle">Nenhuma jornada em andamento</Text>
-            <Text variant="caption" color="secondary">
-              Inicie uma jornada para poder encerrá-la aqui.
-            </Text>
-          </Card>
-        </View>
-      </>
+      <Screen
+        header={<ScreenHeader title="Encerrar jornada" onBack={() => router.back()} />}
+        center
+      >
+        <Card padding="xl" style={{ gap: theme.spacing.sm }}>
+          <Text variant="subtitle">Nenhuma jornada em andamento</Text>
+          <Text variant="body" color="secondary">
+            Inicie uma jornada para poder encerrá-la aqui.
+          </Text>
+        </Card>
+      </Screen>
     );
   }
 
@@ -173,12 +184,15 @@ export default function CloseJourney() {
     });
 
     return (
-      <>
-        <Stack.Screen options={{ title: 'Jornada encerrada' }} />
-        <ScrollView
-          style={{ backgroundColor: theme.colors.backgroundPrimary }}
-          contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.xl }}
-        >
+      <Screen
+        header={
+          <ScreenHeader
+            title="Jornada encerrada"
+            subtitle="Veja como foi o seu dia"
+            onBack={() => router.replace('/(tabs)')}
+          />
+        }
+      >
           <Card padding="xl" style={{ gap: theme.spacing.lg }}>
             <Text variant="caption" color="secondary">
               LUCRO ESTIMADO DA JORNADA
@@ -200,9 +214,14 @@ export default function CloseJourney() {
             </View>
           </Card>
 
-          <Button label="Voltar para o início" size="lg" fullWidth onPress={() => router.replace('/(tabs)')} />
-        </ScrollView>
-      </>
+        <Button
+          label="Voltar para o início"
+          size="lg"
+          fullWidth
+          iconName="home"
+          onPress={() => router.replace('/(tabs)')}
+        />
+      </Screen>
     );
   }
 
@@ -313,27 +332,27 @@ export default function CloseJourney() {
   const isLast = step === steps.length - 1;
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Encerrar jornada' }} />
-      <ScrollView
-        style={{ flex: 1, backgroundColor: theme.colors.backgroundPrimary }}
-        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.xl, flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={{ flexDirection: 'row', gap: theme.spacing.xs }}>
-          {steps.map((_, index) => (
-            <View
-              key={index}
-              style={{
-                flex: 1,
-                height: 4,
-                borderRadius: theme.radius.pill,
-                backgroundColor:
-                  index <= step ? theme.colors.brandPrimary : theme.colors.backgroundSecondary,
-              }}
-            />
-          ))}
-        </View>
+    <Screen
+      header={
+        <ScreenHeader
+          title="Encerrar jornada"
+          onBack={step > 0 ? () => setStep(step - 1) : () => router.back()}
+        />
+      }
+      grow
+      footer={
+        <Button
+          label={isLast ? 'Encerrar jornada' : 'Continuar'}
+          size="lg"
+          fullWidth
+          loading={saving}
+          iconName={isLast ? 'check' : 'chevronRight'}
+          iconPosition="trailing"
+          onPress={() => (isLast ? save() : setStep(step + 1))}
+        />
+      }
+    >
+        <StepProgress current={step} total={steps.length} />
 
         <View style={{ gap: theme.spacing.xs }}>
           <Text variant="titleLg">{current.title}</Text>
@@ -354,20 +373,7 @@ export default function CloseJourney() {
           </Card>
         ) : null}
 
-        <View style={{ gap: theme.spacing.sm }}>
-          <Button
-            label={isLast ? 'Encerrar jornada' : 'Continuar'}
-            size="lg"
-            fullWidth
-            loading={saving}
-            onPress={() => (isLast ? save() : setStep(step + 1))}
-          />
-          {step > 0 ? (
-            <Button label="Voltar" variant="ghost" fullWidth onPress={() => setStep(step - 1)} />
-          ) : null}
-        </View>
-      </ScrollView>
-    </>
+    </Screen>
   );
 }
 

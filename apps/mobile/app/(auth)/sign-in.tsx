@@ -1,15 +1,23 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native';
+import { View } from 'react-native';
 import { Link } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Text, useTheme } from '@dinamique/ui';
+import {
+  Button,
+  Card,
+  Field,
+  Icon,
+  Screen,
+  Text,
+  useResponsive,
+  useTheme,
+} from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { toFriendlyError } from '@/lib/errors';
 import { BrandMark } from '@/features/brand/BrandMark';
 
 export default function SignIn() {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
+  const { scale } = useResponsive();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -32,67 +40,55 @@ export default function SignIn() {
     setLoading(false);
   }
 
-  const inputStyle = {
-    height: 54,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.borderPrimary,
-    backgroundColor: theme.colors.surfacePrimary,
-    paddingHorizontal: theme.spacing.lg,
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-  };
-
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: theme.colors.backgroundPrimary }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent: 'center',
-          padding: theme.spacing['2xl'],
-          paddingTop: insets.top + theme.spacing['3xl'],
-          gap: theme.spacing.xl,
-        }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={{ gap: theme.spacing.sm, marginBottom: theme.spacing.xl }}>
-          <BrandMark size="lg" />
-          <Text variant="titleLg">Bem-vindo de volta</Text>
-          <Text variant="body" color="secondary">
-            Entre para acompanhar seus ganhos e suas metas.
-          </Text>
-        </View>
+    <Screen padding="2xl" gap="2xl" center>
+      <View style={{ gap: theme.spacing.md }}>
+        <BrandMark size="lg" />
+        <Text
+          variant="titleLg"
+          style={{ fontSize: scale(30, { min: 26, max: 36 }), lineHeight: scale(36, { min: 32, max: 42 }) }}
+        >
+          Que bom te ver de novo
+        </Text>
+        <Text variant="body" color="secondary">
+          Entre para acompanhar seus ganhos, seus custos e a sua meta.
+        </Text>
+      </View>
 
-        <View style={{ gap: theme.spacing.md }}>
-          <TextInput
-            accessibilityLabel="Email"
-            placeholder="Email"
-            placeholderTextColor={theme.colors.textMuted}
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-            style={inputStyle}
-          />
-          <TextInput
-            accessibilityLabel="Senha"
-            placeholder="Senha"
-            placeholderTextColor={theme.colors.textMuted}
-            secureTextEntry
-            autoComplete="current-password"
-            value={password}
-            onChangeText={setPassword}
-            style={inputStyle}
-          />
-        </View>
+      <View style={{ gap: theme.spacing.lg }}>
+        <Field
+          label="Email"
+          iconName="user"
+          placeholder="voce@email.com"
+          autoCapitalize="none"
+          autoComplete="email"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+        />
+        <Field
+          label="Senha"
+          iconName="shield"
+          password
+          placeholder="Sua senha"
+          autoComplete="current-password"
+          value={password}
+          onChangeText={setPassword}
+        />
+      </View>
 
-        {error ? (
-          <View style={{ gap: theme.spacing.xs }}>
-            <Text variant="caption" color="danger">
+      {error ? (
+        <Card
+          padding="lg"
+          style={{
+            flexDirection: 'row',
+            gap: theme.spacing.md,
+            backgroundColor: theme.colors.dangerSubtle,
+          }}
+        >
+          <Icon name="alert" size={20} color={theme.colors.dangerText} />
+          <View style={{ flex: 1, gap: theme.spacing.xxs }}>
+            <Text variant="bodyStrong" color="danger">
               {error}
             </Text>
             {errorDetail ? (
@@ -101,8 +97,10 @@ export default function SignIn() {
               </Text>
             ) : null}
           </View>
-        ) : null}
+        </Card>
+      ) : null}
 
+      <View style={{ gap: theme.spacing.lg }}>
         <Button
           label="Entrar"
           size="lg"
@@ -112,14 +110,17 @@ export default function SignIn() {
           onPress={handleSignIn}
         />
 
-        <View style={{ alignItems: 'center', gap: theme.spacing.sm }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.xs }}>
+          <Text variant="body" color="secondary">
+            Ainda não tem conta?
+          </Text>
           <Link href="/(auth)/sign-up">
             <Text variant="bodyStrong" color="brand">
-              Criar uma conta
+              Criar agora
             </Text>
           </Link>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </View>
+    </Screen>
   );
 }

@@ -1,5 +1,6 @@
 import { Pressable } from 'react-native';
-import { Text, useTheme } from '@dinamique/ui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Icon, Text, useTheme } from '@dinamique/ui';
 import { useOffline } from './useOfflineSync';
 
 /**
@@ -10,6 +11,7 @@ import { useOffline } from './useOfflineSync';
  */
 export function OfflineBanner() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { isOnline, pendingCount, stuckCount, sync } = useOffline();
 
   if (isOnline && pendingCount === 0 && stuckCount === 0) return null;
@@ -30,12 +32,23 @@ export function OfflineBanner() {
       accessibilityLabel={message}
       onPress={() => void sync()}
       style={{
-        paddingVertical: theme.spacing.sm,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: theme.spacing.sm,
+        // The banner sits above the navigator, so it owns the notch itself.
+        paddingTop: insets.top + theme.spacing.sm,
+        paddingBottom: theme.spacing.sm,
         paddingHorizontal: theme.spacing.lg,
         backgroundColor: isProblem ? theme.colors.dangerSubtle : theme.colors.warningSubtle,
       }}
     >
-      <Text variant="caption" color={isProblem ? 'danger' : 'warning'} align="center">
+      <Icon
+        name={isProblem ? 'alert' : 'info'}
+        size={16}
+        color={isProblem ? theme.colors.dangerText : theme.colors.warningText}
+      />
+      <Text variant="caption" color={isProblem ? 'danger' : 'warning'} style={{ flex: 1 }}>
         {message}
       </Text>
     </Pressable>

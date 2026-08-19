@@ -1,7 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, View } from 'react-native';
-import { Stack } from 'expo-router';
-import { Avatar, Button, Card, Chip, Field, Text, useTheme } from '@dinamique/ui';
+import { Alert, Pressable, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import {
+  Avatar,
+  Button,
+  Card,
+  Chip,
+  Field,
+  Screen,
+  ScreenHeader,
+  Text,
+  useTheme,
+} from '@dinamique/ui';
 import type { WorkMode } from '@dinamique/types';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
@@ -23,6 +33,7 @@ const GENDERS = ['Masculino', 'Feminino', 'Outro', 'Prefiro não informar'];
  */
 export default function Profile() {
   const theme = useTheme();
+  const router = useRouter();
   const { session, profile, refresh } = useSession();
 
   const [firstName, setFirstName] = useState('');
@@ -117,13 +128,10 @@ export default function Profile() {
   const displayName = preferredName || firstName || profile?.firstName || '';
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Meu perfil' }} />
-      <ScrollView
-        style={{ backgroundColor: theme.colors.backgroundPrimary }}
-        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.xl }}
-        keyboardShouldPersistTaps="handled"
-      >
+    <Screen
+      header={<ScreenHeader title="Meu perfil" onBack={() => router.back()} />}
+      gap="lg"
+    >
         <Card padding="xl" style={{ alignItems: 'center', gap: theme.spacing.md }}>
           <Avatar url={photo} name={displayName} size={96} />
           <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
@@ -188,6 +196,7 @@ export default function Profile() {
               <Chip
                 key={mode.value}
                 label={mode.label}
+                multiple
                 selected={workModes.includes(mode.value)}
                 onPress={() =>
                   setWorkModes(
@@ -230,7 +239,6 @@ export default function Profile() {
           disabled={firstName.trim() === ''}
           onPress={save}
         />
-      </ScrollView>
-    </>
+    </Screen>
   );
 }

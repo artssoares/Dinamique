@@ -1,9 +1,17 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native';
+import { View } from 'react-native';
 import { Link, useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { normaliseCode } from '@dinamique/business-logic';
-import { Button, Text, useTheme } from '@dinamique/ui';
+import {
+  Button,
+  Card,
+  Field,
+  Icon,
+  Screen,
+  Text,
+  useResponsive,
+  useTheme,
+} from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { toFriendlyError } from '@/lib/errors';
 import { track } from '@/lib/analytics';
@@ -11,7 +19,7 @@ import { BrandMark } from '@/features/brand/BrandMark';
 
 export default function SignUp() {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
+  const { scale } = useResponsive();
   // A referral link opens the app with ?code=ARTHUR26 already filled in.
   const params = useLocalSearchParams<{ code?: string }>();
 
@@ -62,86 +70,77 @@ export default function SignUp() {
     setLoading(false);
   }
 
-  const inputStyle = {
-    height: 54,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.borderPrimary,
-    backgroundColor: theme.colors.surfacePrimary,
-    paddingHorizontal: theme.spacing.lg,
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-  };
+  const passwordTooShort = password.length > 0 && password.length < 8;
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: theme.colors.backgroundPrimary }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent: 'center',
-          padding: theme.spacing['2xl'],
-          paddingTop: insets.top + theme.spacing['3xl'],
-          gap: theme.spacing.xl,
-        }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={{ gap: theme.spacing.sm, marginBottom: theme.spacing.lg }}>
-          <BrandMark size="lg" />
-          <Text variant="titleLg">Criar sua conta</Text>
-          <Text variant="body" color="secondary">
-            Você começa com 7 dias de Pro, sem cartão.
-          </Text>
-        </View>
+    <Screen padding="2xl" gap="2xl" center>
+      <View style={{ gap: theme.spacing.md }}>
+        <BrandMark size="lg" />
+        <Text
+          variant="titleLg"
+          style={{ fontSize: scale(30, { min: 26, max: 36 }), lineHeight: scale(36, { min: 32, max: 42 }) }}
+        >
+          Criar sua conta
+        </Text>
+        <Text variant="body" color="secondary">
+          Leva menos de um minuto. Você começa com 7 dias de Pro, sem cartão.
+        </Text>
+      </View>
 
-        <View style={{ gap: theme.spacing.md }}>
-          <TextInput
-            accessibilityLabel="Nome"
-            placeholder="Seu nome"
-            placeholderTextColor={theme.colors.textMuted}
-            autoComplete="given-name"
-            value={firstName}
-            onChangeText={setFirstName}
-            style={inputStyle}
-          />
-          <TextInput
-            accessibilityLabel="Email"
-            placeholder="Email"
-            placeholderTextColor={theme.colors.textMuted}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            autoComplete="email"
-            value={email}
-            onChangeText={setEmail}
-            style={inputStyle}
-          />
-          <TextInput
-            accessibilityLabel="Senha"
-            placeholder="Senha (mínimo 8 caracteres)"
-            placeholderTextColor={theme.colors.textMuted}
-            secureTextEntry
-            autoComplete="new-password"
-            value={password}
-            onChangeText={setPassword}
-            style={inputStyle}
-          />
-          <TextInput
-            accessibilityLabel="Código de indicação (opcional)"
-            placeholder="Código de indicação (opcional)"
-            placeholderTextColor={theme.colors.textMuted}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            value={code}
-            onChangeText={setCode}
-            style={inputStyle}
-          />
-        </View>
+      <View style={{ gap: theme.spacing.lg }}>
+        <Field
+          label="Nome"
+          iconName="user"
+          placeholder="Como podemos te chamar?"
+          autoComplete="given-name"
+          value={firstName}
+          onChangeText={setFirstName}
+        />
+        <Field
+          label="Email"
+          iconName="phone"
+          placeholder="voce@email.com"
+          autoCapitalize="none"
+          keyboardType="email-address"
+          autoComplete="email"
+          value={email}
+          onChangeText={setEmail}
+        />
+        <Field
+          label="Senha"
+          iconName="shield"
+          password
+          placeholder="Pelo menos 8 caracteres"
+          autoComplete="new-password"
+          value={password}
+          onChangeText={setPassword}
+          error={passwordTooShort ? 'Use pelo menos 8 caracteres.' : null}
+          hint={passwordTooShort ? undefined : 'Pelo menos 8 caracteres.'}
+        />
+        <Field
+          label="Código de indicação"
+          iconName="gift"
+          optional
+          placeholder="Se alguém te indicou, digite aqui"
+          autoCapitalize="characters"
+          autoCorrect={false}
+          value={code}
+          onChangeText={setCode}
+        />
+      </View>
 
-        {error ? (
-          <View style={{ gap: theme.spacing.xs }}>
-            <Text variant="caption" color="danger">
+      {error ? (
+        <Card
+          padding="lg"
+          style={{
+            flexDirection: 'row',
+            gap: theme.spacing.md,
+            backgroundColor: theme.colors.dangerSubtle,
+          }}
+        >
+          <Icon name="alert" size={20} color={theme.colors.dangerText} />
+          <View style={{ flex: 1, gap: theme.spacing.xxs }}>
+            <Text variant="bodyStrong" color="danger">
               {error}
             </Text>
             {errorDetail ? (
@@ -150,15 +149,28 @@ export default function SignUp() {
               </Text>
             ) : null}
           </View>
-        ) : null}
-        {notice ? (
-          <Text variant="caption" color="success">
+        </Card>
+      ) : null}
+
+      {notice ? (
+        <Card
+          padding="lg"
+          style={{
+            flexDirection: 'row',
+            gap: theme.spacing.md,
+            backgroundColor: theme.colors.successSubtle,
+          }}
+        >
+          <Icon name="check" size={20} color={theme.colors.successText} />
+          <Text variant="body" color="success" style={{ flex: 1 }}>
             {notice}
           </Text>
-        ) : null}
+        </Card>
+      ) : null}
 
+      <View style={{ gap: theme.spacing.lg }}>
         <Button
-          label="Criar conta"
+          label="Criar minha conta"
           size="lg"
           fullWidth
           loading={loading}
@@ -166,14 +178,17 @@ export default function SignUp() {
           onPress={handleSignUp}
         />
 
-        <View style={{ alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.xs }}>
+          <Text variant="body" color="secondary">
+            Já tem conta?
+          </Text>
           <Link href="/(auth)/sign-in">
             <Text variant="bodyStrong" color="brand">
-              Já tenho conta
+              Entrar
             </Text>
           </Link>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </View>
+    </Screen>
   );
 }

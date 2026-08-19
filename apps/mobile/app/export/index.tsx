@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Alert, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import type { GoalPeriod } from '@dinamique/types';
 import { hasFeature } from '@dinamique/business-logic';
 import { periodRange, toDateOnly } from '@dinamique/utils';
-import { Button, Card, Chip, Field, Text, useTheme } from '@dinamique/ui';
+import { Button, Card, Chip, Field, Screen, ScreenHeader, Text, useTheme } from '@dinamique/ui';
 import { useSession } from '@/hooks/useSession';
 import { collectExportData } from '@/features/export/collect';
 import { exportAndShare, type ExportFormat } from '@/features/export/share';
@@ -21,6 +21,7 @@ const PRESETS: { value: Preset; label: string }[] = [
 /** Exportação dos próprios dados (§55, §108). */
 export default function Export() {
   const theme = useTheme();
+  const router = useRouter();
   const { session, plan } = useSession();
 
   const [preset, setPreset] = useState<Preset>('monthly');
@@ -79,13 +80,10 @@ export default function Export() {
   }
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Exportar meus dados' }} />
-      <ScrollView
-        style={{ backgroundColor: theme.colors.backgroundPrimary }}
-        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.xl }}
-        keyboardShouldPersistTaps="handled"
-      >
+    <Screen
+      header={<ScreenHeader title="Exportar meus dados" onBack={() => router.back()} />}
+      gap="lg"
+    >
         <Text variant="body" color="secondary">
           Gera uma planilha com resumo, jornadas, receitas, despesas, abastecimentos e manutenção do
           período escolhido.
@@ -131,6 +129,7 @@ export default function Export() {
               label="Exportar Excel (XLSX)"
               size="lg"
               fullWidth
+              iconName="download"
               loading={busy === 'xlsx'}
               disabled={busy !== null}
               onPress={() => run('xlsx')}
@@ -139,13 +138,14 @@ export default function Export() {
               label="Exportar CSV"
               variant="ghost"
               fullWidth
+              iconName="download"
               loading={busy === 'csv'}
               disabled={busy !== null}
               onPress={() => run('csv')}
             />
           </View>
         ) : (
-          <Card padding="xl" style={{ gap: theme.spacing.sm }}>
+          <Card padding="xl" tone="brand" style={{ gap: theme.spacing.sm }}>
             <Text variant="bodyStrong">A exportação faz parte do Pro</Text>
             <Text variant="caption" color="secondary">
               Seus dados continuam seus: você pode pedir uma cópia completa a qualquer momento pelo
@@ -153,7 +153,6 @@ export default function Export() {
             </Text>
           </Card>
         )}
-      </ScrollView>
-    </>
+    </Screen>
   );
 }

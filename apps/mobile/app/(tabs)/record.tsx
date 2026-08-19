@@ -1,9 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatDuration, parseCents, toDateOnly } from '@dinamique/utils';
-import { Button, Card, Chip, Text, useTheme } from '@dinamique/ui';
+import {
+  AmountInput,
+  Button,
+  Card,
+  Chip,
+  Field,
+  Icon,
+  Screen,
+  SectionHeader,
+  SegmentedControl,
+  Text,
+  useTheme,
+} from '@dinamique/ui';
+import { AppHeader } from '@/features/shell/AppHeader';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/useSession';
 import { addExpense, addRevenue, useActiveJourney } from '@/features/journey/useJourney';
@@ -17,7 +29,6 @@ type Mode = 'revenue' | 'expense';
  */
 export default function Record() {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { session } = useSession();
   const { save } = useOffline();
@@ -91,14 +102,20 @@ export default function Record() {
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.colors.backgroundPrimary }}
-      contentContainerStyle={{
-        padding: theme.spacing.xl,
-        paddingTop: insets.top + theme.spacing.lg,
-        gap: theme.spacing.xl,
-      }}
-      keyboardShouldPersistTaps="handled"
+    <Screen
+      header={<AppHeader title="Registrar" subtitle="Lance um ganho ou um gasto em segundos" />}
+      tabBarSpacing
+      footer={
+        <Button
+          label={saved ?? 'Salvar'}
+          size="lg"
+          fullWidth
+          loading={saving}
+          disabled={!canSave}
+          iconName={saved ? 'check' : 'plus'}
+          onPress={handleSave}
+        />
+      }
     >
       <JourneyCard
         journey={journey}
@@ -108,72 +125,55 @@ export default function Record() {
         onFinish={() => router.push('/journey/close')}
       />
 
-      <View style={{ flexDirection: 'row', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
-        <Chip label="Ganho" selected={mode === 'revenue'} onPress={() => setMode('revenue')} />
-        <Chip label="Gasto" selected={mode === 'expense'} onPress={() => setMode('expense')} />
-        <Chip label="Abastecimento" onPress={() => router.push('/fuel')} />
-      </View>
+      <SegmentedControl
+        label="O que você quer registrar"
+        value={mode}
+        onChange={setMode}
+        options={[
+          { value: 'revenue', label: 'Ganho' },
+          { value: 'expense', label: 'Gasto' },
+        ]}
+      />
 
-      <Card padding="xl" style={{ gap: theme.spacing.lg }}>
-        <Text variant="caption" color="secondary">
-          VALOR
-        </Text>
-        <TextInput
-          accessibilityLabel="Valor"
-          placeholder="R$ 0,00"
-          placeholderTextColor={theme.colors.textMuted}
-          keyboardType="decimal-pad"
+      <Card padding="xl" style={{ gap: theme.spacing.xl }}>
+        <AmountInput
+          label={mode === 'revenue' ? 'Quanto entrou' : 'Quanto saiu'}
           value={amount}
           onChangeText={setAmount}
-          style={{
-            fontSize: 36,
-            fontWeight: '700',
-            color: theme.colors.textPrimary,
-            paddingVertical: theme.spacing.sm,
-          }}
         />
 
         {mode === 'revenue' ? (
           <>
-            <Text variant="caption" color="secondary">
-              PLATAFORMA
-            </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
-              {platforms.map((platform) => (
-                <Chip
-                  key={platform.id}
-                  label={platform.name}
-                  selected={platformId === platform.id}
-                  onPress={() => setPlatformId(platformId === platform.id ? null : platform.id)}
-                />
-              ))}
+            <View style={{ gap: theme.spacing.sm }}>
+              <Text variant="captionStrong" color="secondary">
+                DE QUAL APLICATIVO?
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+                {platforms.map((platform) => (
+                  <Chip
+                    key={platform.id}
+                    label={platform.name}
+                    selected={platformId === platform.id}
+                    onPress={() => setPlatformId(platformId === platform.id ? null : platform.id)}
+                  />
+                ))}
+              </View>
             </View>
 
-            <Text variant="caption" color="secondary">
-              CORRIDAS / ENTREGAS (OPCIONAL)
-            </Text>
-            <TextInput
-              accessibilityLabel="Número de corridas ou entregas"
-              placeholder="—"
-              placeholderTextColor={theme.colors.textMuted}
+            <Field
+              label="Corridas ou entregas"
+              optional
+              iconName="route"
+              placeholder="Quantas foram?"
               keyboardType="number-pad"
               value={trips}
               onChangeText={setTrips}
-              style={{
-                height: 48,
-                borderRadius: theme.radius.lg,
-                borderWidth: 1,
-                borderColor: theme.colors.borderPrimary,
-                paddingHorizontal: theme.spacing.lg,
-                color: theme.colors.textPrimary,
-                fontSize: 16,
-              }}
             />
           </>
         ) : (
-          <>
-            <Text variant="caption" color="secondary">
-              CATEGORIA
+          <View style={{ gap: theme.spacing.sm }}>
+            <Text variant="captionStrong" color="secondary">
+              COM O QUE FOI?
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
               {categories.map((category) => (
@@ -185,19 +185,40 @@ export default function Record() {
                 />
               ))}
             </View>
-          </>
+          </View>
         )}
       </Card>
 
-      <Button
-        label={saved ?? 'Salvar'}
-        size="lg"
-        fullWidth
-        loading={saving}
-        disabled={!canSave}
-        onPress={handleSave}
-      />
-    </ScrollView>
+      <View style={{ gap: theme.spacing.md }}>
+        <SectionHeader title="Registros com conta própria" />
+        <Card
+          padding="lg"
+          onPress={() => router.push('/fuel')}
+          accessibilityLabel="Registrar abastecimento"
+          style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}
+        >
+          <View
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: theme.radius.pill,
+              backgroundColor: theme.colors.warningSubtle,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon name="fuel" size={20} color={theme.colors.warningText} />
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text variant="bodyStrong">Abastecimento</Text>
+            <Text variant="caption" color="secondary">
+              Informe litros e preço — o consumo o Dinamique calcula
+            </Text>
+          </View>
+          <Icon name="chevronRight" size={18} color={theme.colors.textMuted} />
+        </Card>
+      </View>
+    </Screen>
   );
 }
 
@@ -227,10 +248,11 @@ function JourneyCard({
     return (
       <Card padding="xl" style={{ gap: theme.spacing.md }}>
         <Text variant="subtitle">Nenhuma jornada em andamento</Text>
-        <Text variant="caption" color="secondary">
-          Inicie uma jornada para o Dinamique medir seu tempo trabalhado.
+        <Text variant="body" color="secondary">
+          Inicie uma jornada para o Dinamique medir seu tempo trabalhado — é o que permite calcular
+          quanto você ganha por hora.
         </Text>
-        <Button label="Iniciar jornada" onPress={onStart} />
+        <Button label="Iniciar jornada" iconName="play" onPress={onStart} />
       </Card>
     );
   }
@@ -241,18 +263,35 @@ function JourneyCard({
   );
 
   return (
-    <Card padding="xl" style={{ gap: theme.spacing.md }}>
-      <Text variant="caption" color="secondary">
-        {journey.status === 'paused' ? 'JORNADA PAUSADA' : 'JORNADA EM ANDAMENTO'}
+    // A soft brand tint rather than a dark slab: this card is on screen while
+    // someone is driving, and a bright block at night is glare.
+    <Card padding="xl" tone="brand" style={{ gap: theme.spacing.md }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+        <View
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: theme.radius.pill,
+            backgroundColor:
+              journey.status === 'active' ? theme.colors.success : theme.colors.warning,
+          }}
+        />
+        <Text variant="captionStrong" color="secondary">
+          {journey.status === 'paused' ? 'Jornada pausada' : 'Jornada em andamento'}
+        </Text>
+      </View>
+
+      <Text variant="moneyLarge" color="brand">
+        {formatDuration(elapsed)}
       </Text>
-      <Text variant="moneyLarge">{formatDuration(elapsed)}</Text>
+
       <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
         {journey.status === 'active' ? (
-          <Button label="Pausar" variant="ghost" size="sm" onPress={onPause} />
+          <Button label="Pausar" variant="ghost" size="sm" iconName="pause" onPress={onPause} />
         ) : (
-          <Button label="Continuar" variant="secondary" size="sm" onPress={onResume} />
+          <Button label="Continuar" variant="ghost" size="sm" iconName="play" onPress={onResume} />
         )}
-        <Button label="Encerrar" variant="ghost" size="sm" onPress={onFinish} />
+        <Button label="Encerrar" size="sm" iconName="stop" onPress={onFinish} />
       </View>
     </Card>
   );

@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { RefreshControl, ScrollView, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { RefreshControl, View } from 'react-native';
 import type { GoalPeriod } from '@dinamique/types';
 import { generateInsights, scoreLabel } from '@dinamique/business-logic';
 import {
@@ -14,13 +13,17 @@ import {
 } from '@dinamique/utils';
 import {
   Card,
-  Chip,
   EmptyState,
   InsightCard,
+  ProgressRing,
+  Screen,
+  SectionHeader,
+  SegmentedControl,
   Skeleton,
   Text,
   useTheme,
 } from '@dinamique/ui';
+import { AppHeader } from '@/features/shell/AppHeader';
 import { usePeriodReport } from '@/features/insights/useSummary';
 import { useBenchmark } from '@/features/insights/useBenchmark';
 
@@ -33,7 +36,6 @@ const MIN_DAYS = 5;
  */
 export default function Insights() {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
   const [period, setPeriod] = useState<GoalPeriod>('weekly');
   const { report, loading, refresh } = usePeriodReport(period);
   const [refreshing, setRefreshing] = useState(false);
@@ -52,14 +54,11 @@ export default function Insights() {
     : [];
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.colors.backgroundPrimary }}
-      contentContainerStyle={{
-        padding: theme.spacing.xl,
-        paddingTop: insets.top + theme.spacing.lg,
-        gap: theme.spacing.lg,
-        flexGrow: 1,
-      }}
+    <Screen
+      header={<AppHeader title="Insights" subtitle="O que os seus números estão dizendo" />}
+      gap="lg"
+      tabBarSpacing
+      grow
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -71,13 +70,16 @@ export default function Insights() {
         />
       }
     >
-      <Text variant="titleLg">Insights</Text>
-
-      <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-        <Chip label="Semana" selected={period === 'weekly'} onPress={() => setPeriod('weekly')} />
-        <Chip label="Mês" selected={period === 'monthly'} onPress={() => setPeriod('monthly')} />
-        <Chip label="Ano" selected={period === 'yearly'} onPress={() => setPeriod('yearly')} />
-      </View>
+      <SegmentedControl
+        label="Período"
+        value={period}
+        onChange={setPeriod}
+        options={[
+          { value: 'weekly', label: 'Semana' },
+          { value: 'monthly', label: 'Mês' },
+          { value: 'yearly', label: 'Ano' },
+        ]}
+      />
 
       {loading ? (
         <>
@@ -87,26 +89,28 @@ export default function Insights() {
         </>
       ) : !report || report.daysWithData < MIN_DAYS ? (
         <EmptyState
+          iconName="sparkle"
           title="Ainda estamos conhecendo sua rotina"
           description={`Depois de ${MIN_DAYS} dias com registros, o Dinamique começa a comparar seus resultados e apontar o que mudou.`}
         />
       ) : (
         <>
           {report.score.hasData ? (
-            <Card padding="xl" style={{ gap: theme.spacing.sm }}>
-              <Text variant="caption" color="secondary">
-                NOTA DE HOJE
-              </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: theme.spacing.sm }}>
-                <Text variant="display" color="brand">
-                  {report.score.score.toFixed(1).replace('.', ',')}
-                </Text>
-                <Text variant="body" color="secondary">
-                  de 10
-                </Text>
+            <Card padding="xl" style={{ gap: theme.spacing.lg, alignItems: 'center' }}>
+              <View style={{ alignSelf: 'stretch' }}>
+                <SectionHeader title="Nota de hoje" />
               </View>
-              <Text variant="bodyStrong">{scoreLabel(report.score.score)}</Text>
-              <Text variant="caption" color="muted">
+              <ProgressRing
+                ratio={report.score.score / 10}
+                label={`Nota de hoje, ${report.score.score.toFixed(1)} de 10`}
+                centreLabel={report.score.score.toFixed(1).replace('.', ',')}
+                centreHint="de 10"
+                size={148}
+              />
+              <Text variant="bodyStrong" align="center">
+                {scoreLabel(report.score.score)}
+              </Text>
+              <Text variant="caption" color="muted" align="center">
                 A nota compara seu dia com a sua própria média e com a meta. Ela sobe quando você
                 supera o que costuma fazer.
               </Text>
@@ -183,9 +187,7 @@ export default function Insights() {
 
           {insights.length > 0 ? (
             <View style={{ gap: theme.spacing.md }}>
-              <Text variant="captionStrong" color="secondary">
-                O QUE MUDOU
-              </Text>
+              <SectionHeader title="O que mudou" />
               {insights.map((insight) => (
                 <InsightCard key={insight.key} insight={insight} />
               ))}
@@ -199,7 +201,7 @@ export default function Insights() {
           )}
         </>
       )}
-    </ScrollView>
+    </Screen>
   );
 }
 

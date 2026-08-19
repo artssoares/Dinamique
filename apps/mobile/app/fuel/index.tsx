@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Alert, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import type { FuelType } from '@dinamique/types';
 import { completeFuelEntry, isFuelEntryComplete } from '@dinamique/business-logic';
 import { formatCents, parseCents, toDateOnly } from '@dinamique/utils';
-import { Button, Card, Chip, Field, Text, useTheme } from '@dinamique/ui';
+import { Button, Card, Chip, Field, Screen, ScreenHeader, Text, useTheme } from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 import { useSession } from '@/hooks/useSession';
@@ -118,13 +118,10 @@ export default function Fuel() {
           : null;
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Abastecimento' }} />
-      <ScrollView
-        style={{ backgroundColor: theme.colors.backgroundPrimary }}
-        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.xl }}
-        keyboardShouldPersistTaps="handled"
-      >
+    <Screen
+      header={<ScreenHeader title="Abastecimento" onBack={() => router.back()} />}
+      gap="lg"
+    >
         <View style={{ gap: theme.spacing.sm }}>
           <Text variant="captionStrong" color="secondary">
             COMBUSTÍVEL
@@ -199,7 +196,6 @@ export default function Fuel() {
           disabled={!isFuelEntryComplete(completed)}
           onPress={save}
         />
-      </ScrollView>
-    </>
+    </Screen>
   );
 }

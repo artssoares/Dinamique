@@ -1,19 +1,31 @@
-import { View } from 'react-native';
-import { Stack } from 'expo-router';
+import { useRouter } from 'expo-router';
 import type { ThemePreference } from '@dinamique/types';
-import { Card, Chip, Text, useTheme, useThemePreference } from '@dinamique/ui';
+import {
+  Card,
+  ListRow,
+  Screen,
+  ScreenHeader,
+  Text,
+  useThemePreference,
+  type IconName,
+} from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/useSession';
 
-const OPTIONS: { value: ThemePreference; label: string }[] = [
-  { value: 'light', label: 'Claro' },
-  { value: 'dark', label: 'Escuro' },
-  { value: 'system', label: 'Sistema' },
+const OPTIONS: { value: ThemePreference; label: string; description: string; icon: IconName }[] = [
+  { value: 'light', label: 'Claro', description: 'Fundo branco o tempo todo', icon: 'sun' },
+  { value: 'dark', label: 'Escuro', description: 'Melhor para dirigir à noite', icon: 'moon' },
+  {
+    value: 'system',
+    label: 'Igual ao celular',
+    description: 'Muda sozinho com o seu aparelho',
+    icon: 'settings',
+  },
 ];
 
 /** Light / dark / system, persisted to the profile (§16). */
 export default function Appearance() {
-  const theme = useTheme();
+  const router = useRouter();
   const { preference, setPreference } = useThemePreference();
   const { session } = useSession();
 
@@ -25,25 +37,36 @@ export default function Appearance() {
   }
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Aparência' }} />
-      <View style={{ flex: 1, padding: theme.spacing.xl, backgroundColor: theme.colors.backgroundPrimary }}>
-        <Card padding="xl" style={{ gap: theme.spacing.lg }}>
-          <Text variant="captionStrong" color="secondary">
-            TEMA
-          </Text>
-          <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-            {OPTIONS.map((option) => (
-              <Chip
-                key={option.value}
-                label={option.label}
-                selected={preference === option.value}
-                onPress={() => choose(option.value)}
-              />
-            ))}
-          </View>
-        </Card>
-      </View>
-    </>
+    <Screen
+      header={<ScreenHeader title="Aparência" onBack={() => router.back()} />}
+      gap="lg"
+    >
+      <Card padding="none" style={{ overflow: 'hidden' }}>
+        {OPTIONS.map((option, index) => (
+          <ListRow
+            key={option.value}
+            first={index === 0}
+            icon={option.icon}
+            iconTone={preference === option.value ? 'brand' : 'neutral'}
+            label={option.label}
+            description={option.description}
+            showChevron={false}
+            onPress={() => choose(option.value)}
+            right={
+              preference === option.value ? (
+                <Text variant="captionStrong" color="brand">
+                  Em uso
+                </Text>
+              ) : null
+            }
+          />
+        ))}
+      </Card>
+
+      <Text variant="caption" color="muted">
+        O tema escuro usa cinzas bem escuros em vez de preto puro, para o texto não brilhar demais
+        no escuro do carro.
+      </Text>
+    </Screen>
   );
 }

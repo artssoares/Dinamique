@@ -1,9 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { View } from 'react-native';
+import { useRouter } from 'expo-router';
 import type { FreeFlowStatus } from '@dinamique/types';
 import { addDays, formatCents, parseCents, toDateOnly } from '@dinamique/utils';
-import { Badge, Button, Card, Chip, EmptyState, Field, Text, useTheme } from '@dinamique/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  Chip,
+  EmptyState,
+  Field,
+  Screen,
+  ScreenHeader,
+  Text,
+  useTheme,
+} from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/useSession';
 
@@ -37,6 +48,7 @@ const REMINDERS = [
  */
 export default function FreeFlow() {
   const theme = useTheme();
+  const router = useRouter();
   const { session } = useSession();
 
   const [records, setRecords] = useState<FreeFlowRow[]>([]);
@@ -95,12 +107,16 @@ export default function FreeFlow() {
   const toCheck = records.filter((record) => record.status !== 'paid').length;
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Free Flow' }} />
-      <ScrollView
-        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.lg, flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-      >
+    <Screen
+      header={
+        <ScreenHeader
+          title="Free Flow"
+          subtitle="Pedágio sem cancela"
+          onBack={() => router.back()}
+        />
+      }
+      gap="lg"
+    >
         <Text variant="body" color="secondary">
           Passou por um pedágio sem cancela? Registre aqui e o Dinamique lembra você de conferir o
           pagamento. Não consultamos a concessionária — quem confere é você.
@@ -195,7 +211,6 @@ export default function FreeFlow() {
             ) : null}
           </Card>
         ))}
-      </ScrollView>
-    </>
+    </Screen>
   );
 }

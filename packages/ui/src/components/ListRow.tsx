@@ -1,0 +1,132 @@
+import type { ReactNode } from 'react';
+import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
+import { useTheme } from '../theme/ThemeProvider';
+import { Icon, type IconName } from '../icons/Icon';
+import { MIN_TOUCH_TARGET } from '../tokens/index';
+import { CountBadge } from './Badge';
+import { Text } from './Text';
+
+export interface ListRowProps {
+  label: string;
+  description?: string;
+  /** Right-hand value, e.g. an amount. */
+  value?: string;
+  valueTone?: 'primary' | 'success' | 'danger' | 'secondary';
+  icon?: IconName;
+  /** Tints the icon puck. Defaults to a neutral surface. */
+  iconTone?: 'neutral' | 'brand' | 'accent' | 'success' | 'danger' | 'warning';
+  badge?: number;
+  onPress?: () => void;
+  /** Hides the chevron on a row that opens nothing. */
+  showChevron?: boolean;
+  right?: ReactNode;
+  first?: boolean;
+  style?: StyleProp<ViewStyle>;
+}
+
+/**
+ * One row of a list: icon puck, label, optional description, value, chevron.
+ *
+ * It exists because five screens each drew their own version, with different
+ * paddings and a `›` character standing in for a chevron.
+ */
+export function ListRow({
+  label,
+  description,
+  value,
+  valueTone = 'primary',
+  icon,
+  iconTone = 'neutral',
+  badge,
+  onPress,
+  showChevron,
+  right,
+  first = false,
+  style,
+}: ListRowProps) {
+  const theme = useTheme();
+
+  const tones = {
+    neutral: { background: theme.colors.backgroundSecondary, icon: theme.colors.textSecondary },
+    brand: { background: theme.colors.brandPrimarySubtle, icon: theme.colors.brandPrimary },
+    accent: { background: theme.colors.brandSecondarySubtle, icon: theme.colors.brandSecondary },
+    success: { background: theme.colors.successSubtle, icon: theme.colors.successText },
+    danger: { background: theme.colors.dangerSubtle, icon: theme.colors.dangerText },
+    warning: { background: theme.colors.warningSubtle, icon: theme.colors.warningText },
+  } as const;
+
+  const puck = tones[iconTone];
+  const chevron = showChevron ?? Boolean(onPress);
+
+  const content = (
+    <>
+      {icon ? (
+        <View
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: theme.radius.pill,
+            backgroundColor: puck.background,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon name={icon} size={20} color={puck.icon} />
+        </View>
+      ) : null}
+
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text variant="bodyStrong" numberOfLines={1}>
+          {label}
+        </Text>
+        {description ? (
+          <Text variant="caption" color="secondary" numberOfLines={2}>
+            {description}
+          </Text>
+        ) : null}
+      </View>
+
+      {right}
+
+      {value ? (
+        <Text variant="bodyStrong" color={valueTone}>
+          {value}
+        </Text>
+      ) : null}
+
+      {badge && badge > 0 ? <CountBadge count={badge} /> : null}
+
+      {chevron ? <Icon name="chevronRight" size={18} color={theme.colors.textMuted} /> : null}
+    </>
+  );
+
+  const base: StyleProp<ViewStyle> = [
+    {
+      minHeight: MIN_TOUCH_TARGET + 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.md,
+      paddingVertical: theme.spacing.md,
+      paddingHorizontal: theme.spacing.lg,
+      borderTopWidth: first ? 0 : 1,
+      borderTopColor: theme.colors.borderSubtle,
+    },
+    style,
+  ];
+
+  if (!onPress) return <View style={base}>{content}</View>;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={description ? `${label}. ${description}` : label}
+      onPress={onPress}
+      style={({ pressed }) => [
+        base,
+        { backgroundColor: pressed ? theme.colors.surfaceHover : 'transparent' },
+      ]}
+    >
+      {content}
+    </Pressable>
+  );
+}

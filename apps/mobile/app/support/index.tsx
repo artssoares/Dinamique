@@ -1,7 +1,17 @@
 import { FlatList, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { STATUS_LABELS, isOpen } from '@dinamique/business-logic';
-import { Badge, Button, Card, EmptyState, Skeleton, Text, useTheme } from '@dinamique/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Screen,
+  ScreenHeader,
+  Skeleton,
+  Text,
+  useTheme,
+} from '@dinamique/ui';
 import { useTickets, type TicketSummary } from '@/features/support/useSupport';
 
 /**
@@ -13,29 +23,48 @@ export default function SupportInbox() {
   const router = useRouter();
   const { tickets, loading, refresh } = useTickets();
 
+  const header = (
+    <ScreenHeader
+      title="Suporte"
+      subtitle="Fale com a equipe sem sair do aplicativo"
+      onBack={() => router.back()}
+    />
+  );
+
   if (loading) {
     return (
-      <View style={{ padding: theme.spacing.xl, gap: theme.spacing.md }}>
+      <Screen header={header} gap="md">
         <Skeleton height={92} radius={theme.radius['2xl']} />
         <Skeleton height={92} radius={theme.radius['2xl']} />
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <Screen
+      header={header}
+      scroll={false}
+      padding="none"
+      footer={
+        tickets.length > 0 ? (
+          <Button
+            label="Abrir nova solicitação"
+            iconName="plus"
+            fullWidth
+            onPress={() => router.push('/support/new')}
+          />
+        ) : null
+      }
+    >
       <FlatList
         data={tickets}
         keyExtractor={(item) => item.id}
         onRefresh={refresh}
         refreshing={false}
-        contentContainerStyle={{
-          padding: theme.spacing.xl,
-          gap: theme.spacing.md,
-          flexGrow: 1,
-        }}
+        contentContainerStyle={{ gap: theme.spacing.md, flexGrow: 1 }}
         ListEmptyComponent={
           <EmptyState
+            iconName="support"
             title="Nenhuma conversa por aqui"
             description="Precisa de ajuda? Fale com a equipe Dinamique sem sair do aplicativo."
             actionLabel="Abrir solicitação"
@@ -46,17 +75,7 @@ export default function SupportInbox() {
           <TicketRow ticket={item} onPress={() => router.push(`/support/${item.id}`)} />
         )}
       />
-
-      {tickets.length > 0 ? (
-        <View style={{ padding: theme.spacing.xl, paddingTop: 0 }}>
-          <Button
-            label="Abrir nova solicitação"
-            fullWidth
-            onPress={() => router.push('/support/new')}
-          />
-        </View>
-      ) : null}
-    </View>
+    </Screen>
   );
 }
 

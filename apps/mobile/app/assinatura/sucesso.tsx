@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
-import { Button, Card, Text, useTheme } from '@dinamique/ui';
+import { useRouter } from 'expo-router';
+import { Button, Card, Screen, ScreenHeader, Text, useTheme } from '@dinamique/ui';
 import { useSession } from '@/hooks/useSession';
 
 /**
@@ -33,9 +33,12 @@ export default function CheckoutSuccess() {
   const stillWaiting = !confirmed && attempts < 5;
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Assinatura' }} />
-      <View style={{ flex: 1, padding: theme.spacing.xl, justifyContent: 'center', gap: theme.spacing.lg }}>
+    <Screen
+      header={<ScreenHeader title="Assinatura" onBack={() => router.back()} />}
+      center
+      gap="lg"
+    >
+      <View style={{ gap: theme.spacing.lg }}>
         <Card padding="xl" style={{ gap: theme.spacing.md }}>
           {confirmed ? (
             <>
@@ -79,6 +82,6 @@ export default function CheckoutSuccess() {
           />
         ) : null}
       </View>
-    </>
+    </Screen>
   );
 }

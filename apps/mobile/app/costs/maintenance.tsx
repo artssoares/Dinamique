@@ -1,8 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { formatCents, formatDistanceKm, parseCents, toDateOnly } from '@dinamique/utils';
-import { Badge, Button, Card, EmptyState, Field, Select, Text, useTheme } from '@dinamique/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Field,
+  Screen,
+  ScreenHeader,
+  Select,
+  Text,
+  useTheme,
+} from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/useSession';
 
@@ -20,6 +31,7 @@ interface MaintenanceRow {
 /** Manutenção (§34) com lembrete por km ou por data. */
 export default function Maintenance() {
   const theme = useTheme();
+  const router = useRouter();
   const { session } = useSession();
 
   const [logs, setLogs] = useState<MaintenanceRow[]>([]);
@@ -111,12 +123,16 @@ export default function Maintenance() {
   );
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Manutenção' }} />
-      <ScrollView
-        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.lg, flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-      >
+    <Screen
+      header={
+        <ScreenHeader
+          title="Manutenção"
+          subtitle="O que já foi feito e o que está chegando"
+          onBack={() => router.back()}
+        />
+      }
+      gap="lg"
+    >
         {upcoming.length > 0 ? (
           <Card padding="lg" style={{ gap: theme.spacing.xs }}>
             <Text variant="captionStrong" color="secondary">
@@ -207,7 +223,6 @@ export default function Maintenance() {
             ) : null}
           </Card>
         ))}
-      </ScrollView>
-    </>
+    </Screen>
   );
 }

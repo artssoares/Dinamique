@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { FlatList, Modal, Pressable, View } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
+import { useResponsive } from '../hooks/useResponsive';
+import { Icon } from '../icons/Icon';
 import { MIN_TOUCH_TARGET } from '../tokens/index';
 import { Text } from './Text';
 
@@ -37,6 +39,7 @@ export function Select({
   emptyLabel = 'Nada disponível',
 }: SelectProps) {
   const theme = useTheme();
+  const { isMedium, contentWidth } = useResponsive();
   const [open, setOpen] = useState(false);
 
   const selected = options.find((option) => option.value === value);
@@ -67,7 +70,7 @@ export function Select({
           alignItems: 'center',
           justifyContent: 'space-between',
           borderRadius: theme.radius.lg,
-          borderWidth: 1,
+          borderWidth: 1.5,
           borderColor: theme.colors.borderPrimary,
           backgroundColor: theme.colors.surfacePrimary,
           paddingHorizontal: theme.spacing.lg,
@@ -77,20 +80,25 @@ export function Select({
         <Text variant="body" color={selected ? 'primary' : 'muted'}>
           {isEmpty ? emptyLabel : (selected?.label ?? placeholder)}
         </Text>
-        <Text variant="body" color="muted">
-          ▾
-        </Text>
+        <Icon name="chevronDown" size={18} color={theme.colors.textSecondary} />
       </Pressable>
 
       <Modal visible={open} animationType="slide" transparent onRequestClose={() => setOpen(false)}>
         <Pressable
           accessibilityLabel="Fechar"
           onPress={() => setOpen(false)}
-          style={{ flex: 1, backgroundColor: theme.colors.overlay, justifyContent: 'flex-end' }}
+          style={{
+            flex: 1,
+            backgroundColor: theme.colors.overlay,
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+          }}
         >
           <Pressable
             onPress={(event) => event.stopPropagation()}
             style={{
+              width: '100%',
+              maxWidth: isMedium ? contentWidth : undefined,
               maxHeight: '70%',
               backgroundColor: theme.colors.surfacePrimary,
               borderTopLeftRadius: theme.radius['3xl'],
@@ -122,19 +130,28 @@ export function Select({
                     setOpen(false);
                   }}
                   style={({ pressed }) => ({
-                    minHeight: MIN_TOUCH_TARGET,
-                    justifyContent: 'center',
+                    minHeight: MIN_TOUCH_TARGET + 6,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: theme.spacing.md,
                     paddingVertical: theme.spacing.md,
+                    paddingHorizontal: theme.spacing.sm,
+                    borderRadius: theme.radius.md,
                     backgroundColor: pressed ? theme.colors.surfaceHover : 'transparent',
                   })}
                 >
-                  <Text variant="body" color={item.value === value ? 'brand' : 'primary'}>
-                    {item.label}
-                  </Text>
-                  {item.hint ? (
-                    <Text variant="caption" color="muted">
-                      {item.hint}
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text variant="body" color={item.value === value ? 'brand' : 'primary'}>
+                      {item.label}
                     </Text>
+                    {item.hint ? (
+                      <Text variant="caption" color="muted">
+                        {item.hint}
+                      </Text>
+                    ) : null}
+                  </View>
+                  {item.value === value ? (
+                    <Icon name="check" size={18} color={theme.colors.brandPrimary} />
                   ) : null}
                 </Pressable>
               )}

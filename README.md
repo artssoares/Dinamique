@@ -17,7 +17,7 @@ plan and exactly where each area stands.
 | --- | --- |
 | Business logic (`packages/business-logic`) | 102 tests — profit, R$/h, R$/km, goals, projections, score, vehicle cost, benchmark, codes, referrals, plans, support |
 | Database (`packages/database`) | 42 tables, 105 RLS policies, 29 behaviour assertions |
-| Design system (`packages/ui`) | tokens + 11 components, contrast asserted in both themes |
+| Design system (`packages/ui`) | tokens + icon set + 27 components, contrast asserted in both themes |
 | Mobile app (`apps/mobile`) | auth, onboarding, Home, journeys, entries, history, insights, support, referrals, influencer |
 | Admin (`apps/admin`) | dashboard, support inbox, users, influencers, referrals, codes, audit log |
 

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, View } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Alert, Pressable, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import type { BillingInterval } from '@dinamique/billing';
 import { annualSavings, monthlyEquivalent } from '@dinamique/billing';
 import { FEATURES, hasFeature, type Feature } from '@dinamique/business-logic';
 import { formatCents, formatPercent } from '@dinamique/utils';
-import { Badge, Button, Card, Text, useTheme } from '@dinamique/ui';
+import { Badge, Button, Card, Screen, ScreenHeader, Text, useTheme } from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/useSession';
 import { openPortal, startCheckout } from '@/features/billing/api';
@@ -120,12 +120,10 @@ export default function Plan() {
       : null;
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Plano e assinatura' }} />
-      <ScrollView
-        style={{ backgroundColor: theme.colors.backgroundPrimary }}
-        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.xl }}
-      >
+    <Screen
+      header={<ScreenHeader title="Plano e assinatura" onBack={() => router.back()} />}
+      gap="lg"
+    >
         <Card padding="xl" style={{ gap: theme.spacing.md }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text variant="titleLg">{plan === 'pro' ? 'Dinamique Pro' : 'Dinamique Free'}</Text>
@@ -256,8 +254,7 @@ export default function Plan() {
         <Text variant="caption" color="muted" align="center">
           Pagamento processado pelo Stripe. O Dinamique não guarda os dados do seu cartão.
         </Text>
-      </ScrollView>
-    </>
+    </Screen>
   );
 }
 
