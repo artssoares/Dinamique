@@ -51,7 +51,7 @@ export function Money({
     const tick = () => {
       const elapsed = Date.now() - startedAt;
       const progress = Math.min(1, elapsed / duration);
-      // easeOutCubic — fast first, settles gently on the final figure
+      // easeOutCubic – fast first, settles gently on the final figure
       const eased = 1 - (1 - progress) ** 3;
       setDisplayed(Math.round(from + (to - from) * eased));
 

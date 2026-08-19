@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   }
 
   // Se já existe assinatura ativa, mandamos para o portal em vez de criar uma
-  // segunda — cobrar duas vezes a mesma pessoa é o pior erro possível aqui.
+  // segunda – cobrar duas vezes a mesma pessoa é o pior erro possível aqui.
   const { data: existing } = await supabase
     .from('subscriptions')
     .select('stripe_subscription_id, billing_status')
@@ -153,7 +153,7 @@ async function ensureCustomer(userId: string, email: string): Promise<string> {
  * Cupom do desconto de indicação, criado sob demanda.
  *
  * `duration: 'once'` é o que garante que o desconto vale só na primeira
- * cobrança — sem isso ele se repetiria em toda renovação (§83).
+ * cobrança – sem isso ele se repetiria em toda renovação (§83).
  */
 async function ensureReferralCoupon(amountOff: number): Promise<void> {
   const stripe = getStripe();

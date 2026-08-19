@@ -18,7 +18,7 @@ interface CodeRow {
   created_at: string;
 }
 
-/** Codes and campaigns — one table for every kind of code (§88, §89). */
+/** Codes and campaigns – one table for every kind of code (§88, §89). */
 export default async function Codes() {
   await requireAdmin(PRIVILEGED_ROLES);
   const supabase = await getSessionClient();
@@ -36,7 +36,7 @@ export default async function Codes() {
     <>
       <h1 className="page-title">Códigos e Campanhas</h1>
       <p className="page-subtitle">
-        Códigos pessoais de indicação não aparecem aqui — cada usuário recebe o seu
+        Códigos pessoais de indicação não aparecem aqui. Cada usuário recebe o seu
         automaticamente no cadastro.
       </p>
 

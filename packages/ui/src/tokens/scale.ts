@@ -59,7 +59,7 @@ export const typography = {
 export type TypographyToken = keyof typeof typography;
 
 /**
- * Elevation is soft — depth comes from spacing first. `xl` exists only for the
+ * Elevation is soft – depth comes from spacing first. `xl` exists only for the
  * two things that genuinely float above the page: the tab bar and the hero
  * card stack.
  */
@@ -81,7 +81,7 @@ export const motion = {
   counter: 700,
 } as const;
 
-/** Minimum touch target, in dp — accessibility floor (§116). */
+/** Minimum touch target, in dp – accessibility floor (§116). */
 export const MIN_TOUCH_TARGET = 44;
 
 /**
@@ -90,7 +90,7 @@ export const MIN_TOUCH_TARGET = 44;
  * Everything above `md` centres inside `layout.maxContentWidth` instead.
  */
 export const breakpoints = {
-  /** Small phones — iPhone SE and the cheap Androids most drivers carry. */
+  /** Small phones – iPhone SE and the cheap Androids most drivers carry. */
   compact: 360,
   /** Ordinary phones. */
   regular: 400,

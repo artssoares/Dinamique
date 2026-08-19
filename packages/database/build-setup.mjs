@@ -2,7 +2,7 @@
  * Gera `supabase/setup.sql`: todas as migrations concatenadas num arquivo só.
  *
  * Existe para que instalar o Dinamique num projeto Supabase novo seja UM passo
- * — colar e executar no SQL Editor — em vez de rodar dez arquivos na ordem
+ * (colar e executar no SQL Editor) em vez de rodar dez arquivos na ordem
  * certa. As migrations continuam separadas no repositório, que é o que serve
  * para evoluir o schema; este arquivo é só o pacote de instalação.
  */
@@ -17,7 +17,7 @@ const outputPath = join(here, '..', '..', 'supabase', 'setup.sql');
 const files = readdirSync(migrationsDir).filter((name) => name.endsWith('.sql')).sort();
 
 const header = `-- ============================================================================
--- Dinamique — instalação completa
+-- Dinamique, instalação completa
 --
 -- Cole este arquivo inteiro no SQL Editor do seu projeto Supabase e execute.
 -- Ele cria o schema, as políticas de segurança, as funções e os dados iniciais.

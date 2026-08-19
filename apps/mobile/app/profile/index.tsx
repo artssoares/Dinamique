@@ -59,7 +59,7 @@ export default function Profile() {
 
     // `finally` rather than `.then`: a request that fails on a bad connection
     // used to leave `loading` true for ever, and the screen rendered nothing
-    // at all — no header, no way back.
+    // at all – no header, no way back.
     void (async () => {
       try {
         const { data } = await supabase

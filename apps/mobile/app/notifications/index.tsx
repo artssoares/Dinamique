@@ -37,6 +37,7 @@ export default function Notifications() {
       .from('user_notifications')
       .select('id, category, title, body, deep_link, read_at, created_at')
       .eq('user_id', session.user.id)
+      .is('dismissed_at', null)
       .order('created_at', { ascending: false })
       .limit(100);
     setItems((data as NotificationRow[] | null) ?? []);

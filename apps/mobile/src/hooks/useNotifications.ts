@@ -13,7 +13,7 @@ export interface NotificationCounts {
  *
  * Supabase keys channels by topic. Two components asking for
  * `notifications:<user>` get the same channel object back, and calling `.on()`
- * on a channel that has already subscribed throws — which blanked the whole
+ * on a channel that has already subscribed throws – which blanked the whole
  * app, because the header, the tab bar and the "Mais" screen all read the
  * unread count. Refcounting one channel here fixes that and opens one socket
  * topic instead of three.
@@ -64,7 +64,7 @@ function attach(userId: string, onChange: () => void): () => void {
  * Unread counts for the bell and the Support tab badge (§71).
  *
  * Realtime is used where it is stable, with a refresh on demand as the
- * fallback — the counter must be reliable more than it must be instant (§75).
+ * fallback – the counter must be reliable more than it must be instant (§75).
  */
 export function useNotificationCounts(): NotificationCounts & { refresh: () => Promise<void> } {
   const { session } = useSession();

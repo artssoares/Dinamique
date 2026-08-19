@@ -14,7 +14,7 @@ const ANALYST_ROLES = ['superadmin', 'admin', 'analyst'] as const;
  * Exportação do relatório atual (§95).
  *
  * Os mesmos filtros da tela vêm pela URL, então o arquivo é exatamente o que
- * está na tela. Toda exportação é registrada no Audit Log — exportar dados
+ * está na tela. Toda exportação é registrada no Audit Log – exportar dados
  * agregados de usuários é uma ação sensível.
  */
 export async function GET(request: NextRequest) {

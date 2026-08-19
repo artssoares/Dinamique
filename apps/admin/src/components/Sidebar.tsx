@@ -70,7 +70,7 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div>
-        {/* The logo file is not in the repository yet — see assets/brand/README.md. */}
+        {/* The logo file is not in the repository yet – see assets/brand/README.md. */}
         <strong style={{ fontSize: 18, letterSpacing: '-0.02em' }}>dinamique.</strong>
         <div className="small muted">Admin</div>
       </div>

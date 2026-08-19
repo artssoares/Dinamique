@@ -59,7 +59,7 @@ create table billing_customers (
 
 -- ---------------------------------------------------------- assinaturas -----
 -- `subscriptions` já existia para concessões manuais (cortesia, trial). Aqui
--- ela ganha o vínculo com o Stripe, sem virar uma segunda tabela paralela —
+-- ela ganha o vínculo com o Stripe, sem virar uma segunda tabela paralela –
 -- a resolução de plano efetivo continua sendo uma só (§57).
 alter table subscriptions
   add column stripe_subscription_id text unique,
@@ -110,7 +110,7 @@ create policy billing_events_read_admin on billing_events
 
 -- O cliente só LÊ preços. Nem sequer existe grant de escrita: o Admin altera
 -- preço pela service role, então dar permissão a `authenticated` seria
--- superfície sem uso — e em tabela que decide cobrança, superfície sem uso é
+-- superfície sem uso – e em tabela que decide cobrança, superfície sem uso é
 -- risco puro.
 grant select on billing_prices, billing_customers to authenticated;
 grant all on billing_prices, billing_customers, billing_events to service_role;
@@ -121,7 +121,7 @@ grant all on billing_prices, billing_customers, billing_events to service_role;
  * Aplica o resultado de um evento do Stripe.
  *
  * Concentrar a escrita numa função só evita que cada tipo de evento no webhook
- * invente sua própria forma de atualizar a assinatura — que é como estados
+ * invente sua própria forma de atualizar a assinatura – que é como estados
  * inconsistentes aparecem.
  *
  * Devolve o id da linha de assinatura afetada.
@@ -182,7 +182,7 @@ grant execute on function apply_subscription_state(uuid, text, text, billing_int
  * Consome o desconto de indicação numa cobrança (§84).
  *
  * Marca o benefício como usado e registra onde foi aplicado. Só faz efeito uma
- * vez — a condição `status = 'granted'` é a trava, e ela é atômica.
+ * vez – a condição `status = 'granted'` é a trava, e ela é atômica.
  */
 create or replace function consume_discount_benefit(
   p_user_id uuid,

@@ -5,7 +5,7 @@ import { getSessionClient } from '@/lib/supabase-server';
 
 /**
  * Every page under this layout sits behind `requireAdmin()`, which runs on the
- * server for each request. The sidebar is only chrome — it hides links a role
+ * server for each request. The sidebar is only chrome – it hides links a role
  * cannot use, but each page re-checks its own permission (§118).
  */
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {

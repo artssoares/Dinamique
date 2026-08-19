@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   Badge,
@@ -11,6 +11,7 @@ import {
   useTheme,
   type IconName,
 } from '@dinamique/ui';
+import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/useSession';
 import { useNotificationCounts } from '@/hooks/useNotifications';
 import { AppHeader } from '@/features/shell/AppHeader';
@@ -34,8 +35,35 @@ interface MenuItem {
 export default function More() {
   const theme = useTheme();
   const router = useRouter();
-  const { profile, plan, isTrial, signOut } = useSession();
+  const { session, profile, plan, isTrial, refresh, signOut } = useSession();
   const { unreadSupport } = useNotificationCounts();
+
+  /**
+   * Clears the onboarding and tour flags so both run again from the top.
+   * Nothing the driver has recorded is touched: the answers are re-asked and
+   * re-saved over the same profile.
+   */
+  function redoOnboarding() {
+    if (!session?.user) return;
+    Alert.alert(
+      'Refazer o cadastro inicial?',
+      'Você responde as perguntas de novo. Seus ganhos, gastos e jornadas continuam onde estão.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Refazer',
+          onPress: async () => {
+            await supabase
+              .from('profiles')
+              .update({ onboarding_completed_at: null, tour_completed_at: null })
+              .eq('id', session.user!.id);
+            await refresh();
+            router.replace('/onboarding');
+          },
+        },
+      ],
+    );
+  }
 
   const sections: { title: string; items: MenuItem[] }[] = [
     {
@@ -88,7 +116,7 @@ export default function More() {
           badge: unreadSupport,
         },
         { label: 'Indique um motorista', href: '/referrals', icon: 'gift', tone: 'accent' },
-        { label: 'Seja um Influencer', href: '/influencer', icon: 'sparkle', tone: 'accent' },
+        { label: 'Seja um Influencer', href: '/influencer', icon: 'megaphone', tone: 'accent' },
       ],
     },
     {
@@ -118,13 +146,29 @@ export default function More() {
         padding="lg"
         style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}
       >
-        <View style={{ flex: 1, gap: theme.spacing.xxs }}>
+        <View style={{ flex: 1, gap: theme.spacing.sm }}>
           <Text variant="subtitle">{profile?.preferredName ?? profile?.firstName ?? 'Você'}</Text>
-          <Text variant="caption" color="secondary">
-            {plan === 'pro' ? (isTrial ? 'Pro — período de teste' : 'Assinante Pro') : 'Plano Free'}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+            <Badge
+              label={plan === 'pro' ? 'Pro' : 'Free'}
+              tone={plan === 'pro' ? 'brand' : 'neutral'}
+            />
+            {plan === 'pro' && isTrial ? (
+              <Text variant="caption" color="secondary">
+                período de teste
+              </Text>
+            ) : null}
+          </View>
         </View>
-        <Badge label={plan === 'pro' ? 'Pro' : 'Free'} tone={plan === 'pro' ? 'brand' : 'neutral'} />
+        {plan === 'pro' ? null : (
+          <Button
+            label="Ver o Pro"
+            variant="secondary"
+            size="sm"
+            iconName="star"
+            onPress={() => router.push('/plan')}
+          />
+        )}
       </Card>
 
       {sections.map((section) => (
@@ -146,6 +190,20 @@ export default function More() {
           </Card>
         </View>
       ))}
+
+      <View style={{ gap: theme.spacing.md }}>
+        <SectionHeader title="Recomeçar" />
+        <Card padding="none" style={{ overflow: 'hidden' }}>
+          <ListRow
+            first
+            icon="compass"
+            iconTone="brand"
+            label="Refazer o cadastro inicial"
+            description="Responde as perguntas de novo, sem perder nada do que você já registrou"
+            onPress={redoOnboarding}
+          />
+        </Card>
+      </View>
 
       <Button label="Sair da conta" variant="ghost" iconName="logout" fullWidth onPress={signOut} />
     </Screen>

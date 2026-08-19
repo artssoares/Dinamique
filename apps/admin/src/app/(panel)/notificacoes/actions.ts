@@ -8,7 +8,7 @@ import { getServiceClient } from '@/lib/supabase-server';
 
 /**
  * Composição do público a partir do formulário. Campos vazios viram null, que
- * é como o SQL entende "sem filtro" — uma lista vazia significaria "ninguém".
+ * é como o SQL entende "sem filtro" – uma lista vazia significaria "ninguém".
  */
 function buildAudience(formData: FormData) {
   const list = (key: string): string[] | null => {

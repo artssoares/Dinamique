@@ -209,7 +209,7 @@ export default function CloseJourney() {
               {summary.revenuePerKm !== null ? (
                 <Row label="Faturamento por km" value={formatCents(summary.revenuePerKm)} />
               ) : (
-                <Row label="Faturamento por km" value="— sem km informado" />
+                <Row label="Faturamento por km" value="sem km informado" />
               )}
             </View>
           </Card>
@@ -255,7 +255,7 @@ export default function CloseJourney() {
                     value={trips[platform.id] ?? ''}
                     onChangeText={(value) => setTrips({ ...trips, [platform.id]: value })}
                     keyboardType="number-pad"
-                    placeholder="—"
+                    placeholder="–"
                   />
                 </View>
               </View>

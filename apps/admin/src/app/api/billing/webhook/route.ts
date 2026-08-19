@@ -13,11 +13,11 @@ export const runtime = 'nodejs';
  * Webhook do Stripe. É ele quem concede e revoga o Pro.
  *
  * Quatro coisas acontecem antes de qualquer escrita, nesta ordem:
- *   1. a assinatura da requisição é verificada — sem isso, qualquer um manda
+ *   1. a assinatura da requisição é verificada – sem isso, qualquer um manda
  *      um POST e ganha Pro de graça;
- *   2. o evento é conferido contra `billing_events` — o Stripe reenvia, e
+ *   2. o evento é conferido contra `billing_events` – o Stripe reenvia, e
  *      reprocessar concederia plano duas vezes;
- *   3. eventos fora de ordem são descartados — o Stripe não garante ordem, e
+ *   3. eventos fora de ordem são descartados – o Stripe não garante ordem, e
  *      um `updated` antigo depois de um `deleted` reativaria um cancelamento;
  *   4. o evento é interpretado por código puro e testado.
  */
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
   }
 
   // O registro é gravado DEPOIS do efeito. Se algo falhar no meio, o Stripe
-  // reenvia e nós reprocessamos — melhor repetir uma tentativa do que marcar
+  // reenvia e nós reprocessamos – melhor repetir uma tentativa do que marcar
   // como processado algo que não chegou a acontecer.
   await supabase.from('billing_events').insert({
     stripe_event_id: event.id,
@@ -122,7 +122,7 @@ export async function POST(request: Request) {
  * de indicação, marcar a indicação como convertida e avisar o usuário.
  *
  * Só roda uma vez porque `consume_discount_benefit` é atômico e a notificação
- * é condicionada ao consumo — uma renovação anual não dispara tudo de novo.
+ * é condicionada ao consumo – uma renovação anual não dispara tudo de novo.
  */
 async function onSubscriptionActivated(userId: string, subscriptionId: string): Promise<void> {
   const supabase = getServiceClient();

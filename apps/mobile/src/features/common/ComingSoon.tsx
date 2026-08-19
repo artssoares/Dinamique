@@ -5,7 +5,7 @@ export interface ComingSoonProps {
   title: string;
   /** What this screen will do, stated plainly. */
   description: string;
-  /** Which build phase covers it — see IMPLEMENTATION.md. */
+  /** Which build phase covers it – see IMPLEMENTATION.md. */
   phase: string;
 }
 

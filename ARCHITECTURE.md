@@ -16,7 +16,7 @@ apps/admin  ─┘                          ↘
 ### `packages/types`
 
 The domain model and the enums. Every enum here has a matching Postgres enum or
-check constraint — they are kept in step by hand, and the database tests fail if
+check constraint – they are kept in step by hand, and the database tests fail if
 a value the code emits is rejected.
 
 ### `packages/utils`
@@ -43,7 +43,7 @@ number means.
 
 Design tokens plus React Native components. The tokens are plain TypeScript and
 platform-agnostic; the components are React Native and mobile-only. The admin
-deliberately does **not** depend on this package — it mirrors the same token
+deliberately does **not** depend on this package – it mirrors the same token
 values as CSS custom properties, which keeps a React 19 app free of React
 Native's React 18 types.
 
@@ -56,7 +56,7 @@ not by reading the DDL.
 ## Where each decision is enforced
 
 The same rule is often stated in more than one place. The question that matters
-is where it is *enforced* — where a mistake becomes impossible rather than
+is where it is *enforced* – where a mistake becomes impossible rather than
 merely discouraged.
 
 | Rule | Enforced by |
@@ -78,13 +78,13 @@ merely discouraged.
 Three levels of access, and the boundary between them is a deployment boundary,
 not a code convention.
 
-1. **anon** — nothing. Every screen requires a session.
-2. **authenticated** — `select` on everything, narrowed to their own rows by
+1. **anon** – nothing. Every screen requires a session.
+2. **authenticated** – `select` on everything, narrowed to their own rows by
    RLS; `insert`/`update`/`delete` only on tables where a user legitimately
    creates their own data. Tables that grant value (`subscriptions`,
    `promotion_codes`, `referrals`, `discount_benefits`, `user_attribution`) are
    read-only to the client.
-3. **service_role** — bypasses RLS. Exists only in the admin's server
+3. **service_role** – bypasses RLS. Exists only in the admin's server
    environment. Every Server Action that uses it calls `requireAdmin(roles)`
    first and `logAdminAction()` after.
 
@@ -100,7 +100,7 @@ Analytical reads go through views (`daily_totals`, `current_plans`,
 
 `daily_totals` is the grain everything downstream is built from: one row per
 user per calendar day. When volume justifies it, it becomes a materialised view
-refreshed on a schedule — the query surface does not change.
+refreshed on a schedule – the query surface does not change.
 
 `analytics_events` is append-only and readable only by admins with the analyst
 role, which keeps the event stream available for a future warehouse without

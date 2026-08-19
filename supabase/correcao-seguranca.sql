@@ -17,7 +17,7 @@
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
--- FURO 1 — views analíticas ignoravam o Row Level Security
+-- FURO 1 – views analíticas ignoravam o Row Level Security
 --
 -- No Postgres 15+, uma view SEM `security_invoker` roda com as permissões de
 -- quem a criou, e não de quem consulta. Como as views analíticas tinham
@@ -44,7 +44,7 @@ alter view analytics_support_categories  set (security_invoker = true);
 
 -- `benchmark_user_metrics` é a exceção deliberada: ela PRECISA enxergar todos
 -- os usuários, porque calcular uma mediana sobre uma única pessoa não é
--- mediana. A proteção aqui não é o RLS — é o fato de ninguém poder lê-la.
+-- mediana. A proteção aqui não é o RLS – é o fato de ninguém poder lê-la.
 -- Só as views agregadas derivadas dela são legíveis, e elas nunca devolvem
 -- linha de usuário, apenas mediana e tamanho de amostra com mínimo de 20 (§44).
 revoke all on benchmark_user_metrics from anon, authenticated;
@@ -61,14 +61,14 @@ alter view benchmark_buckets  set (security_invoker = false);
 alter view benchmark_national set (security_invoker = false);
 
 -- ---------------------------------------------------------------------------
--- FURO 2 — funções de servidor eram chamáveis por qualquer um
+-- FURO 2 – funções de servidor eram chamáveis por qualquer um
 --
 -- A Supabase concede EXECUTE em novas funções para `anon` e `authenticated`
 -- por padrão (alter default privileges). O `revoke ... from public` que as
 -- migrations faziam NÃO remove uma concessão feita diretamente a esses papéis.
 --
 -- Resultado: `apply_subscription_state` estava acessível sem login em
--- /rest/v1/rpc/apply_subscription_state — qualquer pessoa na internet podia
+-- /rest/v1/rpc/apply_subscription_state – qualquer pessoa na internet podia
 -- conceder Pro vitalício a si mesma. `consume_discount_benefit` permitia
 -- queimar o desconto de outro usuário, e `send_notification` permitia disparar
 -- notificação para toda a base.
@@ -78,7 +78,7 @@ alter view benchmark_national set (security_invoker = false);
 -- E há uma SEGUNDA porta, encontrada pelo teste depois da primeira correção:
 -- o próprio Postgres concede EXECUTE ao pseudo-papel PUBLIC em toda função
 -- nova. `anon` herda de PUBLIC. Ou seja, revogar de `anon` e `authenticated`
--- não bastava — a função continuava chamável sem login pela herança. Por isso
+-- não bastava – a função continuava chamável sem login pela herança. Por isso
 -- todo `revoke` abaixo nomeia `public` junto com os dois papéis.
 -- ---------------------------------------------------------------------------
 
@@ -103,9 +103,9 @@ revoke execute on function seed_notification_preferences() from public, anon, au
 revoke execute on function unaccent_simple(text) from public, anon, authenticated;
 
 -- Estas continuam abertas ao usuário logado DE PROPÓSITO, e só a ele:
---   redeem_code      — resgatar um código é ação do próprio usuário; todas as
+--   redeem_code      – resgatar um código é ação do próprio usuário; todas as
 --                      regras antifraude rodam dentro dela
---   mark_ticket_read — marcar o próprio atendimento como lido
+--   mark_ticket_read – marcar o próprio atendimento como lido
 revoke execute on function redeem_code(text) from public, anon;
 revoke execute on function mark_ticket_read(uuid) from public, anon;
 grant execute on function redeem_code(text) to authenticated;
@@ -128,7 +128,7 @@ $$;
 -- elas são chamadas de dentro das políticas de RLS e das views. Sem permissão
 -- de execução, toda política que as usa passaria a falhar. Além disso, elas
 -- respondem apenas sobre quem está perguntando ou sobre uma configuração
--- pública — não expõem nada.
+-- pública – não expõem nada.
 
 -- ---------------------------------------------------------------------------
 -- Endurecimento adicional: search_path fixo

@@ -2,7 +2,7 @@
  * Envio de Push Notifications via Expo (§59).
  *
  * Roda como Edge Function porque precisa da service role para ler tokens de
- * vários usuários — algo que o aplicativo nunca pode fazer.
+ * vários usuários – algo que o aplicativo nunca pode fazer.
  *
  * ATENÇÃO: esta função ainda NÃO foi testada contra a API real da Expo, porque
  * isso exige um projeto Expo com credenciais. A lógica de seleção de

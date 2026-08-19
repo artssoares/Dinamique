@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import type { WorkMode } from '@dinamique/types';
+import type { FuelType, VehicleOwnership, VehicleType, WorkMode } from '@dinamique/types';
 import { deriveGoalSuggestions } from '@dinamique/business-logic';
 import { formatCents, parseCents } from '@dinamique/utils';
 import {
@@ -21,9 +21,12 @@ import {
   type IconName,
 } from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
+import { applyMonthlyGoal } from '@/features/goals/applyGoals';
 import { track } from '@/lib/analytics';
 import { useSession } from '@/hooks/useSession';
 import { BrandMark } from '@/features/brand/BrandMark';
+import { PlatformMark } from '@/features/platforms/PlatformMark';
+import { useMakes, useModels } from '@/features/vehicle/useVehicleCatalogue';
 
 const WORK_MODE_OPTIONS: { value: WorkMode; label: string; description: string; icon: IconName }[] = [
   {
@@ -68,12 +71,12 @@ interface StepDefinition {
  *
  * One question per screen, in the plainest Portuguese we can write: "Como você
  * trabalha?" rather than "modalidade de operação". Splitting it into more, but
- * smaller, steps is what makes it feel shorter — three dense screens read as
+ * smaller, steps is what makes it feel shorter – three dense screens read as
  * a form, seven one-question screens read as a conversation, and the count is
  * stated out loud so nobody wonders how much is left.
  *
- * Only the two questions the app cannot work without — how you work and how
- * much you want to earn — are required. Everything else says "pular".
+ * Only the two questions the app cannot work without – how you work and how
+ * much you want to earn – are required. Everything else says "pular".
  */
 export default function Onboarding() {
   const theme = useTheme();
@@ -84,18 +87,32 @@ export default function Onboarding() {
   const [step, setStep] = useState(0);
   const [workModes, setWorkModes] = useState<WorkMode[]>([]);
   const [platformIds, setPlatformIds] = useState<string[]>([]);
-  const [platforms, setPlatforms] = useState<{ id: string; name: string; work_modes: string[] }[]>([]);
+  const [platforms, setPlatforms] = useState<
+    { id: string; slug: string; name: string; logo_path: string | null; work_modes: string[] }[]
+  >([]);
   const [preferredName, setPreferredName] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState<string | null>(null);
+  const [phone, setPhone] = useState('');
   const [monthlyGoal, setMonthlyGoal] = useState('');
   const [basis, setBasis] = useState<'gross' | 'net'>('gross');
   const [saving, setSaving] = useState(false);
 
+  // Vehicle. Optional, but the cost per kilometre on every later screen comes
+  // from it, so it is worth one screen here rather than a nudge later.
+  const [vehicleType, setVehicleType] = useState<VehicleType | null>(null);
+  const [makeId, setMakeId] = useState<string | null>(null);
+  const [modelId, setModelId] = useState<string | null>(null);
+  const [fuelType, setFuelType] = useState<FuelType | null>(null);
+  const [ownership, setOwnership] = useState<VehicleOwnership | null>(null);
+
+  const makes = useMakes(vehicleType);
+  const models = useModels(makeId, vehicleType);
+
   useEffect(() => {
     void supabase
       .from('platforms')
-      .select('id, name, work_modes')
+      .select('id, slug, name, logo_path, work_modes')
       .eq('is_active', true)
       .order('sort_order')
       .then(({ data }) => setPlatforms((data as typeof platforms | null) ?? []));
@@ -131,16 +148,37 @@ export default function Onboarding() {
     const trimmedName = preferredName.trim();
     const trimmedCity = city.trim();
 
+    const trimmedPhone = phone.trim();
+
     await supabase
       .from('profiles')
       .update({
         work_modes: workModes,
         preferred_name: trimmedName === '' ? null : trimmedName,
+        phone: trimmedPhone === '' ? null : trimmedPhone,
         city: trimmedCity === '' ? null : trimmedCity,
         state: state ?? null,
         onboarding_completed_at: new Date().toISOString(),
       })
       .eq('id', session.user.id);
+
+    if (vehicleType) {
+      const { count } = await supabase
+        .from('user_vehicles')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', session.user.id)
+        .is('archived_at', null);
+
+      await supabase.from('user_vehicles').insert({
+        user_id: session.user.id,
+        vehicle_type: vehicleType,
+        version_id: null,
+        custom_label: models.find((model) => model.id === modelId)?.name ?? null,
+        fuel_type: fuelType,
+        ownership,
+        is_primary: (count ?? 0) === 0,
+      });
+    }
 
     if (platformIds.length > 0) {
       await supabase
@@ -148,12 +186,10 @@ export default function Onboarding() {
         .insert(platformIds.map((id) => ({ user_id: session.user!.id, platform_id: id })));
     }
 
-    if (monthlyCents && suggestions) {
-      await supabase.from('goals').insert([
-        { user_id: session.user.id, period: 'monthly', basis, target: suggestions.monthly },
-        { user_id: session.user.id, period: 'daily', basis, target: suggestions.daily },
-      ]);
-      void track('goal_created', { period: 'monthly' });
+    // All four periods, not just the two the driver can picture: they all
+    // follow from the one number, so they are all written from it.
+    if (monthlyCents) {
+      await applyMonthlyGoal({ userId: session.user.id, monthly: monthlyCents, basis });
     }
 
     void track('onboarding_completed', { work_modes: workModes });
@@ -182,7 +218,7 @@ export default function Onboarding() {
               text: 'Você diz quanto quer no mês, a gente divide por dia.',
             },
             {
-              icon: 'sparkle' as IconName,
+              icon: 'compass' as IconName,
               title: 'Explicado em português claro',
               text: 'Nada de gráfico difícil. Frases curtas dizendo o que mudou.',
             },
@@ -256,6 +292,13 @@ export default function Onboarding() {
                 key={platform.id}
                 label={platform.name}
                 multiple
+                leading={
+                  <PlatformMark
+                    slug={platform.slug}
+                    name={platform.name}
+                    logoPath={platform.logo_path}
+                  />
+                }
                 selected={platformIds.includes(platform.id)}
                 onPress={() => setPlatformIds(toggle(platformIds, platform.id))}
               />
@@ -277,6 +320,24 @@ export default function Onboarding() {
           value={preferredName}
           onChangeText={setPreferredName}
           hint="Só você vê esse nome."
+        />
+      ),
+    },
+    {
+      key: 'phone',
+      title: 'Um telefone para contato',
+      subtitle: 'Só usamos se você abrir um chamado no suporte. Nada de ligação de venda.',
+      canAdvance: true,
+      skippable: phone.trim() === '',
+      content: (
+        <Field
+          label="Telefone"
+          iconName="phone"
+          optional
+          placeholder="(11) 90000-0000"
+          keyboardType="phone-pad"
+          value={phone}
+          onChangeText={setPhone}
         />
       ),
     },
@@ -307,10 +368,95 @@ export default function Onboarding() {
           <Card padding="lg" tone="secondary" style={{ flexDirection: 'row', gap: theme.spacing.md }}>
             <Icon name="shield" size={18} color={theme.colors.textSecondary} />
             <Text variant="caption" color="secondary" style={{ flex: 1 }}>
-              A comparação é anônima. Ninguém vê os seus números, e você não vê os de ninguém — só
+              A comparação é anônima. Ninguém vê os seus números, e você não vê os de ninguém – só
               a média da região.
             </Text>
           </Card>
+        </View>
+      ),
+    },
+    {
+      key: 'vehicle',
+      title: 'Qual veículo você usa?',
+      subtitle: 'É com isso que calculamos seu custo por quilômetro. Dá para preencher depois.',
+      canAdvance: true,
+      skippable: vehicleType === null,
+      content: (
+        <View style={{ gap: theme.spacing.lg }}>
+          <View style={{ gap: theme.spacing.sm }}>
+            <OptionCard
+              label="Carro"
+              icon="car"
+              selected={vehicleType === 'car'}
+              onPress={() => {
+                setVehicleType('car');
+                setMakeId(null);
+                setModelId(null);
+              }}
+            />
+            <OptionCard
+              label="Moto"
+              icon="route"
+              selected={vehicleType === 'motorcycle'}
+              onPress={() => {
+                setVehicleType('motorcycle');
+                setMakeId(null);
+                setModelId(null);
+              }}
+            />
+          </View>
+
+          {vehicleType ? (
+            <>
+              <Select
+                label="Marca"
+                optional
+                value={makeId}
+                options={makes.map((make) => ({ value: make.id, label: make.name }))}
+                onChange={(value) => {
+                  setMakeId(value);
+                  setModelId(null);
+                }}
+                placeholder="Escolha a marca"
+              />
+              <Select
+                label="Modelo"
+                optional
+                value={modelId}
+                options={models.map((model) => ({ value: model.id, label: model.name }))}
+                onChange={setModelId}
+                placeholder={makeId ? 'Escolha o modelo' : 'Escolha a marca primeiro'}
+              />
+              <Select
+                label="Combustível"
+                optional
+                value={fuelType}
+                options={[
+                  { value: 'gasoline', label: 'Gasolina' },
+                  { value: 'ethanol', label: 'Etanol' },
+                  { value: 'flex', label: 'Flex' },
+                  { value: 'diesel', label: 'Diesel' },
+                  { value: 'gnv', label: 'GNV' },
+                  { value: 'electric', label: 'Elétrico' },
+                ]}
+                onChange={(value) => setFuelType(value as FuelType)}
+                placeholder="Escolha o combustível"
+              />
+              <Select
+                label="O veículo é"
+                optional
+                value={ownership}
+                options={[
+                  { value: 'owned', label: 'Meu, quitado' },
+                  { value: 'financed', label: 'Meu, financiado' },
+                  { value: 'rented', label: 'Alugado' },
+                  { value: 'borrowed', label: 'Emprestado' },
+                ]}
+                onChange={(value) => setOwnership(value as VehicleOwnership)}
+                placeholder="Escolha uma opção"
+              />
+            </>
+          ) : null}
         </View>
       ),
     },
@@ -378,7 +524,7 @@ export default function Onboarding() {
             label="Você trabalha com"
             value={
               workModes.length === 0
-                ? '—'
+                ? '–'
                 : workModes
                     .map((mode) => WORK_MODE_OPTIONS.find((option) => option.value === mode)?.label)
                     .filter(Boolean)

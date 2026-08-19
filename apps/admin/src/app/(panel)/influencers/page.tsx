@@ -78,12 +78,12 @@ export default async function Influencers() {
                     </td>
                     <td className="small">
                       {[application.instagram, application.tiktok].filter(Boolean).join(' · ') || (
-                        <span className="muted">—</span>
+                        <span className="muted">–</span>
                       )}
                     </td>
                     <td className="small mono">
                       {application.followers_estimate?.toLocaleString('pt-BR') ?? (
-                        <span className="muted">—</span>
+                        <span className="muted">–</span>
                       )}
                     </td>
                     <td className="small">{application.content_type}</td>
@@ -99,7 +99,7 @@ export default async function Influencers() {
                           <div className="small muted">{code.use_count} usos</div>
                         </>
                       ) : (
-                        <span className="muted">—</span>
+                        <span className="muted">–</span>
                       )}
                     </td>
                     <td>

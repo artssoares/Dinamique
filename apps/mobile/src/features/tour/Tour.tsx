@@ -18,7 +18,7 @@ interface TourStep {
  *
  * The anchor cannot come from the database: an admin can write new copy, but
  * cannot invent a control that exists in the app. A step whose slug is not
- * mapped here — or whose target is not on screen right now — still shows, as a
+ * mapped here – or whose target is not on screen right now – still shows, as a
  * centred card with no cut-out, rather than pointing at nothing.
  */
 const TARGET_BY_SLUG: Record<string, string> = {
@@ -38,14 +38,14 @@ const TOOLTIP_MAX_WIDTH = 380;
 /**
  * Tour do produto (§23).
  *
- * O conteúdo vem do banco (`tour_steps`), editável pelo Admin — texto de
+ * O conteúdo vem do banco (`tour_steps`), editável pelo Admin – texto de
  * apresentação muda com frequência e não deveria exigir uma nova versão do
  * aplicativo na loja.
  *
  * A apresentação segue o padrão de coach marks: a tela inteira escurece, o
  * controle de que o passo fala continua aceso dentro de um recorte, e o texto
  * aparece encostado nele. A cada passo o recorte se move. Assim a pessoa
- * aprende onde as coisas ficam, e não apenas que elas existem — a versão
+ * aprende onde as coisas ficam, e não apenas que elas existem – a versão
  * anterior era um cartão fixo no rodapé, que explicava sem apontar.
  *
  * "Pular" e terminar têm o mesmo efeito: quem pulou não quer ver de novo, e
@@ -367,7 +367,7 @@ const FILL = { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 } as c
 
 /**
  * A rounded rectangle as a separate SVG sub-path. Appended to the full-screen
- * rectangle and filled with `evenodd`, it becomes a hole rather than a shape —
+ * rectangle and filled with `evenodd`, it becomes a hole rather than a shape –
  * which is what makes the highlighted control genuinely visible instead of
  * merely lighter.
  */

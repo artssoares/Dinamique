@@ -15,7 +15,7 @@ const SUPERADMIN = ['superadmin'] as const;
  *
  * Preço no Stripe é imutável: mudar valor significa criar um preço novo e
  * desativar o antigo. Quem já assinava continua no preço que contratou, que é
- * o comportamento correto — e o motivo de guardarmos o id do preço em cada
+ * o comportamento correto – e o motivo de guardarmos o id do preço em cada
  * assinatura.
  */
 export async function syncPrices() {
@@ -80,7 +80,7 @@ async function ensureProduct(): Promise<string> {
  * Muda o valor de um plano.
  *
  * Cria um preço novo no Stripe e aposenta o anterior. Quem já assina não é
- * afetado — o Stripe cobra pelo preço que a assinatura carrega.
+ * afetado – o Stripe cobra pelo preço que a assinatura carrega.
  */
 export async function changePrice(formData: FormData) {
   const admin = await requireAdmin([...SUPERADMIN]);

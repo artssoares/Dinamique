@@ -107,7 +107,7 @@ export async function openPortal(): Promise<BillingResult> {
  * Abre o Stripe e espera o usuário voltar.
  *
  * "Voltou" não significa "pagou": quem confirma o pagamento é o webhook. Por
- * isso a tela recarrega o plano ao retornar, em vez de assumir sucesso — se a
+ * isso a tela recarrega o plano ao retornar, em vez de assumir sucesso – se a
  * confirmação ainda não chegou, o usuário vê o estado real e não uma promessa.
  */
 async function openAndWait(url: string): Promise<BillingResult> {

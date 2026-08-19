@@ -89,7 +89,7 @@ export function useVersions(modelId: string | null) {
         setVersions(
           ((data as Record<string, any>[] | null) ?? []).map((row) => ({
             id: String(row.id),
-            name: row.name ?? '—',
+            name: row.name ?? '–',
             yearFrom: row.year_from ?? null,
             engine: row.engine ?? null,
             fuelType: row.fuel_type ?? null,

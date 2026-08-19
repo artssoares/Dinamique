@@ -1,7 +1,7 @@
 /**
  * Dinamique brand palette.
  *
- * Two brand families only — Blue (primary) and Coral (accent) — plus a neutral
+ * Two brand families only – Blue (primary) and Coral (accent) – plus a neutral
  * ramp and two semantic colours. Green means profit/success and red means
  * expense/error; neither is ever used decoratively (§13).
  *
@@ -41,7 +41,7 @@ export const coral = {
 
 /**
  * Neutrals carry a faint blue cast so white surfaces sit next to the brand
- * blue without looking grey-green. Dark mode is built from the 800–950 steps —
+ * blue without looking grey-green. Dark mode is built from the 800–950 steps –
  * never pure black (§17).
  */
 export const neutral = {

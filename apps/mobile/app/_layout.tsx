@@ -12,6 +12,7 @@ import { OfflineProvider } from '@/features/offline/useOfflineSync';
 import { OfflineBanner } from '@/features/offline/OfflineBanner';
 import { Tour } from '@/features/tour/Tour';
 import { TourProvider } from '@/features/tour/TourProvider';
+import { JourneyProvider } from '@/features/journey/useJourney';
 
 /**
  * Routing guard. Three destinations depending on session state:
@@ -50,12 +51,16 @@ function RootNavigator() {
     <>
       <OfflineBanner />
       {/* Every pushed screen draws its own <ScreenHeader>, which is what
-          guarantees a visible way back — the native header is off. */}
+          guarantees a visible way back – the native header is off. */}
       <Stack
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: theme.colors.backgroundPrimary },
           animation: 'slide_from_right',
+          // Long enough to read as movement, short enough that nobody waits
+          // for it. The default cut is what made the app feel dry.
+          animationDuration: 300,
+          gestureEnabled: true,
         }}
       >
         <Stack.Screen name="(auth)" />
@@ -86,10 +91,14 @@ function ThemedApp() {
       <StatusBarBridge />
       {/* The tour measures real controls, so its registry has to sit above
           every screen that can host one. */}
-      <TourProvider>
-        <RootNavigator />
-        <Tour />
-      </TourProvider>
+      {/* One journey state for the whole app: starting one on Registrar has
+          to be visible on Home without a reload. */}
+      <JourneyProvider>
+        <TourProvider>
+          <RootNavigator />
+          <Tour />
+        </TourProvider>
+      </JourneyProvider>
     </ThemeProvider>
   );
 }

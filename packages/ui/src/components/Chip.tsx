@@ -15,7 +15,7 @@ export interface ChipProps {
   style?: StyleProp<ViewStyle>;
 }
 
-/** Pill-shaped quick selection — the fastest way to answer a question (§52). */
+/** Pill-shaped quick selection – the fastest way to answer a question (§52). */
 export function Chip({
   label,
   selected = false,

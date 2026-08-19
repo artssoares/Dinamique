@@ -1,10 +1,10 @@
 -- ============================================================================
--- Dinamique — extensions, enums and shared helpers
+-- Dinamique – extensions, enums and shared helpers
 --
 -- Conventions used across every migration:
 --   * money is stored as BIGINT cents; there is no NUMERIC currency anywhere
 --   * distance is INTEGER metres, volume is INTEGER millilitres, duration is
---     INTEGER seconds — integers only, so no float drift reaches a driver
+--     INTEGER seconds – integers only, so no float drift reaches a driver
 --   * every user-owned table carries user_id and is protected by RLS
 --   * timestamps are TIMESTAMPTZ; calendar days are DATE (a driver's "day" is
 --     local, not a UTC window)

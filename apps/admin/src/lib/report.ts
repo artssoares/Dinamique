@@ -44,7 +44,7 @@ export interface ReportRow {
   totalExpenses: Cents;
   workedSeconds: number;
   distance: number;
-  /** Nulos quando não há denominador — a mesma regra do aplicativo (§6). */
+  /** Nulos quando não há denominador – a mesma regra do aplicativo (§6). */
   revenuePerHour: Cents | null;
   revenuePerKm: Cents | null;
   costPerKm: Cents | null;
@@ -77,7 +77,7 @@ interface FinancialRow {
  * O volume aqui é de milhares de usuários, não de milhões, e montar SQL a
  * partir de entrada do usuário é a porta de entrada clássica de injeção. Se um
  * dia o volume exigir, a troca é por uma função no banco com dimensões
- * validadas — não por concatenação de string.
+ * validadas – não por concatenação de string.
  */
 export function buildReport(
   users: UserRow[],

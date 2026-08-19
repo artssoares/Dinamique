@@ -6,7 +6,7 @@ import type { CellFormat, Sheet, Workbook } from './types';
  *
  * O XLSX sai com nome de aba, cabeçalho, formato de moeda e data, largura de
  * coluna e linha de total. A edição comunitária do SheetJS não aplica estilo
- * de célula (negrito, cor de fundo), então o cabeçalho não vem em negrito —
+ * de célula (negrito, cor de fundo), então o cabeçalho não vem em negrito –
  * está documentado em EXPORTS.md em vez de fingirmos que vem.
  */
 
@@ -68,7 +68,7 @@ function applyFormats(worksheet: XLSX.WorkSheet, sheet: Sheet, rowCount: number)
 
 /**
  * CSV de uma planilha. Campos com vírgula, aspas ou quebra de linha são
- * escapados — sem isso, uma observação com vírgula quebraria a coluna.
+ * escapados – sem isso, uma observação com vírgula quebraria a coluna.
  */
 export function toCsv(sheet: Sheet, options: { separator?: string } = {}): string {
   const separator = options.separator ?? ';';

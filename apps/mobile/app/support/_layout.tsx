@@ -10,6 +10,7 @@ export default function SupportLayout() {
         headerShown: false,
         contentStyle: { backgroundColor: theme.colors.backgroundPrimary },
         animation: 'slide_from_right',
+        animationDuration: 300,
       }}
     >
       <Stack.Screen name="index" />

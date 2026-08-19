@@ -2,7 +2,7 @@
 -- Benchmark anônimo (§44).
 --
 -- Duas regras que não se negociam:
---   1. um grupo com menos que o mínimo de usuários não produz NADA — nem um
+--   1. um grupo com menos que o mínimo de usuários não produz NADA – nem um
 --      número aproximado, nem um aviso com valor. Nada.
 --   2. só saem daqui medianas e o tamanho da amostra. Nenhuma linha de outro
 --      usuário é visível para ninguém.

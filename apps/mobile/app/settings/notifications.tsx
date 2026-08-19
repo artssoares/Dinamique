@@ -61,7 +61,7 @@ export default function NotificationSettings() {
     if (!session?.user) return;
     if (value) {
       const token = await registerForPush(session.user.id);
-      // Sem permissão concedida, o switch volta sozinho — sem alerta acusatório.
+      // Sem permissão concedida, o switch volta sozinho – sem alerta acusatório.
       setPushEnabled(token !== null);
     } else {
       await disablePush(session.user.id);

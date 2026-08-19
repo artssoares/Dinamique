@@ -4,7 +4,7 @@ import { getServiceClient } from './supabase-server';
 /**
  * Autenticação dos endpoints de cobrança.
  *
- * Estes endpoints são chamados pelo APLICATIVO, não pelo painel — então não
+ * Estes endpoints são chamados pelo APLICATIVO, não pelo painel – então não
  * dá para usar cookies. O aplicativo manda o token de acesso do Supabase no
  * cabeçalho Authorization, e nós validamos o token contra o Supabase antes de
  * qualquer coisa.

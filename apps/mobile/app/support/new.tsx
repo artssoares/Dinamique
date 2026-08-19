@@ -8,7 +8,7 @@ import { createTicket, useSupportCategories } from '@/features/support/useSuppor
 
 /**
  * Opening a ticket: pick a subject area, say what happened, send. Three fields,
- * one screen — support must not feel like filing a form (§68).
+ * one screen – support must not feel like filing a form (§68).
  */
 export default function NewTicket() {
   const theme = useTheme();

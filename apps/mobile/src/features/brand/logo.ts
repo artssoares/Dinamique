@@ -3,7 +3,7 @@ import type { ImageSourcePropType } from 'react-native';
 /**
  * The official Dinamique logo.
  *
- * The logo is a supplied brand asset — it is never redrawn, re-typeset in a
+ * The logo is a supplied brand asset – it is never redrawn, re-typeset in a
  * font, or reproportioned. Until the real file is in the repository this stays
  * null and <BrandMark> renders a visible placeholder rather than a fake mark,
  * so a missing asset is obvious instead of silently wrong (§131).

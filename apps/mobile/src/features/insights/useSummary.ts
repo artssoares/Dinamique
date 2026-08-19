@@ -139,7 +139,7 @@ export function usePeriodReport(period: GoalPeriod) {
           : todayRow.net_profit
         : 0,
       profitPerHourToday: todaySummary?.profitPerHour ?? null,
-      // A média pessoal vem do período, não do dia — comparar hoje com hoje
+      // A média pessoal vem do período, não do dia – comparar hoje com hoje
       // não diria nada.
       profitPerHourAverage: summary.profitPerHour,
       profitPerKmToday: todaySummary?.profitPerKm ?? null,

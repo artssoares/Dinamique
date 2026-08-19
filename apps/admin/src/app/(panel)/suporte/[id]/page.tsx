@@ -84,7 +84,7 @@ export default async function TicketDetail({ params }: { params: Promise<{ id: s
               >
                 <div className="small muted" style={{ marginBottom: 6, fontWeight: 600 }}>
                   {message.is_internal_note
-                    ? '🔒 NOTA INTERNA — o usuário não vê isto'
+                    ? '🔒 NOTA INTERNA, o usuário não vê isto'
                     : message.author_kind === 'user'
                       ? (user?.first_name ?? 'Usuário')
                       : `Dinamique · ${message.profiles?.first_name ?? 'equipe'}`}
@@ -124,11 +124,11 @@ export default async function TicketDetail({ params }: { params: Promise<{ id: s
             <div style={{ fontWeight: 600 }}>{user?.first_name}</div>
             <div className="small muted">{user?.email}</div>
             <div className="small muted">
-              {[user?.city, user?.state].filter(Boolean).join(' · ') || '—'}
+              {[user?.city, user?.state].filter(Boolean).join(' · ') || '–'}
             </div>
             <div style={{ marginTop: 10 }}>
               <span className={`badge ${plan?.plan === 'pro' ? 'badge-brand' : 'badge-neutral'}`}>
-                {plan?.plan === 'pro' ? (plan.is_trial ? 'PRO — TRIAL' : 'PRO') : 'FREE'}
+                {plan?.plan === 'pro' ? (plan.is_trial ? 'PRO EM TESTE' : 'PRO') : 'FREE'}
               </span>
             </div>
             {ticket.app_version ? (
@@ -180,7 +180,7 @@ export default async function TicketDetail({ params }: { params: Promise<{ id: s
               className="select"
               defaultValue={ticket.category_id ?? ''}
             >
-              <option value="">—</option>
+              <option value="">–</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}

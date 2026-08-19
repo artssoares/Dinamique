@@ -21,6 +21,6 @@ export async function track(
       platform: Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web',
     });
   } catch {
-    // Swallowed deliberately — analytics is never worth an error state.
+    // Swallowed deliberately – analytics is never worth an error state.
   }
 }

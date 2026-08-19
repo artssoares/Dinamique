@@ -291,7 +291,7 @@ export interface SupportTicket {
   resolvedAt: Nullable<Timestamp>;
   closedAt: Nullable<Timestamp>;
   lastMessageAt: Timestamp;
-  /** App build the ticket was opened from — powers "tickets by version". */
+  /** App build the ticket was opened from – powers "tickets by version". */
   appVersion: Nullable<string>;
 }
 
@@ -380,7 +380,7 @@ export interface UserAttribution {
   influencerId: Nullable<UUID>;
   referrerUserId: Nullable<UUID>;
   signupOrigin: Nullable<string>;
-  /** Written once at signup. Never overwritten — see PRODUCT_RULES.md §91. */
+  /** Written once at signup. Never overwritten – see PRODUCT_RULES.md §91. */
   capturedAt: Timestamp;
 }
 

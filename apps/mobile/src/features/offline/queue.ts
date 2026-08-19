@@ -4,11 +4,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * Fila de sincronização (§111).
  *
  * Um motorista fica sem sinal com frequência. O que ele registrou tem que
- * sobreviver a isso — e sobreviver a fechar o aplicativo, ficar dois dias
+ * sobreviver a isso – e sobreviver a fechar o aplicativo, ficar dois dias
  * offline e voltar.
  *
  * A fila é deliberadamente burra: uma lista de operações de inserção, cada uma
- * com um `client_id` gerado no aparelho. É esse id que torna o reenvio seguro —
+ * com um `client_id` gerado no aparelho. É esse id que torna o reenvio seguro –
  * o banco tem índice único em (user_id, client_id), então mandar duas vezes
  * cria uma linha só. Nada de resolução de conflito, nada de CRDT: em V1,
  * confiabilidade vale mais que sofisticação.
@@ -21,7 +21,7 @@ export const SYNCABLE_TABLES = ['journeys', 'revenues', 'expenses', 'fuel_logs']
 export type SyncableTable = (typeof SYNCABLE_TABLES)[number];
 
 export interface QueuedOperation {
-  /** Também é o `client_id` da linha — é o que garante idempotência. */
+  /** Também é o `client_id` da linha – é o que garante idempotência. */
   id: string;
   table: SyncableTable;
   payload: Record<string, unknown>;

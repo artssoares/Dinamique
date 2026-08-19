@@ -136,7 +136,7 @@ export default function Plan() {
           {isPastDue ? (
             <Text variant="body" color="warning">
               Não conseguimos cobrar sua última fatura. Seu acesso continua liberado enquanto
-              tentamos de novo — atualize seu cartão para não perder o Pro.
+              tentamos de novo. Atualize seu cartão para não perder o Pro.
             </Text>
           ) : isTrial && daysLeft !== null ? (
             <Text variant="body" color="secondary">
@@ -145,7 +145,7 @@ export default function Plan() {
                 : daysLeft === 1
                   ? 'Falta 1 dia do seu período de teste.'
                   : `Faltam ${daysLeft} dias do seu período de teste.`}{' '}
-              Depois disso você continua usando o Dinamique no plano Free — nada é bloqueado de
+              Depois disso você continua usando o Dinamique no plano Free, e nada é bloqueado de
               uma hora para outra.
             </Text>
           ) : isPaid ? (

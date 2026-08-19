@@ -3,7 +3,7 @@ import { TabBar } from '@/features/navigation/TabBar';
 import { useNotificationCounts } from '@/hooks/useNotifications';
 
 /**
- * Five destinations, with the most frequent action — recording something — in
+ * Five destinations, with the most frequent action – recording something – in
  * the centre where a thumb naturally lands (§21).
  *
  * The bar itself is `TabBar`: a floating pill that sits above the content

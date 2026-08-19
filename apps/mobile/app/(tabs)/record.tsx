@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { formatDuration, parseCents, toDateOnly } from '@dinamique/utils';
 import {
@@ -9,10 +9,12 @@ import {
   Chip,
   Field,
   Icon,
+  Reveal,
   Screen,
   SectionHeader,
   SegmentedControl,
   Text,
+  useReducedMotion,
   useTheme,
 } from '@dinamique/ui';
 import { AppHeader } from '@/features/shell/AppHeader';
@@ -25,11 +27,12 @@ type Mode = 'revenue' | 'expense';
 
 /**
  * The + destination (§26). One screen, two modes, and a running journey
- * summary on top — the goal is a completed entry in well under a minute.
+ * summary on top – the goal is a completed entry in well under a minute.
  */
 export default function Record() {
   const theme = useTheme();
   const router = useRouter();
+  const reduced = useReducedMotion();
   const { session } = useSession();
   const { save } = useOffline();
   const { journey, start, pause, resume, refresh } = useActiveJourney();
@@ -59,6 +62,35 @@ export default function Record() {
       .order('sort_order')
       .then(({ data }) => setCategories((data as { id: string; name: string }[] | null) ?? []));
   }, []);
+
+  // 0 is ganho, 1 is gasto. Everything that changes colour between the two
+  // reads from this one value, so the whole card shifts together instead of
+  // half a dozen elements each deciding for themselves.
+  const modeShift = useRef(new Animated.Value(mode === 'expense' ? 1 : 0)).current;
+
+  useEffect(() => {
+    const to = mode === 'expense' ? 1 : 0;
+    if (reduced) {
+      modeShift.setValue(to);
+      return;
+    }
+    const animation = Animated.timing(modeShift, {
+      toValue: to,
+      duration: theme.motion.base,
+      easing: Easing.out(Easing.cubic),
+      // Colour interpolation cannot run on the native thread.
+      useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [mode, modeShift, reduced, theme.motion.base]);
+
+  const isExpense = mode === 'expense';
+  const accent = isExpense ? theme.colors.dangerText : theme.colors.successText;
+  const accentSurface = modeShift.interpolate({
+    inputRange: [0, 1],
+    outputRange: [theme.colors.successSubtle, theme.colors.dangerSubtle],
+  });
 
   const cents = useMemo(() => parseCents(amount), [amount]);
   const canSave =
@@ -117,13 +149,15 @@ export default function Record() {
         />
       }
     >
-      <JourneyCard
-        journey={journey}
-        onStart={() => start(null)}
-        onPause={pause}
-        onResume={resume}
-        onFinish={() => router.push('/journey/close')}
-      />
+      <Reveal>
+        <JourneyCard
+          journey={journey}
+          onStart={() => start(null)}
+          onPause={pause}
+          onResume={resume}
+          onFinish={() => router.push('/journey/close')}
+        />
+      </Reveal>
 
       <SegmentedControl
         label="O que você quer registrar"
@@ -135,14 +169,40 @@ export default function Record() {
         ]}
       />
 
-      <Card padding="xl" style={{ gap: theme.spacing.xl }}>
+      <Animated.View
+        style={{
+          borderRadius: theme.radius['2xl'],
+          backgroundColor: theme.colors.surfacePrimary,
+          overflow: 'hidden',
+        }}
+      >
+        {/* The mode's colour runs along the top of the card. Subtle, always in
+            view, and it moves when you switch, so you never have to re-read
+            the control to know what you are about to save. */}
+        <Animated.View style={{ height: 4, backgroundColor: accentSurface }} />
+        <Animated.View
+          style={{ padding: theme.spacing.xl, gap: theme.spacing.xl, backgroundColor: accentSurface }}
+        >
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: theme.spacing.sm,
+          }}
+        >
+          <Icon name={isExpense ? 'arrowDownLeft' : 'arrowUpRight'} size={17} color={accent} />
+          <Text variant="captionStrong" style={{ color: accent }}>
+            {isExpense ? 'Saindo do bolso' : 'Entrando no bolso'}
+          </Text>
+        </View>
+
         <AmountInput
-          label={mode === 'revenue' ? 'Quanto entrou' : 'Quanto saiu'}
+          label={isExpense ? 'Quanto saiu' : 'Quanto entrou'}
           value={amount}
           onChangeText={setAmount}
         />
 
-        {mode === 'revenue' ? (
+        {!isExpense ? (
           <>
             <View style={{ gap: theme.spacing.sm }}>
               <Text variant="captionStrong" color="secondary">
@@ -187,7 +247,8 @@ export default function Record() {
             </View>
           </View>
         )}
-      </Card>
+        </Animated.View>
+      </Animated.View>
 
       <View style={{ gap: theme.spacing.md }}>
         <SectionHeader title="Registros com conta própria" />
@@ -212,7 +273,7 @@ export default function Record() {
           <View style={{ flex: 1, gap: 2 }}>
             <Text variant="bodyStrong">Abastecimento</Text>
             <Text variant="caption" color="secondary">
-              Informe litros e preço — o consumo o Dinamique calcula
+              Informe litros e preço, o consumo o Dinamique calcula
             </Text>
           </View>
           <Icon name="chevronRight" size={18} color={theme.colors.textMuted} />
@@ -249,7 +310,7 @@ function JourneyCard({
       <Card padding="xl" style={{ gap: theme.spacing.md }}>
         <Text variant="subtitle">Nenhuma jornada em andamento</Text>
         <Text variant="body" color="secondary">
-          Inicie uma jornada para o Dinamique medir seu tempo trabalhado — é o que permite calcular
+          Inicie uma jornada para o Dinamique medir seu tempo trabalhado. É o que permite calcular
           quanto você ganha por hora.
         </Text>
         <Button label="Iniciar jornada" iconName="play" onPress={onStart} />

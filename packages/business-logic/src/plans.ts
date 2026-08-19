@@ -1,7 +1,7 @@
 import type { PlanCode, PlanSource, Timestamp, UUID } from '@dinamique/types';
 
 /**
- * Plan resolution (§56, §57). A user may hold several grants at once — a paid
+ * Plan resolution (§56, §57). A user may hold several grants at once – a paid
  * subscription, a trial, an admin courtesy. The effective plan is whichever
  * currently-valid grant is most generous, and Free is always the floor: a
  * user is never locked out of the product (§57).
@@ -79,7 +79,7 @@ export function resolveEffectivePlan(
 
 /**
  * Feature flags (§56). Gating lives in one table so a screen never hard-codes
- * "if pro". Free keeps the whole core loop — we restrict depth, not access.
+ * "if pro". Free keeps the whole core loop – we restrict depth, not access.
  */
 export const FEATURES = [
   'journey_tracking',

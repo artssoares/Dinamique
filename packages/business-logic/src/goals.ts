@@ -3,7 +3,7 @@ import { elapsedDays, periodRange, rangeLengthDays, roundCents } from '@dinamiqu
 import type { PeriodSummary } from './financials';
 
 /**
- * Goal maths is fully deterministic — no model, no heuristics. Everything here
+ * Goal maths is fully deterministic – no model, no heuristics. Everything here
  * is arithmetic a driver could redo on paper, which is the point (§40).
  */
 
@@ -96,7 +96,7 @@ export function estimateSecondsToGoal(input: {
 }
 
 /**
- * Suggested daily targets derived from a monthly goal. Deliberately naive —
+ * Suggested daily targets derived from a monthly goal. Deliberately naive –
  * an even split is predictable, and a driver can reason about it (§22 step 4).
  */
 export function deriveGoalSuggestions(monthlyTarget: Cents): Record<GoalPeriod, Cents> {

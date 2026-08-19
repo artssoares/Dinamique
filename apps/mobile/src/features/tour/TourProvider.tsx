@@ -27,7 +27,7 @@ const TourRegistryContext = createContext<TourRegistry | null>(null);
  * Registry of the elements the tour can point at.
  *
  * A coach mark is only useful if it highlights the real control, at the real
- * position, on the real screen — which means the tour has to be able to
+ * position, on the real screen – which means the tour has to be able to
  * measure a component it does not own. Each highlightable element registers
  * itself under a key; the tour asks for the key's rectangle when it needs it.
  *
@@ -51,7 +51,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
           return;
         }
         // measureInWindow gives screen coordinates, which is what the overlay
-        // needs — it sits above everything, outside any scroll container.
+        // needs – it sits above everything, outside any scroll container.
         node.measureInWindow((x, y, width, height) => {
           if (width === 0 && height === 0) resolve(null);
           else resolve({ x, y, width, height });

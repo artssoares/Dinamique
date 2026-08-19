@@ -3,7 +3,7 @@
 --
 -- Modelos mais usados por motoristas de aplicativo e entregadores no Brasil.
 -- O consumo é armazenado em metros por litro (10,8 km/l = 10800) e vem de
--- valores de referência — o consumo real medido do usuário sempre prevalece
+-- valores de referência – o consumo real medido do usuário sempre prevalece
 -- depois que ele aceita a troca (§31).
 --
 -- O Admin pode editar e importar mais modelos por CSV/XLSX.

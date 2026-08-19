@@ -47,12 +47,36 @@ export function ListRow({
   const theme = useTheme();
 
   const tones = {
-    neutral: { background: theme.colors.backgroundSecondary, icon: theme.colors.textSecondary },
-    brand: { background: theme.colors.brandPrimarySubtle, icon: theme.colors.brandPrimary },
-    accent: { background: theme.colors.brandSecondarySubtle, icon: theme.colors.brandSecondary },
-    success: { background: theme.colors.successSubtle, icon: theme.colors.successText },
-    danger: { background: theme.colors.dangerSubtle, icon: theme.colors.dangerText },
-    warning: { background: theme.colors.warningSubtle, icon: theme.colors.warningText },
+    neutral: {
+      background: theme.colors.backgroundSecondary,
+      icon: theme.colors.textPrimary,
+      border: theme.colors.borderSubtle,
+    },
+    brand: {
+      background: theme.colors.brandPrimarySubtle,
+      icon: theme.colors.brandPrimary,
+      border: 'transparent',
+    },
+    accent: {
+      background: theme.colors.brandSecondarySubtle,
+      icon: theme.colors.brandSecondary,
+      border: 'transparent',
+    },
+    success: {
+      background: theme.colors.successSubtle,
+      icon: theme.colors.successText,
+      border: 'transparent',
+    },
+    danger: {
+      background: theme.colors.dangerSubtle,
+      icon: theme.colors.dangerText,
+      border: 'transparent',
+    },
+    warning: {
+      background: theme.colors.warningSubtle,
+      icon: theme.colors.warningText,
+      border: 'transparent',
+    },
   } as const;
 
   const puck = tones[iconTone];
@@ -61,17 +85,23 @@ export function ListRow({
   const content = (
     <>
       {icon ? (
+        // A squircle, not a circle: the round shapes belong to the quick
+        // actions and the tab bar, and a list of forty grey circles was the
+        // dullest thing on screen. The tint carries the row's meaning too,
+        // so money, fuel and warnings are told apart before they are read.
         <View
           style={{
             width: 42,
             height: 42,
-            borderRadius: theme.radius.pill,
+            borderRadius: theme.radius.lg,
             backgroundColor: puck.background,
+            borderWidth: 1,
+            borderColor: puck.border,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Icon name={icon} size={20} color={puck.icon} />
+          <Icon name={icon} size={20} color={puck.icon} strokeWidth={2} />
         </View>
       ) : null}
 

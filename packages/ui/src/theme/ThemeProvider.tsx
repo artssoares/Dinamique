@@ -15,7 +15,7 @@ import {
 
 /**
  * Theme context (§16). Components read tokens from here and never import a
- * palette step directly — that is what makes light/dark a single switch.
+ * palette step directly – that is what makes light/dark a single switch.
  */
 export interface Theme {
   colors: ThemeTokens;

@@ -34,7 +34,7 @@ const PERIODS: { value: RecurringCostPeriod; label: string }[] = [
 ];
 
 /**
- * Custos recorrentes (§33). Cadastra uma vez e o sistema rateia depois — mas
+ * Custos recorrentes (§33). Cadastra uma vez e o sistema rateia depois – mas
  * a tela deixa explícito que isso é estimativa, não um gasto que aconteceu.
  */
 export default function RecurringCosts() {
@@ -109,7 +109,7 @@ export default function RecurringCosts() {
     ]);
   }
 
-  // Quanto tudo isso representa por dia — o número que o motorista consegue usar.
+  // Quanto tudo isso representa por dia – o número que o motorista consegue usar.
   const perDay = costs.reduce(
     (acc, cost) => acc + apportionRecurringCost({ amount: cost.amount, period: cost.period, days: 1 }),
     0,
@@ -159,7 +159,7 @@ export default function RecurringCosts() {
               <Text variant="bodyStrong">{formatCents(cost.amount)}</Text>
             </View>
             <Text variant="caption" color="secondary">
-              {cost.expense_categories?.name ?? '—'} ·{' '}
+              {cost.expense_categories?.name ?? '–'} ·{' '}
               {PERIODS.find((p) => p.value === cost.period)?.label.toLowerCase()}
             </Text>
             <Pressable accessibilityRole="button" onPress={() => remove(cost)}>

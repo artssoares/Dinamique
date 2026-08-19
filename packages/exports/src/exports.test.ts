@@ -203,7 +203,7 @@ describe('toXlsx', () => {
 
   it('define largura de coluna para o cabeçalho não ficar cortado', () => {
     // A largura é gravada no arquivo, mas o SheetJS não a devolve numa leitura
-    // simples — conferimos na definição, que é a fonte da informação.
+    // simples – conferimos na definição, que é a fonte da informação.
     const workbook = buildWorkbook(data);
     const daily = workbook.sheets.find((sheet) => sheet.name === 'Por dia')!;
     expect(daily.columns.every((column) => (column.width ?? 0) >= 10)).toBe(true);

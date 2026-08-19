@@ -13,7 +13,7 @@ export interface BenchmarkView {
  * Benchmark anônimo (§44).
  *
  * Tenta a cidade primeiro e cai para o nacional. Se nenhum dos dois tiver
- * amostra suficiente, retorna null e a tela simplesmente não mostra a seção —
+ * amostra suficiente, retorna null e a tela simplesmente não mostra a seção –
  * nunca um número aproximado com aviso.
  */
 export function useBenchmark(userRevenuePerKm: Cents | null): BenchmarkView | null {

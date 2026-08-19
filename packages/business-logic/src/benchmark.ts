@@ -2,7 +2,7 @@ import type { Cents } from '@dinamique/types';
 
 /**
  * Anonymous benchmark (§44). Two hard rules:
- *  1. a bucket below the minimum sample size produces NOTHING — not a blurred
+ *  1. a bucket below the minimum sample size produces NOTHING – not a blurred
  *     number, not a "poucos dados" figure, nothing;
  *  2. only aggregates ever leave this module. No identifiers, no per-user rows.
  */

@@ -21,7 +21,7 @@ export interface AmountInputProps {
  *
  * Typing an amount is the single most repeated action in the app, so it gets a
  * field of its own: an anchored R$, figures at display size, and optional
- * one-tap amounts. The keyboard is `decimal-pad` — a driver holding a phone at
+ * one-tap amounts. The keyboard is `decimal-pad` – a driver holding a phone at
  * a traffic light should not have to hunt for the numbers.
  */
 export function AmountInput({

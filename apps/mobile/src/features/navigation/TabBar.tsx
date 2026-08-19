@@ -1,8 +1,17 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, View } from 'react-native';
+import { Animated, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { CountBadge, Icon, Text, layout, useResponsive, useTheme, type IconName } from '@dinamique/ui';
+import {
+  CountBadge,
+  Icon,
+  Text,
+  layout,
+  useReducedMotion,
+  useResponsive,
+  useTheme,
+  type IconName,
+} from '@dinamique/ui';
 import { useTourTarget } from '@/features/tour/TourProvider';
 
 interface TabConfig {
@@ -29,7 +38,7 @@ export interface TabBarProps extends BottomTabBarProps {
 /**
  * The floating tab bar.
  *
- * It replaces the default bar — a full-width strip with a hairline border and
+ * It replaces the default bar – a full-width strip with a hairline border and
  * unicode glyphs for icons. This one is a single rounded surface that floats
  * clear of the bottom edge, and only the active destination carries its label,
  * which is what lets five destinations fit without crowding.
@@ -126,19 +135,41 @@ function TabItem({
   onPress: () => void;
 }) {
   const theme = useTheme();
+  const reduced = useReducedMotion();
   // Anchors the coach mark that says "use o + para lançar ganhos e gastos".
   const tourTarget = useTourTarget(`tab-${tab.name}`);
   const expansion = useRef(new Animated.Value(focused ? 1 : 0)).current;
+  const press = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(expansion, {
+    if (reduced) {
+      expansion.setValue(focused ? 1 : 0);
+      return;
+    }
+    // A spring rather than a curve: the pill overshoots by a hair and settles,
+    // which is what reads as the selection moving rather than redrawing.
+    const animation = Animated.spring(expansion, {
       toValue: focused ? 1 : 0,
-      duration: theme.motion.fast,
-      easing: Easing.out(Easing.cubic),
+      damping: 18,
+      stiffness: 240,
+      mass: 0.7,
       // Width and colour are not native-driver properties.
       useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [expansion, focused, reduced]);
+
+  const springPress = (to: number) => {
+    if (reduced) return;
+    Animated.spring(press, {
+      toValue: to,
+      damping: 15,
+      stiffness: 400,
+      mass: 0.5,
+      useNativeDriver: true,
     }).start();
-  }, [expansion, focused, theme.motion.fast]);
+  };
 
   const diameter = 48;
 
@@ -167,10 +198,22 @@ function TabItem({
       accessibilityState={{ selected: focused }}
       accessibilityLabel={tab.label}
       onPress={onPress}
+      onPressIn={() => springPress(1)}
+      onPressOut={() => springPress(0)}
       style={{ flexGrow: focused && !tab.centre ? 1 : 0, alignItems: 'center' }}
     >
       <Animated.View
         style={{
+          transform: [
+            { scale: press.interpolate({ inputRange: [0, 1], outputRange: [1, 0.88] }) },
+            // The centre action turns an eighth of a turn as it is pressed, so
+            // the plus acknowledges the tap before the screen has changed.
+            {
+              rotate: tab.centre
+                ? press.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] })
+                : '0deg',
+            },
+          ],
           minWidth: diameter,
           height: diameter,
           paddingHorizontal: showLabel ? theme.spacing.lg : 0,

@@ -162,7 +162,7 @@ begin
   values (v_ticket, 'user', v_arthur, 'Bom dia, o Excel não abre.');
 
   insert into support_messages (ticket_id, author_kind, body, is_internal_note)
-  values (v_ticket, 'agent', 'Cliente já reclamou disso 3x — verificar plano.', true);
+  values (v_ticket, 'agent', 'Cliente já reclamou disso 3x – verificar plano.', true);
 
   insert into support_messages (ticket_id, author_kind, body)
   values (v_ticket, 'agent', 'Olá Arthur, vamos verificar!');
@@ -570,7 +570,7 @@ begin
   -- Atenção ao detalhe que causou a segunda rodada de correção: o Postgres
   -- concede EXECUTE ao pseudo-papel PUBLIC em toda função nova, e `anon`
   -- herda de PUBLIC. Por isso `has_function_privilege` continua verdadeiro
-  -- mesmo depois de revogar de `anon` — só revogar de `public` fecha.
+  -- mesmo depois de revogar de `anon` – só revogar de `public` fecha.
   select string_agg(p.proname, ', ' order by p.proname) into v_aberta
   from pg_proc p
   join pg_namespace n on n.oid = p.pronamespace
@@ -585,7 +585,7 @@ begin
     and p.proname not in (
       -- Abertas de propósito: só respondem sobre quem está perguntando ou
       -- sobre uma configuração pública, e são usadas dentro das políticas
-      -- de RLS — sem execução, toda política que as usa falharia.
+      -- de RLS – sem execução, toda política que as usa falharia.
       'is_admin', 'has_admin_role', 'benchmark_min_sample',
       -- Ajudantes deste arquivo de teste, que não existem em produção.
       'assert', 'login_as'
@@ -594,7 +594,7 @@ begin
 
   perform assert(v_aberta is null,
     'nenhuma função nossa é chamável sem login' ||
-    coalesce(' — ABERTAS: ' || v_aberta, ''));
+    coalesce(' – ABERTAS: ' || v_aberta, ''));
 
   -- Nem por usuário logado, salvo as duas que são ação dele mesmo.
   select string_agg(p.proname, ', ' order by p.proname) into v_aberta
@@ -619,7 +619,7 @@ begin
 
   perform assert(v_aberta is null,
     'nenhuma função de servidor é chamável por usuário logado' ||
-    coalesce(' — ABERTAS: ' || v_aberta, ''));
+    coalesce(' – ABERTAS: ' || v_aberta, ''));
 
   -- O que É para o usuário chamar continua funcionando. Um `revoke` largo
   -- demais quebraria o resgate de código e o suporte sem quebrar nada acima,
@@ -661,7 +661,7 @@ begin
 
   perform assert(v_view is null,
     'toda view legível pelo usuário respeita o RLS' ||
-    coalesce(' — IGNORAM: ' || v_view, ''));
+    coalesce(' – IGNORAM: ' || v_view, ''));
 
   -- A view por usuário do benchmark não pode ser lida por ninguém.
   perform assert(
@@ -679,7 +679,7 @@ $$;
 -- Numa Supabase, `pgcrypto` e `citext` vêm instaladas no schema `extensions`.
 -- Toda função nossa fixa o `search_path` por segurança, e um caminho preso em
 -- `public` faz `gen_random_bytes` e o operador de comparação de `citext`
--- sumirem — em produção, e só em produção.
+-- sumirem – em produção, e só em produção.
 --
 -- Foi assim que o cadastro quebrou: ninguém conseguia criar conta, e o teste
 -- local passava porque instalava as extensões em `public`.
@@ -708,7 +708,7 @@ begin
 
   perform assert(v_presa is null,
     'nenhuma função fica cega para o schema extensions' ||
-    coalesce(' — PRESAS EM public: ' || v_presa, ''));
+    coalesce(' – PRESAS EM public: ' || v_presa, ''));
 
   -- E o caminho crítico de verdade: criar uma conta ponta a ponta.
   insert into auth.users (id, email, raw_user_meta_data)

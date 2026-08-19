@@ -15,7 +15,7 @@ import {
 import { useTickets, type TicketSummary } from '@/features/support/useSupport';
 
 /**
- * Support inbox. The ticket number exists but is deliberately quiet — a driver
+ * Support inbox. The ticket number exists but is deliberately quiet – a driver
  * should see their question, not a reference code (§69).
  */
 export default function SupportInbox() {

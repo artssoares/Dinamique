@@ -9,7 +9,7 @@ const ANALYST_ROLES = ['superadmin', 'admin', 'analyst'] as const;
 /**
  * Analytics de aquisição, plataformas, veículos e suporte (§90–92, §96, §97).
  *
- * Tudo vem das views analíticas, que já excluem contas de demonstração — uma
+ * Tudo vem das views analíticas, que já excluem contas de demonstração – uma
  * consulta de relatório nunca toca as tabelas operacionais direto (§106).
  */
 export default async function Analytics() {
@@ -40,13 +40,13 @@ export default async function Analytics() {
           headers={['Origem', 'Campanha', 'Código', 'Cadastros', 'Pro', 'Conversão', 'Ativos 30d', 'Retenção']}
           rows={rows<Record<string, any>>(acquisition).map((row) => [
             row.source,
-            row.campaign ?? '—',
-            row.code ?? '—',
+            row.campaign ?? '–',
+            row.code ?? '–',
             row.signups,
             row.pro_users,
-            row.conversion_rate !== null ? `${row.conversion_rate}%` : '—',
+            row.conversion_rate !== null ? `${row.conversion_rate}%` : '–',
             row.active_30d,
-            row.retention_30d !== null ? `${row.retention_30d}%` : '—',
+            row.retention_30d !== null ? `${row.retention_30d}%` : '–',
           ])}
           empty="Nenhum cadastro atribuído ainda."
         />
@@ -57,11 +57,11 @@ export default async function Analytics() {
           headers={['Influencer', 'Código', 'Status', 'Cadastros', 'Pro', 'Conversão', 'Ativos 30d']}
           rows={rows<Record<string, any>>(influencers).map((row) => [
             row.display_name,
-            row.code ?? '—',
+            row.code ?? '–',
             row.status,
             row.signups,
             row.pro_users,
-            row.conversion_rate !== null ? `${row.conversion_rate}%` : '—',
+            row.conversion_rate !== null ? `${row.conversion_rate}%` : '–',
             row.active_30d,
           ])}
           empty="Nenhum influencer aprovado ainda."
@@ -75,8 +75,8 @@ export default async function Analytics() {
             row.platform,
             row.users,
             formatCents(row.gross_revenue ?? 0),
-            row.trips ?? '—',
-            row.average_ticket !== null ? formatCents(row.average_ticket) : '—',
+            row.trips ?? '–',
+            row.average_ticket !== null ? formatCents(row.average_ticket) : '–',
           ])}
           empty="Nenhuma receita registrada por plataforma."
         />
@@ -88,12 +88,12 @@ export default async function Analytics() {
           rows={rows<Record<string, any>>(vehicles).map((row) => [
             row.vehicle_label,
             row.vehicle_type,
-            row.fuel_type ?? '—',
+            row.fuel_type ?? '–',
             row.ownership,
             row.users,
-            row.average_year ?? '—',
-            row.average_revenue_per_km !== null ? formatCents(row.average_revenue_per_km) : '—',
-            row.average_cost_per_km !== null ? formatCents(row.average_cost_per_km) : '—',
+            row.average_year ?? '–',
+            row.average_revenue_per_km !== null ? formatCents(row.average_revenue_per_km) : '–',
+            row.average_cost_per_km !== null ? formatCents(row.average_cost_per_km) : '–',
           ])}
           empty="Nenhum veículo cadastrado."
         />
@@ -112,7 +112,7 @@ export default async function Analytics() {
             value={
               supportRow?.avg_first_response_seconds
                 ? formatDuration(Number(supportRow.avg_first_response_seconds))
-                : '—'
+                : '–'
             }
           />
           <Stat
@@ -120,7 +120,7 @@ export default async function Analytics() {
             value={
               supportRow?.avg_resolution_seconds
                 ? formatDuration(Number(supportRow.avg_resolution_seconds))
-                : '—'
+                : '–'
             }
           />
         </div>
@@ -190,7 +190,7 @@ function Table({
             <tr key={index}>
               {row.map((cell, cellIndex) => (
                 <td key={cellIndex} className={typeof cell === 'number' ? 'small mono' : 'small'}>
-                  {cell ?? '—'}
+                  {cell ?? '–'}
                 </td>
               ))}
             </tr>

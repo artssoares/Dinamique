@@ -2,9 +2,9 @@
 -- Motor de notificações (§58, §99, §100).
 --
 -- Duas peças:
---   1. `send_notification` — cria notificações para um público segmentado,
+--   1. `send_notification` – cria notificações para um público segmentado,
 --      respeitando a preferência de cada usuário por categoria;
---   2. `process_reminders` — transforma lembretes vencidos (Free Flow, multas,
+--   2. `process_reminders` – transforma lembretes vencidos (Free Flow, multas,
 --      manutenção) em notificações. Roda por agendamento.
 -- ============================================================================
 
@@ -49,7 +49,7 @@ as $$
 $$;
 
 /**
- * Cria as notificações. Quem desativou a categoria não recebe — a preferência
+ * Cria as notificações. Quem desativou a categoria não recebe – a preferência
  * do usuário é verificada aqui, não na tela que dispara (§58).
  *
  * Retorna quantas foram efetivamente criadas.

@@ -9,7 +9,7 @@ Pagamento pelo **Stripe**, em reais, com assinatura recorrente.
 | Pro anual | R$ 49,90 por ano | R$ 4,16 |
 | Pro mensal | R$ 19,90 por mês | R$ 19,90 |
 
-O anual sai por cerca de 2,5 meses do mensal — 79% de desconto. É uma escolha
+O anual sai por cerca de 2,5 meses do mensal – 79% de desconto. É uma escolha
 comercial agressiva e proposital; está registrada aqui para não parecer engano
 de digitação para quem ler o código depois.
 
@@ -23,14 +23,14 @@ webhook do Stripe, rodando com a service role depois de verificar a assinatura
 da requisição.
 
 `billing_prices` e `billing_customers` são somente-leitura para
-`authenticated`, e não existe nem grant de escrita — o Admin altera preço pela
+`authenticated`, e não existe nem grant de escrita – o Admin altera preço pela
 service role, então dar permissão a `authenticated` seria superfície sem uso.
 Em tabela que decide cobrança, superfície sem uso é risco puro.
 
 ## O caminho de uma assinatura
 
 1. O aplicativo chama `POST /api/billing/checkout` com o token do Supabase no
-   cabeçalho. **O `user_id` vem do token verificado, nunca do corpo** — aceitar
+   cabeçalho. **O `user_id` vem do token verificado, nunca do corpo** – aceitar
    um id enviado pelo cliente deixaria qualquer um assinar em nome de outro.
 2. O servidor lê o preço **do banco** (aceitar preço do cliente deixaria
    alguém assinar por um centavo), verifica se já existe assinatura ativa,
@@ -38,7 +38,7 @@ Em tabela que decide cobrança, superfície sem uso é risco puro.
 3. O aplicativo abre a URL do Stripe num navegador.
 4. O Stripe envia webhooks para `POST /api/billing/webhook`.
 5. O aplicativo volta para `/assinatura/sucesso`, que **recarrega o plano** em
-   vez de assumir sucesso — voltar do Stripe não é o mesmo que pagamento
+   vez de assumir sucesso – voltar do Stripe não é o mesmo que pagamento
    confirmado.
 
 ## O webhook
@@ -51,14 +51,14 @@ Quatro verificações antes de qualquer escrita, nesta ordem:
 2. **Idempotência.** O Stripe reenvia. `billing_events` tem o id do evento como
    chave primária; um reenvio devolve 200 sem repetir o efeito.
 3. **Ordem.** O Stripe não garante ordem de entrega. Um `updated` antigo
-   chegando depois de um `deleted` reativaria um cancelamento — eventos mais
+   chegando depois de um `deleted` reativaria um cancelamento – eventos mais
    velhos que o último processado são descartados.
 4. **Interpretação.** `interpretEvent` é código puro em `@dinamique/billing`,
    testado sem rede, sem chave e sem SDK. É a parte onde um engano concede ou
    revoga plano indevidamente.
 
 O registro em `billing_events` é gravado **depois** do efeito. Se algo falhar
-no meio, o Stripe reenvia e nós reprocessamos — melhor repetir uma tentativa do
+no meio, o Stripe reenvia e nós reprocessamos – melhor repetir uma tentativa do
 que marcar como processado algo que não chegou a acontecer.
 
 ## Estados
@@ -77,12 +77,12 @@ vai tentar de novo, e cortar o acesso de um motorista porque o cartão recusou
 na primeira tentativa é hostil. Quem decide o corte é `unpaid`, que só chega
 depois de todas as tentativas.
 
-Um estado que o Stripe inventar no futuro cai em `incomplete` — nunca em
+Um estado que o Stripe inventar no futuro cai em `incomplete` – nunca em
 "ativo". O padrão seguro é não conceder.
 
 ## Desconto de indicação
 
-O benefício de R$ 10 (§83) vira um cupom do Stripe com `duration: 'once'` —
+O benefício de R$ 10 (§83) vira um cupom do Stripe com `duration: 'once'` –
 sem isso ele se repetiria em toda renovação.
 
 `consume_discount_benefit` é atômico: a condição `status = 'granted'` é a
@@ -95,7 +95,7 @@ convertida, alimentando o relatório de conversão por origem.
 ## Cancelamento
 
 Pelo **portal do cliente do Stripe**, não por um botão nosso. Um cancelamento
-caseiro dependeria de nós lembrarmos de avisar o Stripe; assim é o contrário —
+caseiro dependeria de nós lembrarmos de avisar o Stripe; assim é o contrário –
 o Stripe cancela e nos avisa por webhook.
 
 Cancelamento agendado (`cancel_at_period_end`) mantém o acesso até o fim do
@@ -108,7 +108,7 @@ sobraram. Coberto por teste.
 ## Preços no Stripe
 
 Preço no Stripe é imutável. Mudar valor cria um preço novo e aposenta o
-anterior — **quem já assina continua no preço que contratou**, que é o
+anterior – **quem já assina continua no preço que contratou**, que é o
 comportamento correto e o motivo de cada assinatura guardar seu
 `stripe_price_id`.
 
@@ -141,7 +141,7 @@ Nenhuma chave do Stripe existe dentro do aparelho.
 
 ## O que ainda não foi verificado
 
-As chamadas ao Stripe nunca rodaram contra a API real — isso exige uma conta
+As chamadas ao Stripe nunca rodaram contra a API real – isso exige uma conta
 com chaves. O que **está** coberto por teste: as 32 regras de interpretação de
 evento, decisão de checkout e desconto (sem rede), e as 18 asserções de banco
 sobre concessão, revogação, idempotência e permissões.

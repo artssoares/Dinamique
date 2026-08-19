@@ -5,32 +5,49 @@ import { Icon, type IconName } from '../icons/Icon';
 import { Gradient } from './Gradient';
 import { Text } from './Text';
 
+export interface HeroBackCard {
+  /** Short label on the left, e.g. "Meta do mês". */
+  label: string;
+  /** Figure or status on the right, e.g. "62% batida". */
+  value: string;
+  icon?: IconName;
+  /** 0 to 1. Draws a thin progress line along the very top of the card. */
+  progress?: number;
+}
+
 export interface HeroCardProps {
   /** Small line above the figure, e.g. "Lucro de hoje". */
   label: string;
   /** The figure. Passed as a node so Home can animate it with <Money />. */
   children: ReactNode;
-  /** Top-left mark — the vehicle plate, the platform, the period. */
+  /** Top-left mark: the period, the vehicle, the platform. */
   tag?: string;
   tagIcon?: IconName;
   /** Top-right line, e.g. the date. */
   meta?: string;
-  /** Two label/value pairs along the bottom. */
+  /** Two or three label/value pairs along the bottom. */
   details?: { label: string; value: string }[];
-  /** Draws the second card peeking out behind. Off on narrow screens. */
-  stacked?: boolean;
-  /** Anything pinned under the figure — a progress bar, a button. */
+  /**
+   * The card behind. It carries real information rather than decoration: the
+   * strip that shows above the front card is prime space, and a driver
+   * glancing at Home should get a second fact out of it for free.
+   */
+  back?: HeroBackCard;
+  /** Anything pinned under the figure, e.g. a live journey pill. */
   footer?: ReactNode;
   style?: StyleProp<ViewStyle>;
 }
 
+/** How much of the back card shows above the front one. */
+const PEEK = 34;
+
 /**
  * The headline card on Home.
  *
- * Two cards in a stack, the back one offset and in the accent hue: the app's
- * one piece of shape identity, and the reason Home is recognisable from across
- * a car. Everything on it renders in `textOnBrand`, which is asserted against
- * the brand fill by the token tests.
+ * Two cards in a stack: the app's one piece of shape identity, and the reason
+ * Home is recognisable from across a car. The front card is brand blue with
+ * white type; the back card is a vivid orange with dark type, which is what
+ * lets it be that bright and still readable.
  */
 export function HeroCard({
   label,
@@ -39,19 +56,17 @@ export function HeroCard({
   tagIcon,
   meta,
   details,
-  stacked = true,
+  back,
   footer,
   style,
 }: HeroCardProps) {
   const theme = useTheme();
-
-  // How much of the second card shows above the first. Enough for its own
-  // label to be readable, not so much that it competes with the figure.
-  const peek = 30;
+  const ink = theme.colors.textOnHeroBack;
+  const ratio = back?.progress === undefined ? null : Math.max(0, Math.min(1, back.progress));
 
   return (
-    <View style={[{ paddingTop: stacked ? peek : 0 }, style]}>
-      {stacked ? (
+    <View style={[{ paddingTop: back ? PEEK : 0 }, style]}>
+      {back ? (
         <Gradient
           colors={[theme.colors.heroBackFrom, theme.colors.heroBackTo]}
           direction="horizontal"
@@ -61,21 +76,39 @@ export function HeroCard({
             top: 0,
             left: theme.spacing.lg,
             right: theme.spacing.lg,
-            height: peek + theme.radius['3xl'],
+            height: PEEK + theme.radius['3xl'],
           }}
         >
+          {ratio === null ? null : (
+            <View
+              style={{
+                height: 3,
+                width: `${Math.round(ratio * 100)}%`,
+                backgroundColor: ink,
+                opacity: 0.55,
+                borderBottomRightRadius: theme.radius.pill,
+              }}
+            />
+          )}
           <View
             style={{
-              height: peek,
+              height: ratio === null ? PEEK : PEEK - 3,
               flexDirection: 'row',
               alignItems: 'center',
-              justifyContent: 'space-between',
+              gap: theme.spacing.xs,
               paddingHorizontal: theme.spacing.lg,
             }}
           >
-            <Icon name="sparkle" size={14} color={theme.colors.textOnBrand} />
-            <Text variant="overline" color="onBrand">
-              DINAMIQUE
+            {back.icon ? <Icon name={back.icon} size={14} color={ink} /> : null}
+            <Text variant="captionStrong" style={{ color: ink }} numberOfLines={1}>
+              {back.label}
+            </Text>
+            <Text
+              variant="captionStrong"
+              style={{ color: ink, marginLeft: 'auto' }}
+              numberOfLines={1}
+            >
+              {back.value}
             </Text>
           </View>
         </Gradient>
