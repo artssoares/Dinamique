@@ -47,3 +47,6 @@ android/
 ios/
 !apps/mobile/android/
 !apps/mobile/ios/
+
+# claude code (local, por máquina — não versionar)
+.claude/settings.local.json
