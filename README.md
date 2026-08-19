@@ -61,8 +61,16 @@ pnpm admin
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | admin | public |
 | `SUPABASE_SERVICE_ROLE_KEY` | admin, server only | **bypasses RLS.** Never `NEXT_PUBLIC_`, never in the app, never committed |
 
-Real values never enter the repository. `.env*` is gitignored except the
-`.env.example` files.
+`.env*` is gitignored except the `.env.example` files, and the service role key
+never leaves the server.
+
+One deliberate exception: the mobile app's two `EXPO_PUBLIC_` values are
+committed in `apps/mobile/vercel.json` under `build.env`. Expo inlines them at
+build time, so a deployment without them can only render the "falta conectar o
+banco" screen — and both are public by construction. The URL is a hostname, and
+the anon key is shipped inside the JavaScript bundle to every visitor whatever
+we do; it grants nothing on its own, because every table is behind Row Level
+Security. The service role key remains absolutely excluded.
 
 ## Layout
 

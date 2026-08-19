@@ -4,5 +4,11 @@
   "buildCommand": "npx expo export --platform web --output-dir dist",
   "outputDirectory": "dist",
   "framework": null,
-  "cleanUrls": true
+  "cleanUrls": true,
+  "build": {
+    "env": {
+      "EXPO_PUBLIC_SUPABASE_URL": "https://rwwfqmytvhqelvricniz.supabase.co",
+      "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3d2ZxbXl0dmhxZWx2cmljbml6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY5ODkxNzYsImV4cCI6MjEwMjU2NTE3Nn0.nAhKNSsLo6zaEfqsCVlFpzxrufggE2aolA6RquWGXQM"
+    }
+  }
 }
