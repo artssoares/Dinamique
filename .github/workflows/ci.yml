@@ -9,6 +9,15 @@ jobs:
   verify:
     runs-on: ubuntu-latest
 
+    # Job-wide, because `pnpm run test` runs the database package too — not
+    # just the dedicated step further down. Without these it probes 54322,
+    # the port `supabase start` uses locally, and fails the whole run.
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
     services:
       postgres:
         image: postgres:16
@@ -53,11 +62,6 @@ jobs:
           ! grep -rnE '#[0-9a-fA-F]{6}' apps/mobile/app apps/mobile/src 2>/dev/null
 
       - name: Database migrations and security assertions
-        env:
-          PGHOST: localhost
-          PGPORT: 5432
-          PGUSER: postgres
-          PGPASSWORD: postgres
         run: pnpm --filter @dinamique/database test
 
       # Building is what catches monorepo resolution problems that typecheck
