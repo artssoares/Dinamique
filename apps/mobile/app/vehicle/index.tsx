@@ -10,6 +10,7 @@ import {
   EmptyState,
   Screen,
   ScreenHeader,
+  Skeleton,
   Text,
   useTheme,
 } from '@dinamique/ui';
@@ -64,6 +65,8 @@ export default function Vehicles() {
     setLoading(false);
   }, [session?.user?.id]);
 
+  const header = <ScreenHeader title="Meu veículo" onBack={() => router.back()} />;
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -93,13 +96,18 @@ export default function Vehicles() {
     ]);
   }
 
-  if (loading) return null;
+  // The header renders while loading too: a blank screen has no way back.
+  if (loading) {
+    return (
+      <Screen header={header} gap="lg">
+        <Skeleton height={150} radius={theme.radius['2xl']} />
+        <Skeleton height={150} radius={theme.radius['2xl']} />
+      </Screen>
+    );
+  }
 
   return (
-    <Screen
-      header={<ScreenHeader title="Meu veículo" onBack={() => router.back()} />}
-      gap="lg"
-    >
+    <Screen header={header} gap="lg">
         {vehicles.length === 0 ? (
           <EmptyState
             title="Nenhum veículo cadastrado"

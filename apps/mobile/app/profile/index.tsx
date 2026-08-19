@@ -6,9 +6,11 @@ import {
   Button,
   Card,
   Chip,
+  EmptyState,
   Field,
   Screen,
   ScreenHeader,
+  Skeleton,
   Text,
   useTheme,
 } from '@dinamique/ui';
@@ -48,17 +50,26 @@ export default function Profile() {
   const [photo, setPhoto] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (!session?.user) return;
-    void supabase
-      .from('profiles')
-      .select('first_name, last_name, preferred_name, phone, city, state, birth_date, gender, work_modes, avatar_path')
-      .eq('id', session.user.id)
-      .maybeSingle()
-      .then(({ data }) => {
+
+    // `finally` rather than `.then`: a request that fails on a bad connection
+    // used to leave `loading` true for ever, and the screen rendered nothing
+    // at all — no header, no way back.
+    void (async () => {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select(
+            'first_name, last_name, preferred_name, phone, city, state, birth_date, gender, work_modes, avatar_path',
+          )
+          .eq('id', session.user!.id)
+          .maybeSingle();
+
         if (data) {
           setFirstName(data.first_name ?? '');
           setLastName(data.last_name ?? '');
@@ -71,8 +82,12 @@ export default function Profile() {
           setWorkModes((data.work_modes as WorkMode[] | null) ?? []);
           setPhoto(avatarUrl(data.avatar_path));
         }
+      } catch {
+        setLoadError(true);
+      } finally {
         setLoading(false);
-      });
+      }
+    })();
   }, [session?.user?.id]);
 
   async function save() {
@@ -123,13 +138,38 @@ export default function Profile() {
     await refresh();
   }
 
-  if (loading) return null;
-
   const displayName = preferredName || firstName || profile?.firstName || '';
+
+  // The header renders in every state. A screen with nothing on it is a screen
+  // nobody can leave.
+  const header = <ScreenHeader title="Meu perfil" onBack={() => router.back()} />;
+
+  if (loading) {
+    return (
+      <Screen header={header} gap="lg">
+        <Skeleton height={190} radius={theme.radius['2xl']} />
+        <Skeleton height={54} radius={theme.radius.lg} />
+        <Skeleton height={54} radius={theme.radius.lg} />
+        <Skeleton height={54} radius={theme.radius.lg} />
+      </Screen>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Screen header={header} grow center>
+        <EmptyState
+          iconName="alert"
+          title="Não conseguimos carregar seu perfil"
+          description="Verifique sua conexão e tente de novo."
+        />
+      </Screen>
+    );
+  }
 
   return (
     <Screen
-      header={<ScreenHeader title="Meu perfil" onBack={() => router.back()} />}
+      header={header}
       gap="lg"
     >
         <Card padding="xl" style={{ alignItems: 'center', gap: theme.spacing.md }}>

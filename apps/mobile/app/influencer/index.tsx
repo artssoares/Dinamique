@@ -1,7 +1,17 @@
 import { useEffect, useState } from 'react';
 import { TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Badge, Button, Card, Chip, Screen, ScreenHeader, Text, useTheme } from '@dinamique/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  Chip,
+  Screen,
+  ScreenHeader,
+  Skeleton,
+  Text,
+  useTheme,
+} from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 import { useSession } from '@/hooks/useSession';
@@ -49,8 +59,9 @@ export default function Influencer() {
       .maybeSingle()
       .then(({ data }) => {
         setApplication(data as { status: string } | null);
-        setLoading(false);
-      });
+      })
+      // Whatever happens, the screen stops being blank.
+      .then(() => setLoading(false), () => setLoading(false));
 
     void supabase
       .from('promotion_codes')
@@ -97,13 +108,19 @@ export default function Influencer() {
     fontSize: 16,
   };
 
-  if (loading) return null;
+  const header = <ScreenHeader title="Seja um Influencer" onBack={() => router.back()} />;
+
+  if (loading) {
+    return (
+      <Screen header={header} gap="lg">
+        <Skeleton height={120} radius={theme.radius['2xl']} />
+        <Skeleton height={54} radius={theme.radius.lg} />
+      </Screen>
+    );
+  }
 
   return (
-    <Screen
-      header={<ScreenHeader title="Seja um Influencer" onBack={() => router.back()} />}
-      gap="lg"
-    >
+    <Screen header={header} gap="lg">
         {application ? (
           <Card padding="xl" style={{ gap: theme.spacing.md }}>
             <Badge
