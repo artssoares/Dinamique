@@ -100,7 +100,7 @@ export default function SignUp() {
             <Text variant="body" color="secondary">
               Já tem conta?
             </Text>
-            <Link href="/(auth)/sign-in">
+            <Link href="/(auth)/sign-in" replace>
               <Text variant="bodyStrong" color="brand">
                 Entrar
               </Text>

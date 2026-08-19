@@ -57,7 +57,7 @@ export default function SignIn() {
             <Text variant="body" color="secondary">
               Ainda não tem conta?
             </Text>
-            <Link href="/(auth)/sign-up">
+            <Link href="/(auth)/sign-up" replace>
               <Text variant="bodyStrong" color="brand">
                 Criar conta
               </Text>
