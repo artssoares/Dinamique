@@ -73,8 +73,12 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ci
         run: pnpm --filter @dinamique/admin build
 
+      # `dist` rather than /tmp: Expo refuses to write outside the project —
+      # "CommandError: --output-dir must be a subdirectory of the project
+      # directory" — so the old path failed before bundling anything. `dist`
+      # is already gitignored.
       - name: Bundle mobile for web
         env:
           EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ci
-        run: pnpm --filter @dinamique/mobile exec expo export --platform web --output-dir /tmp/web-export
+        run: pnpm --filter @dinamique/mobile exec expo export --platform web --output-dir dist
