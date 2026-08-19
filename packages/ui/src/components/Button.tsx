@@ -26,9 +26,9 @@ export interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> 
 }
 
 const SIZES: Record<ButtonSize, { height: number; paddingHorizontal: number; variant: 'body' | 'bodyStrong' | 'subtitle' }> = {
-  sm: { height: MIN_TOUCH_TARGET, paddingHorizontal: 16, variant: 'bodyStrong' },
-  md: { height: 52, paddingHorizontal: 20, variant: 'bodyStrong' },
-  lg: { height: 58, paddingHorizontal: 24, variant: 'subtitle' },
+  sm: { height: MIN_TOUCH_TARGET, paddingHorizontal: 20, variant: 'bodyStrong' },
+  md: { height: 54, paddingHorizontal: 26, variant: 'bodyStrong' },
+  lg: { height: 60, paddingHorizontal: 32, variant: 'subtitle' },
 };
 
 export function Button({
@@ -61,7 +61,7 @@ export function Button({
       {
         height: sizing.height,
         paddingHorizontal: sizing.paddingHorizontal,
-        borderRadius: theme.radius.lg,
+        borderRadius: theme.radius.pill,
         backgroundColor: surface.background,
         borderWidth: variant === 'ghost' ? 1 : 0,
         borderColor: surface.border,

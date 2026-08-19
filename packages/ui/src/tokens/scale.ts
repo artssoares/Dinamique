@@ -39,21 +39,36 @@ export type RadiusToken = keyof typeof radius;
  * Type scale. Financial figures get their own oversized steps because the
  * number must land before anything else on the screen (§15).
  */
+/**
+ * Tipografia — mini manual de marca V1.0, §04.
+ *
+ * O manual é explícito: o logotipo é uma assinatura própria e a interface usa
+ * uma família neutra e digital, Inter, "para manter legibilidade em telas
+ * pequenas, tabelas, dashboards e fluxos de cadastro". A hierarquia abaixo é a
+ * do manual — título 28–36 Bold, subtítulo 18–22 SemiBold, corpo 14–16
+ * Regular, botão 14–16 SemiBold, dados 16–24 Medium.
+ *
+ * A pilha termina em fontes do próprio sistema: se a Inter não carregar, o
+ * texto continua com a mesma métrica em vez de cair numa serifada.
+ */
+export const fontFamily =
+  "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+
 export const typography = {
-  displayXl: { fontSize: 48, lineHeight: 52, fontWeight: '700' },
-  display: { fontSize: 40, lineHeight: 44, fontWeight: '700' },
+  displayXl: { fontSize: 44, lineHeight: 48, fontWeight: '700', letterSpacing: -1.2 },
+  display: { fontSize: 36, lineHeight: 40, fontWeight: '700', letterSpacing: -0.9 },
   /** The hero currency figure on Home. */
-  moneyHero: { fontSize: 36, lineHeight: 40, fontWeight: '700' },
-  moneyLarge: { fontSize: 28, lineHeight: 32, fontWeight: '700' },
-  moneyMedium: { fontSize: 22, lineHeight: 26, fontWeight: '600' },
-  titleLg: { fontSize: 24, lineHeight: 30, fontWeight: '700' },
-  title: { fontSize: 20, lineHeight: 26, fontWeight: '600' },
-  subtitle: { fontSize: 17, lineHeight: 24, fontWeight: '600' },
-  body: { fontSize: 15, lineHeight: 22, fontWeight: '400' },
-  bodyStrong: { fontSize: 15, lineHeight: 22, fontWeight: '600' },
-  caption: { fontSize: 13, lineHeight: 18, fontWeight: '400' },
-  captionStrong: { fontSize: 13, lineHeight: 18, fontWeight: '600' },
-  overline: { fontSize: 11, lineHeight: 14, fontWeight: '600', letterSpacing: 0.6 },
+  moneyHero: { fontSize: 36, lineHeight: 40, fontWeight: '700', letterSpacing: -0.9 },
+  moneyLarge: { fontSize: 28, lineHeight: 32, fontWeight: '700', letterSpacing: -0.6 },
+  moneyMedium: { fontSize: 22, lineHeight: 28, fontWeight: '600', letterSpacing: -0.3 },
+  titleLg: { fontSize: 30, lineHeight: 36, fontWeight: '700', letterSpacing: -0.7 },
+  title: { fontSize: 22, lineHeight: 28, fontWeight: '700', letterSpacing: -0.4 },
+  subtitle: { fontSize: 18, lineHeight: 25, fontWeight: '600', letterSpacing: -0.2 },
+  body: { fontSize: 15, lineHeight: 23, fontWeight: '400' },
+  bodyStrong: { fontSize: 15, lineHeight: 23, fontWeight: '600' },
+  caption: { fontSize: 13, lineHeight: 19, fontWeight: '400' },
+  captionStrong: { fontSize: 13, lineHeight: 19, fontWeight: '600' },
+  overline: { fontSize: 11, lineHeight: 14, fontWeight: '700', letterSpacing: 0.8 },
 } as const;
 
 export type TypographyToken = keyof typeof typography;

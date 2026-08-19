@@ -35,7 +35,7 @@ export function Text({ variant = 'body', color = 'primary', align, style, ...res
     muted: theme.colors.textMuted,
     inverse: theme.colors.textInverse,
     onBrand: theme.colors.textOnBrand,
-    brand: theme.colors.brandPrimary,
+    brand: theme.colors.brandPrimaryText,
     accent: theme.colors.brandSecondary,
     success: theme.colors.successText,
     danger: theme.colors.dangerText,
@@ -45,7 +45,12 @@ export function Text({ variant = 'body', color = 'primary', align, style, ...res
   return (
     <RNText
       {...rest}
-      style={[theme.typography[variant] as TextStyle, { color: colorMap[color], textAlign: align }, style]}
+      style={[
+        { fontFamily: theme.fontFamily },
+        theme.typography[variant] as TextStyle,
+        { color: colorMap[color], textAlign: align },
+        style,
+      ]}
     />
   );
 }

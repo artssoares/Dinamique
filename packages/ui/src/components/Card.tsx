@@ -19,7 +19,7 @@ export function Card({ padding = 'xl', elevated = false, bordered = false, style
       style={[
         {
           backgroundColor: elevated ? theme.colors.surfaceElevated : theme.colors.surfacePrimary,
-          borderRadius: theme.radius['2xl'],
+          borderRadius: theme.radius['3xl'],
           padding: theme.spacing[padding],
           borderWidth: bordered ? 1 : 0,
           borderColor: theme.colors.borderSubtle,

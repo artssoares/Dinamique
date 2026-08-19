@@ -136,12 +136,15 @@ export default function Onboarding() {
             value={monthlyGoal}
             onChangeText={setMonthlyGoal}
             style={{
-              fontSize: 32,
+              fontFamily: theme.fontFamily,
+              fontSize: 40,
               fontWeight: '700',
+              letterSpacing: -1,
               color: theme.colors.textPrimary,
-              borderBottomWidth: 2,
-              borderBottomColor: theme.colors.borderPrimary,
-              paddingVertical: theme.spacing.md,
+              backgroundColor: theme.colors.surfaceSecondary,
+              borderRadius: theme.radius['3xl'],
+              paddingHorizontal: theme.spacing.xl,
+              paddingVertical: theme.spacing.lg,
             }}
           />
 
@@ -165,41 +168,62 @@ export default function Onboarding() {
   const isLast = step === steps.length - 1;
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.colors.backgroundPrimary }}
-      contentContainerStyle={{
-        flexGrow: 1,
-        padding: theme.spacing.xl,
-        paddingTop: insets.top + theme.spacing['3xl'],
-        gap: theme.spacing.xl,
-      }}
-      keyboardShouldPersistTaps="handled"
-    >
-      <View style={{ flexDirection: 'row', gap: theme.spacing.xs }}>
-        {steps.map((_, index) => (
-          <View
-            key={index}
-            style={{
-              flex: 1,
-              height: 4,
-              borderRadius: theme.radius.pill,
-              backgroundColor:
-                index <= step ? theme.colors.brandPrimary : theme.colors.backgroundSecondary,
-            }}
-          />
-        ))}
-      </View>
+    <View style={{ flex: 1, backgroundColor: theme.colors.backgroundPrimary }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          padding: theme.spacing['2xl'],
+          paddingTop: insets.top + theme.spacing['2xl'],
+          paddingBottom: theme.spacing['2xl'],
+          gap: theme.spacing['2xl'],
+        }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Passo N de 3 — saber quanto falta é metade do conforto (§22). */}
+        <View style={{ gap: theme.spacing.md }}>
+          <View style={{ flexDirection: 'row', gap: theme.spacing.xs }}>
+            {steps.map((_, index) => (
+              <View
+                key={index}
+                style={{
+                  flex: 1,
+                  height: 6,
+                  borderRadius: theme.radius.pill,
+                  backgroundColor:
+                    index <= step ? theme.colors.brandPrimary : theme.colors.backgroundSecondary,
+                }}
+              />
+            ))}
+          </View>
+          <Text variant="overline" color="muted">
+            PASSO {step + 1} DE {steps.length}
+          </Text>
+        </View>
 
-      <View style={{ gap: theme.spacing.sm }}>
-        <Text variant="titleLg">{current.title}</Text>
-        <Text variant="body" color="secondary">
-          {current.subtitle}
-        </Text>
-      </View>
+        <View style={{ gap: theme.spacing.sm }}>
+          <Text variant="titleLg">{current.title}</Text>
+          <Text variant="body" color="secondary">
+            {current.subtitle}
+          </Text>
+        </View>
 
-      <View style={{ flex: 1 }}>{current.content}</View>
+        <View>{current.content}</View>
+      </ScrollView>
 
-      <View style={{ gap: theme.spacing.sm }}>
+      {/* Barra de ação fixa: o botão não foge para o fim da rolagem. */}
+      <View
+        style={{
+          paddingHorizontal: theme.spacing['2xl'],
+          paddingTop: theme.spacing.lg,
+          paddingBottom: insets.bottom + theme.spacing.lg,
+          gap: theme.spacing.sm,
+          backgroundColor: theme.colors.backgroundPrimary,
+          borderTopWidth: 1,
+          borderTopColor: theme.colors.borderSubtle,
+        }}
+      >
         <Button
           label={isLast ? 'Começar' : 'Continuar'}
           size="lg"
@@ -212,6 +236,6 @@ export default function Onboarding() {
           <Button label="Voltar" variant="ghost" fullWidth onPress={() => setStep(step - 1)} />
         ) : null}
       </View>
-    </ScrollView>
+    </View>
   );
 }

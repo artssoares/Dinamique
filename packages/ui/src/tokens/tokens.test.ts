@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { contrastRatio, WCAG_AA_LARGE, WCAG_AA_NORMAL } from './contrast';
-import { blue, coral } from './palette';
+import { blue, coral, neutral } from './palette';
 import { darkTokens, lightTokens, themes } from './semantic';
 import { MIN_TOUCH_TARGET, motion, radius, spacing } from './scale';
 
 describe('brand anchors', () => {
-  it('uses the exact logo colours at the 500 step', () => {
-    expect(blue[500]).toBe('#0137F7');
-    expect(coral[500]).toBe('#FF6A54');
+  it('uses the exact brand-manual colours at the 500 step', () => {
+    // Mini manual de marca V1.0: Dinamique Blue e Coral Point.
+    expect(blue[500]).toBe('#065DF7');
+    expect(coral[500]).toBe('#FD6561');
+  });
+
+  it('anchors the dark end of the neutral ramp on Midnight Navy', () => {
+    expect(neutral[950]).toBe('#03093B');
   });
 });
 

@@ -35,14 +35,15 @@ export function Field({ label, hint, error, optional, style, ...rest }: FieldPro
         placeholderTextColor={theme.colors.textMuted}
         style={[
           {
-            minHeight: 52,
-            borderRadius: theme.radius.lg,
+            minHeight: 56,
+            borderRadius: theme.radius['2xl'],
             borderWidth: 1,
-            borderColor: error ? theme.colors.danger : theme.colors.borderPrimary,
-            backgroundColor: theme.colors.surfacePrimary,
+            borderColor: error ? theme.colors.danger : theme.colors.borderSubtle,
+            backgroundColor: theme.colors.surfaceSecondary,
             paddingHorizontal: theme.spacing.lg,
             paddingVertical: theme.spacing.md,
             color: theme.colors.textPrimary,
+            fontFamily: theme.fontFamily,
             fontSize: 16,
           },
           style,

@@ -1,50 +1,41 @@
-import { Image, View } from 'react-native';
-import { Text, useTheme } from '@dinamique/ui';
-import { LOGO_ASPECT_RATIO, LOGO_SOURCE } from './logo';
+import { Image } from 'react-native';
+import { useTheme } from '@dinamique/ui';
+import { LOGO_ASPECT_RATIO, LOGO_NEGATIVE_SOURCE, LOGO_SOURCE } from './logo';
 
-const HEIGHTS = { sm: 20, md: 28, lg: 40 } as const;
+const HEIGHTS = { sm: 20, md: 28, lg: 40, xl: 56 } as const;
 
 export interface BrandMarkProps {
   size?: keyof typeof HEIGHTS;
+  /**
+   * `auto` segue o tema: azul no claro, branco no escuro. Use `negative`
+   * quando a marca estiver sobre o azul da própria marca — aí o wordmark é
+   * branco mesmo no tema claro, como manda o manual.
+   */
+  tone?: 'auto' | 'negative';
 }
 
 /**
- * Renders the supplied logo at its own proportions. When the asset is missing
- * it shows a placeholder that says so — it never substitutes type for the mark.
+ * Assinatura da marca (§02 e §05 do manual).
+ *
+ * O manual define duas versões e quando usar cada uma: wordmark azul sobre
+ * fundos claros, wordmark branco sobre o azul da marca e superfícies escuras.
+ * Escolher pelo tema em vez de deixar cada tela decidir é o que impede a marca
+ * azul de acabar sobre um fundo escuro, onde ela some.
+ *
+ * A proporção vem do arquivo — a marca nunca é esticada nem reproporcionada.
  */
-export function BrandMark({ size = 'md' }: BrandMarkProps) {
+export function BrandMark({ size = 'md', tone = 'auto' }: BrandMarkProps) {
   const theme = useTheme();
   const height = HEIGHTS[size];
 
-  if (LOGO_SOURCE) {
-    return (
-      <Image
-        source={LOGO_SOURCE}
-        accessibilityLabel="Dinamique"
-        // Aspect ratio comes from the file; the mark is never stretched.
-        style={{ height, width: height * LOGO_ASPECT_RATIO }}
-        resizeMode="contain"
-      />
-    );
-  }
+  const negative = tone === 'negative' || theme.scheme === 'dark';
 
   return (
-    <View
-      accessibilityLabel="Logo Dinamique pendente"
-      style={{
-        height,
-        width: height * LOGO_ASPECT_RATIO,
-        borderRadius: theme.radius.sm,
-        borderWidth: 1,
-        borderStyle: 'dashed',
-        borderColor: theme.colors.borderStrong,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text variant="overline" color="muted">
-        logo.png
-      </Text>
-    </View>
+    <Image
+      source={negative ? LOGO_NEGATIVE_SOURCE : LOGO_SOURCE}
+      accessibilityLabel="dinamique."
+      style={{ height, width: height * LOGO_ASPECT_RATIO }}
+      resizeMode="contain"
+    />
   );
 }

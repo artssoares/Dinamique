@@ -4,6 +4,7 @@ import type { ThemePreference } from '@dinamique/types';
 import {
   darkTokens,
   elevation,
+  fontFamily,
   lightTokens,
   motion,
   radius,
@@ -22,6 +23,8 @@ export interface Theme {
   spacing: typeof spacing;
   radius: typeof radius;
   typography: typeof typography;
+  /** Pilha de fontes da marca (Inter, com queda para as do sistema). */
+  fontFamily: string;
   elevation: typeof elevation;
   motion: typeof motion;
   scheme: ColorSchemeName;
@@ -40,6 +43,7 @@ function buildTheme(scheme: ColorSchemeName): Theme {
     spacing,
     radius,
     typography,
+    fontFamily,
     elevation,
     motion,
     scheme,

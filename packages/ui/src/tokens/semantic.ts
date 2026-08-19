@@ -31,6 +31,22 @@ export interface ThemeTokens {
   brandPrimary: string;
   brandPrimaryHover: string;
   brandPrimarySubtle: string;
+  /**
+   * Azul para TEXTO, separado do azul de preenchimento pelo mesmo motivo que
+   * `successText` existe: a cor que preenche um botão e a cor que se lê como
+   * letra raramente são a mesma. No escuro, o azul da marca sobre o navy fica
+   * em 3.35:1 — bonito num botão, ilegível numa frase.
+   */
+  brandPrimaryText: string;
+  /**
+   * A superfície azul da marca — cabeçalhos de entrada, faixas, cartões de
+   * destaque. É o mesmo azul nos dois temas de propósito: o manual trata o
+   * azul como a assinatura da marca, não como uma cor de interface que troca
+   * junto com o tema.
+   */
+  brandSurface: string;
+  /** Texto de apoio sobre `brandSurface`. Passa AA sobre o azul da marca. */
+  textOnBrandMuted: string;
   brandSecondary: string;
   brandSecondaryHover: string;
   brandSecondarySubtle: string;
@@ -72,6 +88,7 @@ export const lightTokens: ThemeTokens = {
   textMuted: neutral[400],
   textInverse: neutral[0],
   textOnBrand: neutral[0],
+  textOnBrandMuted: blue[50],
 
   borderPrimary: neutral[200],
   borderSubtle: neutral[100],
@@ -80,6 +97,8 @@ export const lightTokens: ThemeTokens = {
   brandPrimary: blue[500],
   brandPrimaryHover: blue[600],
   brandPrimarySubtle: blue[50],
+  brandPrimaryText: blue[500],
+  brandSurface: blue[500],
   brandSecondary: coral[500],
   brandSecondaryHover: coral[600],
   brandSecondarySubtle: coral[50],
@@ -94,7 +113,7 @@ export const lightTokens: ThemeTokens = {
   warningSubtle: amber[50],
   warningText: amber[700],
 
-  overlay: 'rgba(13, 16, 22, 0.45)',
+  overlay: 'rgba(3, 9, 59, 0.55)',
   skeleton: neutral[100],
   focusRing: blue[400],
 };
@@ -116,17 +135,20 @@ export const darkTokens: ThemeTokens = {
   textMuted: neutral[500],
   textInverse: neutral[950],
   textOnBrand: neutral[0],
+  textOnBrandMuted: blue[50],
 
   borderPrimary: neutral[800],
   borderSubtle: neutral[850],
   borderStrong: neutral[700],
 
   brandPrimary: blue[400],
-  brandPrimaryHover: blue[300],
-  brandPrimarySubtle: 'rgba(74, 113, 255, 0.16)',
+  brandPrimaryHover: blue[500],
+  brandPrimarySubtle: 'rgba(26, 108, 249, 0.18)',
+  brandPrimaryText: blue[300],
+  brandSurface: blue[500],
   brandSecondary: coral[400],
   brandSecondaryHover: coral[300],
-  brandSecondarySubtle: 'rgba(255, 134, 111, 0.16)',
+  brandSecondarySubtle: 'rgba(253, 129, 124, 0.18)',
 
   success: green[400],
   successSubtle: 'rgba(52, 199, 123, 0.16)',

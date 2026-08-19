@@ -1,15 +1,14 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native';
+import { View } from 'react-native';
 import { Link } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Text, useTheme } from '@dinamique/ui';
+import { Button, Field, Text, useTheme } from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { toFriendlyError } from '@/lib/errors';
-import { BrandMark } from '@/features/brand/BrandMark';
+import { AuthScreen } from '@/features/auth/AuthScreen';
+import { ErrorNote } from '@/features/auth/ErrorNote';
 
 export default function SignIn() {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -32,94 +31,60 @@ export default function SignIn() {
     setLoading(false);
   }
 
-  const inputStyle = {
-    height: 54,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.borderPrimary,
-    backgroundColor: theme.colors.surfacePrimary,
-    paddingHorizontal: theme.spacing.lg,
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-  };
-
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: theme.colors.backgroundPrimary }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent: 'center',
-          padding: theme.spacing['2xl'],
-          paddingTop: insets.top + theme.spacing['3xl'],
-          gap: theme.spacing.xl,
-        }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={{ gap: theme.spacing.sm, marginBottom: theme.spacing.xl }}>
-          <BrandMark size="lg" />
-          <Text variant="titleLg">Bem-vindo de volta</Text>
-          <Text variant="body" color="secondary">
-            Entre para acompanhar seus ganhos e suas metas.
-          </Text>
-        </View>
-
-        <View style={{ gap: theme.spacing.md }}>
-          <TextInput
-            accessibilityLabel="Email"
-            placeholder="Email"
-            placeholderTextColor={theme.colors.textMuted}
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-            style={inputStyle}
+    <AuthScreen
+      title="Bem-vindo de volta"
+      subtitle="Entre para acompanhar seus ganhos e suas metas."
+      footer={
+        <>
+          <Button
+            label="Entrar"
+            size="lg"
+            fullWidth
+            loading={loading}
+            disabled={email.trim() === '' || password === ''}
+            onPress={handleSignIn}
           />
-          <TextInput
-            accessibilityLabel="Senha"
-            placeholder="Senha"
-            placeholderTextColor={theme.colors.textMuted}
-            secureTextEntry
-            autoComplete="current-password"
-            value={password}
-            onChangeText={setPassword}
-            style={inputStyle}
-          />
-        </View>
 
-        {error ? (
-          <View style={{ gap: theme.spacing.xs }}>
-            <Text variant="caption" color="danger">
-              {error}
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+            }}
+          >
+            <Text variant="body" color="secondary">
+              Ainda não tem conta?
             </Text>
-            {errorDetail ? (
-              <Text variant="caption" color="muted">
-                Detalhe técnico: {errorDetail}
+            <Link href="/(auth)/sign-up">
+              <Text variant="bodyStrong" color="brand">
+                Criar conta
               </Text>
-            ) : null}
+            </Link>
           </View>
-        ) : null}
+        </>
+      }
+    >
+      <Field
+        label="Email"
+        placeholder="voce@email.com"
+        autoCapitalize="none"
+        autoComplete="email"
+        keyboardType="email-address"
+        value={email}
+        onChangeText={setEmail}
+      />
+      <Field
+        label="Senha"
+        placeholder="Sua senha"
+        secureTextEntry
+        autoComplete="current-password"
+        value={password}
+        onChangeText={setPassword}
+      />
 
-        <Button
-          label="Entrar"
-          size="lg"
-          fullWidth
-          loading={loading}
-          disabled={email.trim() === '' || password === ''}
-          onPress={handleSignIn}
-        />
-
-        <View style={{ alignItems: 'center', gap: theme.spacing.sm }}>
-          <Link href="/(auth)/sign-up">
-            <Text variant="bodyStrong" color="brand">
-              Criar uma conta
-            </Text>
-          </Link>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <ErrorNote message={error} detail={errorDetail} />
+    </AuthScreen>
   );
 }

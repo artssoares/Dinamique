@@ -1,17 +1,16 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native';
+import { View } from 'react-native';
 import { Link, useLocalSearchParams } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { normaliseCode } from '@dinamique/business-logic';
-import { Button, Text, useTheme } from '@dinamique/ui';
+import { Button, Field, Text, useTheme } from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { toFriendlyError } from '@/lib/errors';
 import { track } from '@/lib/analytics';
-import { BrandMark } from '@/features/brand/BrandMark';
+import { AuthScreen } from '@/features/auth/AuthScreen';
+import { ErrorNote } from '@/features/auth/ErrorNote';
 
 export default function SignUp() {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
   // A referral link opens the app with ?code=ARTHUR26 already filled in.
   const params = useLocalSearchParams<{ code?: string }>();
 
@@ -28,6 +27,7 @@ export default function SignUp() {
     setLoading(true);
     setError(null);
     setErrorDetail(null);
+    setNotice(null);
 
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
@@ -59,121 +59,93 @@ export default function SignUp() {
       );
     }
 
+    // Conta criada sem sessão significa que o projeto exige confirmação por
+    // email. Antes a tela simplesmente parava de girar e não dizia nada — do
+    // lado de quem clicou, indistinguível de "não fez nada".
+    if (!data.session) {
+      setNotice(
+        'Conta criada! Enviamos um link de confirmação para o seu email. ' +
+          'Confirme para entrar — veja também a caixa de spam.',
+      );
+    }
+
     setLoading(false);
   }
 
-  const inputStyle = {
-    height: 54,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.borderPrimary,
-    backgroundColor: theme.colors.surfacePrimary,
-    paddingHorizontal: theme.spacing.lg,
-    color: theme.colors.textPrimary,
-    fontSize: 16,
-  };
-
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: theme.colors.backgroundPrimary }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent: 'center',
-          padding: theme.spacing['2xl'],
-          paddingTop: insets.top + theme.spacing['3xl'],
-          gap: theme.spacing.xl,
-        }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={{ gap: theme.spacing.sm, marginBottom: theme.spacing.lg }}>
-          <BrandMark size="lg" />
-          <Text variant="titleLg">Criar sua conta</Text>
-          <Text variant="body" color="secondary">
-            Você começa com 7 dias de Pro, sem cartão.
-          </Text>
-        </View>
+    <AuthScreen
+      title="Criar sua conta"
+      subtitle="Você começa com 7 dias de Pro, sem cartão."
+      footer={
+        <>
+          <Button
+            label="Criar conta"
+            size="lg"
+            fullWidth
+            loading={loading}
+            disabled={
+              firstName.trim() === '' || email.trim() === '' || password.length < 8
+            }
+            onPress={handleSignUp}
+          />
 
-        <View style={{ gap: theme.spacing.md }}>
-          <TextInput
-            accessibilityLabel="Nome"
-            placeholder="Seu nome"
-            placeholderTextColor={theme.colors.textMuted}
-            autoComplete="given-name"
-            value={firstName}
-            onChangeText={setFirstName}
-            style={inputStyle}
-          />
-          <TextInput
-            accessibilityLabel="Email"
-            placeholder="Email"
-            placeholderTextColor={theme.colors.textMuted}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            autoComplete="email"
-            value={email}
-            onChangeText={setEmail}
-            style={inputStyle}
-          />
-          <TextInput
-            accessibilityLabel="Senha"
-            placeholder="Senha (mínimo 8 caracteres)"
-            placeholderTextColor={theme.colors.textMuted}
-            secureTextEntry
-            autoComplete="new-password"
-            value={password}
-            onChangeText={setPassword}
-            style={inputStyle}
-          />
-          <TextInput
-            accessibilityLabel="Código de indicação (opcional)"
-            placeholder="Código de indicação (opcional)"
-            placeholderTextColor={theme.colors.textMuted}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            value={code}
-            onChangeText={setCode}
-            style={inputStyle}
-          />
-        </View>
-
-        {error ? (
-          <View style={{ gap: theme.spacing.xs }}>
-            <Text variant="caption" color="danger">
-              {error}
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+            }}
+          >
+            <Text variant="body" color="secondary">
+              Já tem conta?
             </Text>
-            {errorDetail ? (
-              <Text variant="caption" color="muted">
-                Detalhe técnico: {errorDetail}
+            <Link href="/(auth)/sign-in">
+              <Text variant="bodyStrong" color="brand">
+                Entrar
               </Text>
-            ) : null}
+            </Link>
           </View>
-        ) : null}
-        {notice ? (
-          <Text variant="caption" color="success">
-            {notice}
-          </Text>
-        ) : null}
+        </>
+      }
+    >
+      <Field
+        label="Nome"
+        placeholder="Seu nome"
+        autoComplete="given-name"
+        value={firstName}
+        onChangeText={setFirstName}
+      />
+      <Field
+        label="Email"
+        placeholder="voce@email.com"
+        autoCapitalize="none"
+        autoComplete="email"
+        keyboardType="email-address"
+        value={email}
+        onChangeText={setEmail}
+      />
+      <Field
+        label="Senha"
+        placeholder="Mínimo de 8 caracteres"
+        hint="Use 8 caracteres ou mais."
+        secureTextEntry
+        autoComplete="new-password"
+        value={password}
+        onChangeText={setPassword}
+      />
+      <Field
+        label="Código de indicação"
+        optional
+        placeholder="Ex.: ARTHUR26"
+        autoCapitalize="characters"
+        autoCorrect={false}
+        value={code}
+        onChangeText={setCode}
+      />
 
-        <Button
-          label="Criar conta"
-          size="lg"
-          fullWidth
-          loading={loading}
-          disabled={firstName.trim() === '' || email.trim() === '' || password.length < 8}
-          onPress={handleSignUp}
-        />
-
-        <View style={{ alignItems: 'center' }}>
-          <Link href="/(auth)/sign-in">
-            <Text variant="bodyStrong" color="brand">
-              Já tenho conta
-            </Text>
-          </Link>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      <ErrorNote message={error} detail={errorDetail} />
+      <ErrorNote message={notice} tone="success" />
+    </AuthScreen>
   );
 }

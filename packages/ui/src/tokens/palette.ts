@@ -1,42 +1,47 @@
 /**
- * Dinamique brand palette.
+ * Paleta da marca Dinamique — mini manual de marca V1.0, agosto de 2026.
  *
- * Two brand families only — Blue (primary) and Coral (accent) — plus a neutral
- * ramp and two semantic colours. Green means profit/success and red means
- * expense/error; neither is ever used decoratively (§13).
+ * As três âncoras são as do manual, sem arredondamento:
+ *   Dinamique Blue   #065DF7   rgb(6, 93, 247)     marca, botões, destaques
+ *   Coral Point      #FD6561   rgb(253, 101, 97)   acento, o ponto final
+ *   Midnight Navy    #03093B   rgb(3, 9, 59)       texto, contraste, escuro
  *
- * The 500 step of each family is the brand colour taken from the logo:
- *   Blue  500  #0137F7   rgb(1, 55, 247)
- *   Coral 500  #FF6A54   rgb(255, 106, 84)
+ * Os demais passos são tons e sombras da mesma matiz, gerados por luminosidade
+ * e nunca escolhidos à parte — é o que impede a interface de virar um template.
+ * Os neutros descendem do Midnight Navy, então o branco encosta no azul da
+ * marca sem puxar para cinza esverdeado.
  *
- * The remaining steps are tints/shades of those anchors, not independently
- * chosen hues, which is what keeps the UI from looking like a template (§138).
+ * O manual é explícito sobre o coral: acento, nunca cor dominante, e fora de
+ * texto pequeno. Por isso ele não tem passo de texto no tema claro.
  */
 
 export const blue = {
-  50: '#EFF3FF',
-  100: '#DBE4FF',
-  200: '#B8C9FF',
-  300: '#8AA5FF',
-  400: '#4A71FF',
-  500: '#0137F7',
-  600: '#012CC6',
-  700: '#02249C',
-  800: '#031C78',
-  900: '#04154F',
+  50: '#F0F5FF',
+  100: '#DBE8FF',
+  200: '#B4CFFE',
+  300: '#79A9FC',
+  /** Preenchimento da marca no escuro: texto branco em cima passa AA. */
+  400: '#1A6CF9',
+  /** Dinamique Blue — a cor do logotipo. */
+  500: '#065DF7',
+  600: '#0748CA',
+  700: '#0836A0',
+  800: '#082278',
+  900: '#061356',
 } as const;
 
 export const coral = {
-  50: '#FFF3F1',
-  100: '#FFE3DE',
-  200: '#FFC7BD',
-  300: '#FFA394',
-  400: '#FF866F',
-  500: '#FF6A54',
-  600: '#E5482F',
-  700: '#BC3520',
-  800: '#8F2717',
-  900: '#5E1A0F',
+  50: '#FFF0F0',
+  100: '#FFE1E0',
+  200: '#FEC0BD',
+  300: '#FD9996',
+  400: '#FD817C',
+  /** Coral Point — a cor do ponto final da assinatura. */
+  500: '#FD6561',
+  600: '#DF3F3A',
+  700: '#B32F29',
+  800: '#7B2824',
+  900: '#4B1D1B',
 } as const;
 
 /**
@@ -46,19 +51,20 @@ export const coral = {
  */
 export const neutral = {
   0: '#FFFFFF',
-  25: '#FCFCFD',
-  50: '#F7F8FA',
-  100: '#F0F2F6',
-  200: '#E3E6ED',
-  300: '#CDD2DD',
-  400: '#9AA1B1',
-  500: '#6E7686',
-  600: '#525A69',
-  700: '#3B424F',
-  800: '#252B36',
-  850: '#1B202A',
-  900: '#141821',
-  950: '#0D1016',
+  25: '#FBFCFD',
+  50: '#F6F7FB',
+  100: '#EEEFF6',
+  200: '#DCDDEA',
+  300: '#C1C3D7',
+  400: '#A0A2BB',
+  500: '#7B7E9D',
+  600: '#545883',
+  700: '#393E6A',
+  800: '#222753',
+  850: '#141948',
+  900: '#0B1141',
+  /** Midnight Navy — o fundo mais escuro. Nunca preto absoluto. */
+  950: '#03093B',
 } as const;
 
 export const green = {

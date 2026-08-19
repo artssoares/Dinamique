@@ -1,32 +1,26 @@
 # Brand assets
 
-## `logo.png` — required, not yet supplied
+## `logo.png` e `logo-negativo.png` — instalados
 
-The official Dinamique logo (transparent PNG) belongs here as `logo.png`.
+O logotipo oficial, extraído do mini manual de marca V1.0 (agosto de 2026) e
+recortado com fundo transparente:
 
-It was not included in the repository, so `<BrandMark>` currently renders a
-dashed placeholder. That is deliberate: the logo is never redrawn, re-typeset
-in a font, or reproportioned, and a wrong mark shipped quietly would be worse
-than a visible gap.
+| Arquivo | Uso |
+| --- | --- |
+| `logo.png` | wordmark azul com ponto coral — fundos claros, landing, documentos |
+| `logo-negativo.png` | wordmark branco com ponto coral — o azul da marca, cabeçalhos, superfícies escuras |
 
-To activate it:
+Ambos com 1168 × 213 px. As cores são as do manual, sem arredondamento:
+Dinamique Blue `#065DF7` e Coral Point `#FD6561`.
 
-1. save the supplied transparent PNG as `assets/brand/logo.png`
-2. in `apps/mobile/src/features/brand/logo.ts`, replace the `null` export with
-   `require('../../../../assets/brand/logo.png')`
-3. set `LOGO_ASPECT_RATIO` to the file's real width ÷ height
+`<BrandMark>` escolhe a versão sozinho: azul no tema claro, branca no escuro, e
+`tone="negative"` força a branca quando a marca está sobre o próprio azul.
 
-The admin panel reads the same file from `apps/admin/public/logo.png`.
+### Regras do manual que o código respeita
 
-## Brand colours
+- O ponto final coral faz parte da assinatura e não é removido.
+- A proporção vem do arquivo (`LOGO_ASPECT_RATIO`); a marca nunca é esticada.
+- O logotipo não é redesenhado nem re-tipografado em fonte.
+- Tamanho mínimo em digital: 140 px de largura.
 
-Taken from the logo and encoded in `packages/ui/src/tokens/palette.ts`:
-
-| Role | Hex | RGB |
-| --- | --- | --- |
-| Blue 500 (primary) | `#0137F7` | 1, 55, 247 |
-| Coral 500 (accent) | `#FF6A54` | 255, 106, 84 |
-| White | `#FFFFFF` | 255, 255, 255 |
-
-Both are the `500` step of a ten-step ramp; every other step is a tint or shade
-of the same hue, never an independently chosen colour.
+O painel administrativo lê o mesmo arquivo em `apps/admin/public/logo.png`.
