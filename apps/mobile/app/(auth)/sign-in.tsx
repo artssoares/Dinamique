@@ -5,6 +5,7 @@ import { Button, Field, Text, useTheme } from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { toFriendlyError } from '@/lib/errors';
 import { AuthScreen } from '@/features/auth/AuthScreen';
+import { BuildStamp } from '@/features/brand/BuildStamp';
 import { ErrorNote } from '@/features/auth/ErrorNote';
 
 export default function SignIn() {
@@ -63,6 +64,8 @@ export default function SignIn() {
               </Text>
             </Link>
           </View>
+
+          <BuildStamp />
         </>
       }
     >
