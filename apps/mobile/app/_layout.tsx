@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, useTheme } from '@dinamique/ui';
@@ -90,6 +90,19 @@ function ThemedApp() {
 /** Keeps the OS status bar legible against whichever theme is active. */
 function StatusBarBridge() {
   const theme = useTheme();
+
+  // Na web, o fundo de `+html.tsx` é só o palpite do sistema operacional. Quem
+  // escolheu "claro" num aparelho escuro (ou o contrário) veria esse palpite
+  // reaparecer na barra de rolagem e ao arrastar a página além do fim. Aqui o
+  // tema que o aplicativo realmente resolveu passa para a página inteira.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const { style } = document.documentElement;
+    style.backgroundColor = theme.colors.backgroundPrimary;
+    style.colorScheme = theme.scheme;
+    document.body.style.backgroundColor = theme.colors.backgroundPrimary;
+  }, [theme.colors.backgroundPrimary, theme.scheme]);
+
   return <StatusBar style={theme.scheme === 'dark' ? 'light' : 'dark'} />;
 }
 

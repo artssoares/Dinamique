@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useSession } from './useSession';
 
+/** Distingue as assinaturas de tempo real de duas montagens seguidas. */
+let channelSequence = 0;
+
 export interface NotificationCounts {
   unreadTotal: number;
   unreadSupport: number;
@@ -38,8 +41,15 @@ export function useNotificationCounts(): NotificationCounts & { refresh: () => P
     void refresh();
     if (!session?.user) return;
 
+    // O nome do canal leva um sufixo único a cada montagem. Sem ele, o
+    // aplicativo inteiro caía em tela branca: o React monta, desmonta e monta
+    // este efeito de novo, `removeChannel` é assíncrono, e `channel()` com um
+    // nome repetido devolve o canal anterior — que já passou por `subscribe()`.
+    // Registrar um callback nele estoura "cannot add postgres_changes
+    // callbacks after subscribe()", um erro solto que derruba a árvore e não
+    // se recupera nem recarregando a página.
     const channel = supabase
-      .channel(`notifications:${session.user.id}`)
+      .channel(`notifications:${session.user.id}:${channelSequence++}`)
       .on(
         'postgres_changes',
         {

@@ -70,7 +70,14 @@ export function ThemeProvider({
   );
 
   // Following the OS means reacting to it changing while the app is open.
+  //
+  // A releitura na montagem não é redundante: no navegador, `getColorScheme()`
+  // ainda devolve `null` no primeiro render, e `resolveScheme` trata `null`
+  // como claro. O aplicativo abria claro num sistema escuro e só corrigia
+  // depois — o pisca de tema que parecia mistura de claro e escuro. O ouvinte
+  // sozinho não resolve, porque ele só dispara quando o sistema muda.
   useEffect(() => {
+    setSystemScheme(Appearance.getColorScheme());
     const subscription = Appearance.addChangeListener(({ colorScheme }) => {
       setSystemScheme(colorScheme);
     });
