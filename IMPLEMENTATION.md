@@ -153,6 +153,20 @@ mockup. Nothing listed as not built is stubbed with a button that does nothing.
 
 ## Known gaps outside the phase plan
 
-- **The logo is not in the repository.** `<BrandMark>` renders a visible
-  placeholder. See `assets/brand/README.md`.
 - **Tab icons** are placeholder glyphs, not a finished icon set.
+- **Landing page** — não existe. Nunca esteve no plano de fases; o repositório
+  tem o aplicativo do motorista e o painel administrativo, e nada de site
+  público. O manual de marca já cobre o uso da marca em landing (§05), então a
+  identidade está pronta para quando ela for feita.
+
+## Identidade visual — aplicada
+
+O mini manual de marca V1.0 (agosto de 2026) está implementado:
+
+| Item | Estado |
+| --- | --- |
+| Logotipo, versão azul e negativa | **no repositório**, `assets/brand/` |
+| Cores âncora do manual | **aplicadas** — #065DF7, #FD6561, #03093B |
+| Inter como tipografia de interface | **aplicada**, hierarquia do manual |
+| Telas de entrada sobre moldura da marca | **refeitas** — login e cadastro |
+| Contraste AA nos dois temas | **verificado**, 15 asserções de token |
