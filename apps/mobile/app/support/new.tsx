@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
-import { Button, Chip, Text, useTheme } from '@dinamique/ui';
+import { Button, Chip, Field, Screen, ScreenHeader, Text, useTheme } from '@dinamique/ui';
 import { useSession } from '@/hooks/useSession';
 import { createTicket, useSupportCategories } from '@/features/support/useSupport';
 
@@ -46,7 +46,7 @@ export default function NewTicket() {
 
   const inputStyle = {
     borderRadius: theme.radius.lg,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: theme.colors.borderPrimary,
     backgroundColor: theme.colors.surfacePrimary,
     padding: theme.spacing.lg,
@@ -55,15 +55,16 @@ export default function NewTicket() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={80}
+    <Screen
+      header={
+        <ScreenHeader
+          title="Nova solicitação"
+          onBack={() => router.back()}
+          backIcon="close"
+          backLabel="Fechar"
+        />
+      }
     >
-      <ScrollView
-        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.xl }}
-        keyboardShouldPersistTaps="handled"
-      >
         <View style={{ gap: theme.spacing.md }}>
           <Text variant="captionStrong" color="secondary">
             SOBRE O QUE É?
@@ -80,20 +81,13 @@ export default function NewTicket() {
           </View>
         </View>
 
-        <View style={{ gap: theme.spacing.sm }}>
-          <Text variant="captionStrong" color="secondary">
-            ASSUNTO
-          </Text>
-          <TextInput
-            accessibilityLabel="Assunto"
-            placeholder="Ex.: não consigo exportar meu relatório"
-            placeholderTextColor={theme.colors.textMuted}
-            value={subject}
-            onChangeText={setSubject}
-            maxLength={140}
-            style={[inputStyle, { height: 54, paddingVertical: 0 }]}
-          />
-        </View>
+        <Field
+          label="Assunto"
+          placeholder="Ex.: não consigo exportar meu relatório"
+          value={subject}
+          onChangeText={setSubject}
+          maxLength={140}
+        />
 
         <View style={{ gap: theme.spacing.sm }}>
           <Text variant="captionStrong" color="secondary">
@@ -125,7 +119,6 @@ export default function NewTicket() {
           disabled={subject.trim() === '' || message.trim() === ''}
           onPress={handleSubmit}
         />
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </Screen>
   );
 }

@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, View } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
-import { Badge, Card, EmptyState, Text, useTheme } from '@dinamique/ui';
+import { useRouter } from 'expo-router';
+import {
+  Badge,
+  Card,
+  EmptyState,
+  Screen,
+  ScreenHeader,
+  Text,
+  useTheme,
+} from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 import { useSession } from '@/hooks/useSession';
@@ -63,29 +71,39 @@ export default function Notifications() {
   const unread = items.filter((item) => item.read_at === null).length;
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          title: 'Notificações',
-          headerRight: () =>
+    <Screen
+      header={
+        <ScreenHeader
+          title="Notificações"
+          onBack={() => router.back()}
+          actions={
             unread > 0 ? (
-              <Pressable accessibilityRole="button" onPress={markAllRead}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Marcar todas como lidas"
+                onPress={markAllRead}
+                hitSlop={10}
+              >
                 <Text variant="captionStrong" color="brand">
                   Marcar todas
                 </Text>
               </Pressable>
-            ) : null,
-        }}
-      />
+            ) : null
+          }
+        />
+      }
+      scroll={false}
+      padding="none"
+    >
       <FlatList
-        style={{ flex: 1, backgroundColor: theme.colors.backgroundPrimary }}
-        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.md, flexGrow: 1 }}
+        contentContainerStyle={{ gap: theme.spacing.md, flexGrow: 1 }}
         data={items}
         keyExtractor={(item) => item.id}
         onRefresh={load}
         refreshing={false}
         ListEmptyComponent={
           <EmptyState
+            iconName="bell"
             title="Nenhuma notificação"
             description="Avisos sobre metas, manutenção e respostas do suporte aparecem aqui."
           />
@@ -115,6 +133,6 @@ export default function Notifications() {
           </Pressable>
         )}
       />
-    </>
+    </Screen>
   );
 }

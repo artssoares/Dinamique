@@ -1,9 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, View } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Alert, Pressable, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { formatConsumption } from '@dinamique/utils';
 import { resolveConsumption, shouldSuggestMeasuredConsumption } from '@dinamique/business-logic';
-import { Badge, Button, Card, EmptyState, Text, useTheme } from '@dinamique/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Screen,
+  ScreenHeader,
+  Skeleton,
+  Text,
+  useTheme,
+} from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/useSession';
 
@@ -55,6 +65,8 @@ export default function Vehicles() {
     setLoading(false);
   }, [session?.user?.id]);
 
+  const header = <ScreenHeader title="Meu veículo" onBack={() => router.back()} />;
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -84,15 +96,18 @@ export default function Vehicles() {
     ]);
   }
 
-  if (loading) return null;
+  // The header renders while loading too: a blank screen has no way back.
+  if (loading) {
+    return (
+      <Screen header={header} gap="lg">
+        <Skeleton height={150} radius={theme.radius['2xl']} />
+        <Skeleton height={150} radius={theme.radius['2xl']} />
+      </Screen>
+    );
+  }
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Meu veículo' }} />
-      <ScrollView
-        style={{ backgroundColor: theme.colors.backgroundPrimary }}
-        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.md, flexGrow: 1 }}
-      >
+    <Screen header={header} gap="lg">
         {vehicles.length === 0 ? (
           <EmptyState
             title="Nenhum veículo cadastrado"
@@ -176,8 +191,7 @@ export default function Vehicles() {
             />
           </>
         )}
-      </ScrollView>
-    </>
+    </Screen>
   );
 }
 

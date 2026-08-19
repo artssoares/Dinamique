@@ -1,6 +1,5 @@
-import { View } from 'react-native';
-import { Stack } from 'expo-router';
-import { Card, Text, useTheme } from '@dinamique/ui';
+import { useRouter } from 'expo-router';
+import { Badge, Card, Screen, ScreenHeader, Text, useTheme } from '@dinamique/ui';
 
 export interface ComingSoonProps {
   title: string;
@@ -19,24 +18,23 @@ export interface ComingSoonProps {
  */
 export function ComingSoon({ title, description, phase }: ComingSoonProps) {
   const theme = useTheme();
+  const router = useRouter();
 
   return (
-    <>
-      <Stack.Screen options={{ title }} />
-      <View style={{ flex: 1, padding: theme.spacing.xl, justifyContent: 'center' }}>
-        <Card padding="xl" style={{ gap: theme.spacing.md }}>
-          <Text variant="overline" color="accent">
-            AINDA NÃO DISPONÍVEL
-          </Text>
-          <Text variant="title">{title}</Text>
-          <Text variant="body" color="secondary">
-            {description}
-          </Text>
-          <Text variant="caption" color="muted">
-            Previsto para a {phase}.
-          </Text>
-        </Card>
-      </View>
-    </>
+    <Screen
+      header={<ScreenHeader title={title} onBack={() => router.back()} />}
+      center
+    >
+      <Card padding="xl" style={{ gap: theme.spacing.md }}>
+        <Badge label="Ainda não disponível" tone="accent" />
+        <Text variant="title">{title}</Text>
+        <Text variant="body" color="secondary">
+          {description}
+        </Text>
+        <Text variant="caption" color="muted">
+          Previsto para a {phase}.
+        </Text>
+      </Card>
+    </Screen>
   );
 }

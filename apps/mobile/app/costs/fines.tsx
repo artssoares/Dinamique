@@ -1,9 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { View } from 'react-native';
+import { useRouter } from 'expo-router';
 import type { FineStatus } from '@dinamique/types';
 import { formatCents, parseCents, toDateOnly } from '@dinamique/utils';
-import { Badge, Button, Card, Chip, EmptyState, Field, Text, useTheme } from '@dinamique/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  Chip,
+  EmptyState,
+  Field,
+  Screen,
+  ScreenHeader,
+  Text,
+  useTheme,
+} from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/useSession';
 
@@ -27,6 +38,7 @@ const STATUS_LABELS: Record<FineStatus, string> = {
 /** Multas (§51). Controle manual — nunca afirmamos que existe um débito. */
 export default function Fines() {
   const theme = useTheme();
+  const router = useRouter();
   const { session } = useSession();
 
   const [fines, setFines] = useState<FineRow[]>([]);
@@ -88,12 +100,10 @@ export default function Fines() {
     .reduce((acc, fine) => acc + fine.amount, 0);
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Multas' }} />
-      <ScrollView
-        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.lg, flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-      >
+    <Screen
+      header={<ScreenHeader title="Multas" onBack={() => router.back()} />}
+      gap="lg"
+    >
         {pendingTotal > 0 ? (
           <Card padding="xl" style={{ gap: theme.spacing.xs }}>
             <Text variant="caption" color="secondary">
@@ -164,7 +174,6 @@ export default function Fines() {
             ) : null}
           </Card>
         ))}
-      </ScrollView>
-    </>
+    </Screen>
   );
 }

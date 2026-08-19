@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Alert, Pressable, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import type { RecurringCostPeriod } from '@dinamique/types';
 import { apportionRecurringCost } from '@dinamique/business-logic';
 import { formatCents, parseCents } from '@dinamique/utils';
-import { Button, Card, Chip, EmptyState, Field, Select, Text, useTheme } from '@dinamique/ui';
+import {
+  Button,
+  Card,
+  Chip,
+  EmptyState,
+  Field,
+  Screen,
+  ScreenHeader,
+  Select,
+  Text,
+  useTheme,
+} from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/useSession';
 
@@ -28,6 +39,7 @@ const PERIODS: { value: RecurringCostPeriod; label: string }[] = [
  */
 export default function RecurringCosts() {
   const theme = useTheme();
+  const router = useRouter();
   const { session } = useSession();
 
   const [costs, setCosts] = useState<CostRow[]>([]);
@@ -104,12 +116,16 @@ export default function RecurringCosts() {
   );
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Custos fixos' }} />
-      <ScrollView
-        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.lg, flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-      >
+    <Screen
+      header={
+        <ScreenHeader
+          title="Custos fixos"
+          subtitle="O que sai todo mês, mesmo parado"
+          onBack={() => router.back()}
+        />
+      }
+      gap="lg"
+    >
         <Text variant="body" color="secondary">
           Aluguel, financiamento, seguro, IPVA. Cadastre uma vez e o Dinamique divide o valor pelos
           dias para estimar quanto o veículo custa por dia.
@@ -198,7 +214,6 @@ export default function RecurringCosts() {
         ) : costs.length > 0 ? (
           <Button label="Adicionar custo fixo" variant="ghost" fullWidth onPress={() => setAdding(true)} />
         ) : null}
-      </ScrollView>
-    </>
+    </Screen>
   );
 }

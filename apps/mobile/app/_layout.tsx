@@ -11,6 +11,7 @@ import { SessionProvider, useSession } from '@/hooks/useSession';
 import { OfflineProvider } from '@/features/offline/useOfflineSync';
 import { OfflineBanner } from '@/features/offline/OfflineBanner';
 import { Tour } from '@/features/tour/Tour';
+import { TourProvider } from '@/features/tour/TourProvider';
 
 /**
  * Routing guard. Three destinations depending on session state:
@@ -48,18 +49,20 @@ function RootNavigator() {
   return (
     <>
       <OfflineBanner />
+      {/* Every pushed screen draws its own <ScreenHeader>, which is what
+          guarantees a visible way back — the native header is off. */}
       <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: theme.colors.backgroundPrimary },
-        animation: 'slide_from_right',
-      }}
-    >
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="onboarding" />
-      <Stack.Screen name="support" options={{ presentation: 'card' }} />
-      <Stack.Screen name="assinatura" options={{ presentation: 'card' }} />
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: theme.colors.backgroundPrimary },
+          animation: 'slide_from_right',
+        }}
+      >
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="onboarding" />
+        <Stack.Screen name="support" options={{ presentation: 'card' }} />
+        <Stack.Screen name="assinatura" options={{ presentation: 'card' }} />
       </Stack>
     </>
   );
@@ -81,8 +84,12 @@ function ThemedApp() {
   return (
     <ThemeProvider initialPreference={profile?.theme ?? 'system'}>
       <StatusBarBridge />
-      <RootNavigator />
-      <Tour />
+      {/* The tour measures real controls, so its registry has to sit above
+          every screen that can host one. */}
+      <TourProvider>
+        <RootNavigator />
+        <Tour />
+      </TourProvider>
     </ThemeProvider>
   );
 }

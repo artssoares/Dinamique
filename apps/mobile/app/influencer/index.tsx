@@ -1,7 +1,17 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
-import { Stack } from 'expo-router';
-import { Badge, Button, Card, Chip, Text, useTheme } from '@dinamique/ui';
+import { TextInput, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import {
+  Badge,
+  Button,
+  Card,
+  Chip,
+  Screen,
+  ScreenHeader,
+  Skeleton,
+  Text,
+  useTheme,
+} from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 import { useSession } from '@/hooks/useSession';
@@ -22,6 +32,7 @@ const STATUS_COPY: Record<string, string> = {
 /** "Seja um Influencer" (§76–79). One short screen, then a status. */
 export default function Influencer() {
   const theme = useTheme();
+  const router = useRouter();
   const { session, profile } = useSession();
 
   const [application, setApplication] = useState<{ status: string } | null>(null);
@@ -48,8 +59,9 @@ export default function Influencer() {
       .maybeSingle()
       .then(({ data }) => {
         setApplication(data as { status: string } | null);
-        setLoading(false);
-      });
+      })
+      // Whatever happens, the screen stops being blank.
+      .then(() => setLoading(false), () => setLoading(false));
 
     void supabase
       .from('promotion_codes')
@@ -96,16 +108,19 @@ export default function Influencer() {
     fontSize: 16,
   };
 
-  if (loading) return null;
+  const header = <ScreenHeader title="Seja um Influencer" onBack={() => router.back()} />;
+
+  if (loading) {
+    return (
+      <Screen header={header} gap="lg">
+        <Skeleton height={120} radius={theme.radius['2xl']} />
+        <Skeleton height={54} radius={theme.radius.lg} />
+      </Screen>
+    );
+  }
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Seja um Influencer' }} />
-      <ScrollView
-        style={{ backgroundColor: theme.colors.backgroundPrimary }}
-        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.xl }}
-        keyboardShouldPersistTaps="handled"
-      >
+    <Screen header={header} gap="lg">
         {application ? (
           <Card padding="xl" style={{ gap: theme.spacing.md }}>
             <Badge
@@ -230,7 +245,6 @@ export default function Influencer() {
             />
           </>
         )}
-      </ScrollView>
-    </>
+    </Screen>
   );
 }

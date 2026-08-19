@@ -1,36 +1,93 @@
-import { useEffect, useState } from 'react';
-import { ScrollView, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { WorkMode } from '@dinamique/types';
 import { deriveGoalSuggestions } from '@dinamique/business-logic';
 import { formatCents, parseCents } from '@dinamique/utils';
-import { Button, Chip, Text, useTheme } from '@dinamique/ui';
+import {
+  AmountInput,
+  Button,
+  Card,
+  Field,
+  Icon,
+  OptionCard,
+  Screen,
+  ScreenHeader,
+  Select,
+  StepProgress,
+  Text,
+  useResponsive,
+  useTheme,
+  type IconName,
+} from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 import { useSession } from '@/hooks/useSession';
+import { BrandMark } from '@/features/brand/BrandMark';
 
-const WORK_MODE_OPTIONS: { value: WorkMode; label: string }[] = [
-  { value: 'rideshare', label: 'Motorista de aplicativo' },
-  { value: 'delivery', label: 'Delivery' },
-  { value: 'taxi', label: 'Táxi' },
-  { value: 'private', label: 'Particular' },
+const WORK_MODE_OPTIONS: { value: WorkMode; label: string; description: string; icon: IconName }[] = [
+  {
+    value: 'rideshare',
+    label: 'Levo passageiros por aplicativo',
+    description: 'Uber, 99 e parecidos',
+    icon: 'car',
+  },
+  {
+    value: 'delivery',
+    label: 'Faço entregas',
+    description: 'Comida, mercado, encomendas',
+    icon: 'route',
+  },
+  { value: 'taxi', label: 'Sou taxista', description: 'Ponto, rádio-táxi ou aplicativo', icon: 'phone' },
+  {
+    value: 'private',
+    label: 'Rodo por conta própria',
+    description: 'Clientes fixos, fretes, particular',
+    icon: 'wallet',
+  },
 ];
 
+const STATES = [
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
+  'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+];
+
+interface StepDefinition {
+  key: string;
+  title: string;
+  subtitle: string;
+  content: ReactNode;
+  /** False blocks "Continuar" until the question is answered. */
+  canAdvance: boolean;
+  /** Optional questions can be passed over without answering. */
+  skippable?: boolean;
+}
+
 /**
- * Onboarding is three questions, not a wizard (§22). Anything we can calculate
- * or ask for later is asked for later.
+ * Onboarding.
+ *
+ * One question per screen, in the plainest Portuguese we can write: "Como você
+ * trabalha?" rather than "modalidade de operação". Splitting it into more, but
+ * smaller, steps is what makes it feel shorter — three dense screens read as
+ * a form, seven one-question screens read as a conversation, and the count is
+ * stated out loud so nobody wonders how much is left.
+ *
+ * Only the two questions the app cannot work without — how you work and how
+ * much you want to earn — are required. Everything else says "pular".
  */
 export default function Onboarding() {
   const theme = useTheme();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { session, refresh } = useSession();
+  const { session, profile, refresh } = useSession();
+  const { scale } = useResponsive();
 
   const [step, setStep] = useState(0);
   const [workModes, setWorkModes] = useState<WorkMode[]>([]);
   const [platformIds, setPlatformIds] = useState<string[]>([]);
   const [platforms, setPlatforms] = useState<{ id: string; name: string; work_modes: string[] }[]>([]);
+  const [preferredName, setPreferredName] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState<string | null>(null);
   const [monthlyGoal, setMonthlyGoal] = useState('');
   const [basis, setBasis] = useState<'gross' | 'net'>('gross');
   const [saving, setSaving] = useState(false);
@@ -44,14 +101,23 @@ export default function Onboarding() {
       .then(({ data }) => setPlatforms((data as typeof platforms | null) ?? []));
   }, []);
 
+  useEffect(() => {
+    if (profile?.preferredName) setPreferredName(profile.preferredName);
+    else if (profile?.firstName) setPreferredName(profile.firstName);
+  }, [profile?.firstName, profile?.preferredName]);
+
   const monthlyCents = parseCents(monthlyGoal);
   const suggestions = monthlyCents ? deriveGoalSuggestions(monthlyCents) : null;
 
   // Only show platforms that match how the driver said they work.
-  const relevantPlatforms = platforms.filter(
-    (platform) =>
-      workModes.length === 0 ||
-      platform.work_modes.some((mode) => workModes.includes(mode as WorkMode)),
+  const relevantPlatforms = useMemo(
+    () =>
+      platforms.filter(
+        (platform) =>
+          workModes.length === 0 ||
+          platform.work_modes.some((mode) => workModes.includes(mode as WorkMode)),
+      ),
+    [platforms, workModes],
   );
 
   function toggle<T>(list: T[], value: T): T[] {
@@ -62,9 +128,18 @@ export default function Onboarding() {
     if (!session?.user) return;
     setSaving(true);
 
+    const trimmedName = preferredName.trim();
+    const trimmedCity = city.trim();
+
     await supabase
       .from('profiles')
-      .update({ work_modes: workModes, onboarding_completed_at: new Date().toISOString() })
+      .update({
+        work_modes: workModes,
+        preferred_name: trimmedName === '' ? null : trimmedName,
+        city: trimmedCity === '' ? null : trimmedCity,
+        state: state ?? null,
+        onboarding_completed_at: new Date().toISOString(),
+      })
       .eq('id', session.user.id);
 
     if (platformIds.length > 0) {
@@ -87,17 +162,72 @@ export default function Onboarding() {
     router.replace('/(tabs)');
   }
 
-  const steps = [
+  const steps: StepDefinition[] = [
     {
+      key: 'welcome',
+      title: 'Bem-vindo ao Dinamique',
+      subtitle: 'Vamos fazer 5 perguntas rápidas. Leva menos de um minuto.',
+      canAdvance: true,
+      content: (
+        <Card padding="xl" style={{ gap: theme.spacing.lg }}>
+          {[
+            {
+              icon: 'wallet' as IconName,
+              title: 'Quanto você realmente ganhou',
+              text: 'Não é o valor que o aplicativo mostra. É o que sobra depois dos custos.',
+            },
+            {
+              icon: 'target' as IconName,
+              title: 'Uma meta que cabe no seu dia',
+              text: 'Você diz quanto quer no mês, a gente divide por dia.',
+            },
+            {
+              icon: 'sparkle' as IconName,
+              title: 'Explicado em português claro',
+              text: 'Nada de gráfico difícil. Frases curtas dizendo o que mudou.',
+            },
+          ].map((item) => (
+            <View
+              key={item.title}
+              style={{ flexDirection: 'row', gap: theme.spacing.md, alignItems: 'flex-start' }}
+            >
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: theme.radius.pill,
+                  backgroundColor: theme.colors.brandPrimarySubtle,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Icon name={item.icon} size={20} color={theme.colors.brandPrimary} />
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text variant="bodyStrong">{item.title}</Text>
+                <Text variant="body" color="secondary">
+                  {item.text}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </Card>
+      ),
+    },
+    {
+      key: 'work-modes',
       title: 'Como você trabalha?',
-      subtitle: 'Pode escolher mais de uma opção.',
+      subtitle: 'Pode marcar mais de uma. Dá para mudar depois.',
       canAdvance: workModes.length > 0,
       content: (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+        <View style={{ gap: theme.spacing.md }}>
           {WORK_MODE_OPTIONS.map((option) => (
-            <Chip
+            <OptionCard
               key={option.value}
               label={option.label}
+              description={option.description}
+              icon={option.icon}
+              multiple
               selected={workModes.includes(option.value)}
               onPress={() => setWorkModes(toggle(workModes, option.value))}
             />
@@ -106,112 +236,245 @@ export default function Onboarding() {
       ),
     },
     {
-      title: 'Onde você trabalha?',
-      subtitle: 'Escolha os aplicativos que você usa hoje.',
+      key: 'platforms',
+      title: 'Quais aplicativos você usa?',
+      subtitle: 'Marque os que você usa hoje. Se não usar nenhum, é só pular.',
       canAdvance: true,
+      skippable: platformIds.length === 0,
+      content:
+        relevantPlatforms.length === 0 ? (
+          <Card padding="xl">
+            <Text variant="body" color="secondary">
+              Ainda não temos aplicativos cadastrados para esse tipo de trabalho. Você pode seguir
+              em frente sem problema.
+            </Text>
+          </Card>
+        ) : (
+          <View style={{ gap: theme.spacing.sm }}>
+            {relevantPlatforms.map((platform) => (
+              <OptionCard
+                key={platform.id}
+                label={platform.name}
+                multiple
+                selected={platformIds.includes(platform.id)}
+                onPress={() => setPlatformIds(toggle(platformIds, platform.id))}
+              />
+            ))}
+          </View>
+        ),
+    },
+    {
+      key: 'name',
+      title: 'Como podemos te chamar?',
+      subtitle: 'É o nome que aparece na tela inicial. Um apelido serve.',
+      canAdvance: true,
+      skippable: preferredName.trim() === '',
       content: (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
-          {relevantPlatforms.map((platform) => (
-            <Chip
-              key={platform.id}
-              label={platform.name}
-              selected={platformIds.includes(platform.id)}
-              onPress={() => setPlatformIds(toggle(platformIds, platform.id))}
-            />
-          ))}
+        <Field
+          label="Seu nome"
+          iconName="user"
+          placeholder="Ex.: Zé, Dona Maria, Carlinhos"
+          value={preferredName}
+          onChangeText={setPreferredName}
+          hint="Só você vê esse nome."
+        />
+      ),
+    },
+    {
+      key: 'place',
+      title: 'Onde você roda?',
+      subtitle: 'Serve para comparar seus números com os de quem roda perto de você.',
+      canAdvance: true,
+      skippable: city.trim() === '' && state === null,
+      content: (
+        <View style={{ gap: theme.spacing.lg }}>
+          <Field
+            label="Cidade"
+            iconName="route"
+            optional
+            placeholder="Ex.: Campinas"
+            value={city}
+            onChangeText={setCity}
+          />
+          <Select
+            label="Estado"
+            optional
+            value={state}
+            options={STATES.map((uf) => ({ value: uf, label: uf }))}
+            onChange={setState}
+            placeholder="Selecione o estado"
+          />
+          <Card padding="lg" tone="secondary" style={{ flexDirection: 'row', gap: theme.spacing.md }}>
+            <Icon name="shield" size={18} color={theme.colors.textSecondary} />
+            <Text variant="caption" color="secondary" style={{ flex: 1 }}>
+              A comparação é anônima. Ninguém vê os seus números, e você não vê os de ninguém — só
+              a média da região.
+            </Text>
+          </Card>
         </View>
       ),
     },
     {
+      key: 'goal',
       title: 'Quanto você quer ganhar por mês?',
-      subtitle: 'A partir disso o Dinamique monta suas metas diária e mensal.',
+      subtitle: 'Um valor de verdade, o que você precisa tirar. A gente divide por dia.',
       canAdvance: monthlyCents !== null && monthlyCents > 0,
       content: (
-        <View style={{ gap: theme.spacing.lg }}>
-          <TextInput
-            accessibilityLabel="Meta mensal"
-            placeholder="R$ 7.000,00"
-            placeholderTextColor={theme.colors.textMuted}
-            keyboardType="decimal-pad"
+        <View style={{ gap: theme.spacing.xl }}>
+          <AmountInput
+            label="Meta do mês"
             value={monthlyGoal}
             onChangeText={setMonthlyGoal}
-            style={{
-              fontSize: 32,
-              fontWeight: '700',
-              color: theme.colors.textPrimary,
-              borderBottomWidth: 2,
-              borderBottomColor: theme.colors.borderPrimary,
-              paddingVertical: theme.spacing.md,
-            }}
+            placeholder="7.000,00"
+            quickValues={[
+              { label: 'R$ 3.000', value: '3000' },
+              { label: 'R$ 5.000', value: '5000' },
+              { label: 'R$ 7.000', value: '7000' },
+              { label: 'R$ 10.000', value: '10000' },
+            ]}
           />
 
-          <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-            <Chip label="Faturamento" selected={basis === 'gross'} onPress={() => setBasis('gross')} />
-            <Chip label="Lucro líquido" selected={basis === 'net'} onPress={() => setBasis('net')} />
+          <View style={{ gap: theme.spacing.sm }}>
+            <Text variant="captionStrong" color="secondary">
+              ESSE VALOR É...
+            </Text>
+            <OptionCard
+              label="O que entra no bolso"
+              description="Tudo que você recebe, antes de descontar gasolina e custos"
+              icon="wallet"
+              selected={basis === 'gross'}
+              onPress={() => setBasis('gross')}
+            />
+            <OptionCard
+              label="O que sobra no fim"
+              description="Já descontando gasolina, manutenção e o resto"
+              icon="trendUp"
+              selected={basis === 'net'}
+              onPress={() => setBasis('net')}
+            />
           </View>
 
           {suggestions ? (
-            <Text variant="caption" color="secondary">
-              Isso dá cerca de {formatCents(suggestions.daily)} por dia ou{' '}
-              {formatCents(suggestions.weekly)} por semana.
-            </Text>
+            <Card padding="lg" tone="brand" style={{ gap: theme.spacing.xs }}>
+              <Text variant="bodyStrong" color="brand">
+                Sua meta por dia fica em {formatCents(suggestions.daily)}
+              </Text>
+              <Text variant="caption" color="secondary">
+                Ou {formatCents(suggestions.weekly)} por semana. Dá para mudar quando quiser.
+              </Text>
+            </Card>
           ) : null}
         </View>
+      ),
+    },
+    {
+      key: 'done',
+      title: 'Pronto, é só isso',
+      subtitle: 'Já dá para começar. O resto o Dinamique aprende com o seu dia a dia.',
+      canAdvance: true,
+      content: (
+        <Card padding="xl" style={{ gap: theme.spacing.lg }}>
+          <Summary
+            label="Você trabalha com"
+            value={
+              workModes.length === 0
+                ? '—'
+                : workModes
+                    .map((mode) => WORK_MODE_OPTIONS.find((option) => option.value === mode)?.label)
+                    .filter(Boolean)
+                    .join(' · ')
+            }
+          />
+          <Summary
+            label="Aplicativos"
+            value={
+              platformIds.length === 0
+                ? 'Nenhum por enquanto'
+                : platforms
+                    .filter((platform) => platformIds.includes(platform.id))
+                    .map((platform) => platform.name)
+                    .join(', ')
+            }
+          />
+          <Summary
+            label="Meta do mês"
+            value={monthlyCents ? formatCents(monthlyCents) : 'Sem meta ainda'}
+          />
+          {suggestions ? (
+            <Summary label="Que dá por dia" value={formatCents(suggestions.daily)} />
+          ) : null}
+        </Card>
       ),
     },
   ];
 
   const current = steps[step]!;
   const isLast = step === steps.length - 1;
+  const isFirst = step === 0;
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.colors.backgroundPrimary }}
-      contentContainerStyle={{
-        flexGrow: 1,
-        padding: theme.spacing.xl,
-        paddingTop: insets.top + theme.spacing['3xl'],
-        gap: theme.spacing.xl,
-      }}
-      keyboardShouldPersistTaps="handled"
+    <Screen
+      header={
+        <ScreenHeader
+          onBack={isFirst ? undefined : () => setStep(step - 1)}
+          transparent
+          actions={
+            current.skippable ? (
+              <Button label="Pular" variant="ghost" size="sm" onPress={() => setStep(step + 1)} />
+            ) : null
+          }
+        >
+          <View style={{ flex: 1, alignItems: isFirst ? 'flex-start' : 'center' }}>
+            <BrandMark size="sm" />
+          </View>
+        </ScreenHeader>
+      }
+      gap="xl"
+      grow
+      footer={
+        <Button
+          label={isLast ? 'Começar a usar' : 'Continuar'}
+          size="lg"
+          fullWidth
+          loading={saving}
+          disabled={!current.canAdvance}
+          iconName={isLast ? 'check' : 'chevronRight'}
+          iconPosition="trailing"
+          onPress={() => (isLast ? void finish() : setStep(step + 1))}
+        />
+      }
     >
-      <View style={{ flexDirection: 'row', gap: theme.spacing.xs }}>
-        {steps.map((_, index) => (
-          <View
-            key={index}
-            style={{
-              flex: 1,
-              height: 4,
-              borderRadius: theme.radius.pill,
-              backgroundColor:
-                index <= step ? theme.colors.brandPrimary : theme.colors.backgroundSecondary,
-            }}
-          />
-        ))}
-      </View>
+      <StepProgress
+        current={step}
+        total={steps.length}
+        countLabel={(a, b) => `Passo ${a} de ${b}`}
+      />
 
       <View style={{ gap: theme.spacing.sm }}>
-        <Text variant="titleLg">{current.title}</Text>
+        <Text
+          variant="titleLg"
+          style={{ fontSize: scale(28, { min: 24, max: 34 }), lineHeight: scale(34, { min: 30, max: 40 }) }}
+        >
+          {current.title}
+        </Text>
         <Text variant="body" color="secondary">
           {current.subtitle}
         </Text>
       </View>
 
-      <View style={{ flex: 1 }}>{current.content}</View>
+      {current.content}
+    </Screen>
+  );
+}
 
-      <View style={{ gap: theme.spacing.sm }}>
-        <Button
-          label={isLast ? 'Começar' : 'Continuar'}
-          size="lg"
-          fullWidth
-          loading={saving}
-          disabled={!current.canAdvance}
-          onPress={() => (isLast ? finish() : setStep(step + 1))}
-        />
-        {step > 0 ? (
-          <Button label="Voltar" variant="ghost" fullWidth onPress={() => setStep(step - 1)} />
-        ) : null}
-      </View>
-    </ScrollView>
+function Summary({ label, value }: { label: string; value: string }) {
+  const theme = useTheme();
+  return (
+    <View style={{ gap: theme.spacing.xxs }}>
+      <Text variant="caption" color="secondary">
+        {label}
+      </Text>
+      <Text variant="bodyStrong">{value}</Text>
+    </View>
   );
 }

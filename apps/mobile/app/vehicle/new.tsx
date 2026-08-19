@@ -1,9 +1,19 @@
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Alert, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import type { FuelType, VehicleOwnership, VehicleType } from '@dinamique/types';
 import { formatConsumption } from '@dinamique/utils';
-import { Button, Card, Chip, Field, Select, Text, useTheme } from '@dinamique/ui';
+import {
+  Button,
+  Card,
+  Chip,
+  Field,
+  Screen,
+  ScreenHeader,
+  Select,
+  Text,
+  useTheme,
+} from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 import { useSession } from '@/hooks/useSession';
@@ -120,13 +130,10 @@ export default function NewVehicle() {
   }
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Cadastrar veículo' }} />
-      <ScrollView
-        style={{ backgroundColor: theme.colors.backgroundPrimary }}
-        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.xl }}
-        keyboardShouldPersistTaps="handled"
-      >
+    <Screen
+      header={<ScreenHeader title="Cadastrar veículo" onBack={() => router.back()} />}
+      gap="lg"
+    >
         <View style={{ gap: theme.spacing.sm }}>
           <Text variant="captionStrong" color="secondary">
             TIPO
@@ -252,7 +259,6 @@ export default function NewVehicle() {
           disabled={!canSave}
           onPress={save}
         />
-      </ScrollView>
-    </>
+    </Screen>
   );
 }

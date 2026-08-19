@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Alert, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import type { GoalBasis, GoalPeriod } from '@dinamique/types';
 import { computeGoalProgress, deriveGoalSuggestions } from '@dinamique/business-logic';
 import { formatCents, parseCents, periodRange, toDateOnly } from '@dinamique/utils';
-import { Button, Card, Chip, Field, GoalProgress, Text, useTheme } from '@dinamique/ui';
+import {
+  AmountInput,
+  Button,
+  Card,
+  GoalProgress,
+  Screen,
+  ScreenHeader,
+  SegmentedControl,
+  Text,
+  useTheme,
+} from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 import { useSession } from '@/hooks/useSession';
@@ -29,6 +39,7 @@ interface GoalRow {
  */
 export default function Goals() {
   const theme = useTheme();
+  const router = useRouter();
   const { session } = useSession();
 
   const [goals, setGoals] = useState<GoalRow[]>([]);
@@ -139,13 +150,16 @@ export default function Goals() {
   const suggestions = monthlyGoal ? deriveGoalSuggestions(monthlyGoal.target) : null;
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Metas' }} />
-      <ScrollView
-        style={{ backgroundColor: theme.colors.backgroundPrimary }}
-        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}
-        keyboardShouldPersistTaps="handled"
-      >
+    <Screen
+      header={
+        <ScreenHeader
+          title="Metas"
+          subtitle="Quanto você quer atingir em cada período"
+          onBack={() => router.back()}
+        />
+      }
+      gap="lg"
+    >
         {PERIODS.map(({ value: period, label }) => {
           const goal = goals.find((g) => g.period === period);
           const isEditing = editing === period;
@@ -159,9 +173,10 @@ export default function Goals() {
                 <Text variant="subtitle">Meta {label.toLowerCase()}</Text>
                 {!isEditing ? (
                   <Button
-                    label={goal ? 'Editar' : 'Criar'}
-                    variant="ghost"
+                    label={goal ? 'Editar' : 'Criar meta'}
+                    variant="secondary"
                     size="sm"
+                    iconName={goal ? 'settings' : 'plus'}
                     onPress={() => startEditing(period)}
                   />
                 ) : null}
@@ -169,30 +184,25 @@ export default function Goals() {
 
               {isEditing ? (
                 <View style={{ gap: theme.spacing.lg }}>
-                  <Field
+                  <AmountInput
                     label="Quanto você quer atingir"
                     value={draftValue}
                     onChangeText={setDraftValue}
-                    keyboardType="decimal-pad"
-                    placeholder="0,00"
                   />
 
                   <View style={{ gap: theme.spacing.sm }}>
                     <Text variant="captionStrong" color="secondary">
                       CONTAR COMO
                     </Text>
-                    <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-                      <Chip
-                        label="Faturamento"
-                        selected={draftBasis === 'gross'}
-                        onPress={() => setDraftBasis('gross')}
-                      />
-                      <Chip
-                        label="Lucro líquido"
-                        selected={draftBasis === 'net'}
-                        onPress={() => setDraftBasis('net')}
-                      />
-                    </View>
+                    <SegmentedControl
+                      label="Contar como"
+                      value={draftBasis}
+                      onChange={setDraftBasis}
+                      options={[
+                        { value: 'gross', label: 'Faturamento' },
+                        { value: 'net', label: 'Lucro líquido' },
+                      ]}
+                    />
                     <Text variant="caption" color="muted">
                       {draftBasis === 'gross'
                         ? 'Conta tudo que você recebeu dos aplicativos.'
@@ -208,10 +218,20 @@ export default function Goals() {
                   ) : null}
 
                   <View style={{ flexDirection: 'row', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
-                    <Button label="Salvar" loading={saving} onPress={() => saveGoal(period)} />
+                    <Button
+                      label="Salvar"
+                      iconName="check"
+                      loading={saving}
+                      onPress={() => saveGoal(period)}
+                    />
                     <Button label="Cancelar" variant="ghost" onPress={() => setEditing(null)} />
                     {goal ? (
-                      <Button label="Remover" variant="ghost" onPress={() => removeGoal(period)} />
+                      <Button
+                        label="Remover"
+                        variant="ghost"
+                        onPress={() => removeGoal(period)}
+                        style={{ marginLeft: 'auto' }}
+                      />
                     ) : null}
                   </View>
                 </View>
@@ -236,7 +256,6 @@ export default function Goals() {
             </Card>
           );
         })}
-      </ScrollView>
-    </>
+    </Screen>
   );
 }

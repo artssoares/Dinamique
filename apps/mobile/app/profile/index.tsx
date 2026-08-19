@@ -1,7 +1,19 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, View } from 'react-native';
-import { Stack } from 'expo-router';
-import { Avatar, Button, Card, Chip, Field, Text, useTheme } from '@dinamique/ui';
+import { Alert, Pressable, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import {
+  Avatar,
+  Button,
+  Card,
+  Chip,
+  EmptyState,
+  Field,
+  Screen,
+  ScreenHeader,
+  Skeleton,
+  Text,
+  useTheme,
+} from '@dinamique/ui';
 import type { WorkMode } from '@dinamique/types';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
@@ -23,6 +35,7 @@ const GENDERS = ['Masculino', 'Feminino', 'Outro', 'Prefiro não informar'];
  */
 export default function Profile() {
   const theme = useTheme();
+  const router = useRouter();
   const { session, profile, refresh } = useSession();
 
   const [firstName, setFirstName] = useState('');
@@ -37,17 +50,26 @@ export default function Profile() {
   const [photo, setPhoto] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (!session?.user) return;
-    void supabase
-      .from('profiles')
-      .select('first_name, last_name, preferred_name, phone, city, state, birth_date, gender, work_modes, avatar_path')
-      .eq('id', session.user.id)
-      .maybeSingle()
-      .then(({ data }) => {
+
+    // `finally` rather than `.then`: a request that fails on a bad connection
+    // used to leave `loading` true for ever, and the screen rendered nothing
+    // at all — no header, no way back.
+    void (async () => {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select(
+            'first_name, last_name, preferred_name, phone, city, state, birth_date, gender, work_modes, avatar_path',
+          )
+          .eq('id', session.user!.id)
+          .maybeSingle();
+
         if (data) {
           setFirstName(data.first_name ?? '');
           setLastName(data.last_name ?? '');
@@ -60,8 +82,12 @@ export default function Profile() {
           setWorkModes((data.work_modes as WorkMode[] | null) ?? []);
           setPhoto(avatarUrl(data.avatar_path));
         }
+      } catch {
+        setLoadError(true);
+      } finally {
         setLoading(false);
-      });
+      }
+    })();
   }, [session?.user?.id]);
 
   async function save() {
@@ -112,18 +138,40 @@ export default function Profile() {
     await refresh();
   }
 
-  if (loading) return null;
-
   const displayName = preferredName || firstName || profile?.firstName || '';
 
+  // The header renders in every state. A screen with nothing on it is a screen
+  // nobody can leave.
+  const header = <ScreenHeader title="Meu perfil" onBack={() => router.back()} />;
+
+  if (loading) {
+    return (
+      <Screen header={header} gap="lg">
+        <Skeleton height={190} radius={theme.radius['2xl']} />
+        <Skeleton height={54} radius={theme.radius.lg} />
+        <Skeleton height={54} radius={theme.radius.lg} />
+        <Skeleton height={54} radius={theme.radius.lg} />
+      </Screen>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Screen header={header} grow center>
+        <EmptyState
+          iconName="alert"
+          title="Não conseguimos carregar seu perfil"
+          description="Verifique sua conexão e tente de novo."
+        />
+      </Screen>
+    );
+  }
+
   return (
-    <>
-      <Stack.Screen options={{ title: 'Meu perfil' }} />
-      <ScrollView
-        style={{ backgroundColor: theme.colors.backgroundPrimary }}
-        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.xl }}
-        keyboardShouldPersistTaps="handled"
-      >
+    <Screen
+      header={header}
+      gap="lg"
+    >
         <Card padding="xl" style={{ alignItems: 'center', gap: theme.spacing.md }}>
           <Avatar url={photo} name={displayName} size={96} />
           <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
@@ -188,6 +236,7 @@ export default function Profile() {
               <Chip
                 key={mode.value}
                 label={mode.label}
+                multiple
                 selected={workModes.includes(mode.value)}
                 onPress={() =>
                   setWorkModes(
@@ -230,7 +279,6 @@ export default function Profile() {
           disabled={firstName.trim() === ''}
           onPress={save}
         />
-      </ScrollView>
-    </>
+    </Screen>
   );
 }

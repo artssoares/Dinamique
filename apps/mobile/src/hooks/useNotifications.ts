@@ -1,10 +1,63 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { useSession } from './useSession';
 
 export interface NotificationCounts {
   unreadTotal: number;
   unreadSupport: number;
+}
+
+/**
+ * One realtime channel per user, shared by every caller of the hook.
+ *
+ * Supabase keys channels by topic. Two components asking for
+ * `notifications:<user>` get the same channel object back, and calling `.on()`
+ * on a channel that has already subscribed throws — which blanked the whole
+ * app, because the header, the tab bar and the "Mais" screen all read the
+ * unread count. Refcounting one channel here fixes that and opens one socket
+ * topic instead of three.
+ */
+const listeners = new Set<() => void>();
+let channel: RealtimeChannel | null = null;
+let channelUserId: string | null = null;
+
+function attach(userId: string, onChange: () => void): () => void {
+  listeners.add(onChange);
+
+  if (channel && channelUserId !== userId) {
+    void supabase.removeChannel(channel);
+    channel = null;
+    channelUserId = null;
+  }
+
+  if (!channel) {
+    channelUserId = userId;
+    channel = supabase
+      .channel(`notifications:${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          for (const listener of listeners) listener();
+        },
+      )
+      .subscribe();
+  }
+
+  return () => {
+    listeners.delete(onChange);
+    if (listeners.size === 0 && channel) {
+      void supabase.removeChannel(channel);
+      channel = null;
+      channelUserId = null;
+    }
+  };
 }
 
 /**
@@ -36,27 +89,11 @@ export function useNotificationCounts(): NotificationCounts & { refresh: () => P
 
   useEffect(() => {
     void refresh();
-    if (!session?.user) return;
-
-    const channel = supabase
-      .channel(`notifications:${session.user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'user_notifications',
-          filter: `user_id=eq.${session.user.id}`,
-        },
-        () => {
-          void refresh();
-        },
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
+    const userId = session?.user?.id;
+    if (!userId) return;
+    return attach(userId, () => {
+      void refresh();
+    });
   }, [refresh, session?.user?.id]);
 
   return { ...counts, refresh };

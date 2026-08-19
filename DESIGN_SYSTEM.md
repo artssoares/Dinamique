@@ -48,18 +48,50 @@ it cannot follow the theme.
 ```
 backgroundPrimary   backgroundSecondary
 surfacePrimary      surfaceSecondary     surfaceElevated   surfaceHover
+surfaceInverse      surfaceInverseHover  textOnInverse     textOnInverseMuted
+navSurface          navSurfaceActive     navText           navTextActive
 textPrimary         textSecondary        textMuted         textInverse   textOnBrand
 borderPrimary       borderSubtle         borderStrong
 brandPrimary        brandPrimaryHover    brandPrimarySubtle
 brandSecondary      brandSecondaryHover  brandSecondarySubtle
+heroFrom  heroTo    heroBackFrom  heroBackTo
 success  successSubtle  successText
 danger   dangerSubtle   dangerText
 warning  warningSubtle  warningText
-overlay  skeleton       focusRing
+overlay  overlayStrong  skeleton       focusRing
 ```
 
 Both themes define every key — asserted by test, so a token cannot exist in one
 theme and be missing from the other.
+
+### The three "loud surface" families
+
+`surfaceInverse` **inverts**: it is near-black in light mode and near-white in
+dark, so a component keeps its "this one shouts" role in both. The segmented
+control's selected pill uses it.
+
+`navSurface` does **not** invert. The tab bar stays dark in both themes, because
+a white bar glowing at the bottom of a dark screen is glare in a car at night —
+which is precisely when the app is open. `navSurfaceActive` is the light pill on
+it, and the token test asserts both pairs clear AA.
+
+`heroFrom`/`heroTo` and `heroBackFrom`/`heroBackTo` are the two gradients of the
+Home card stack. Both stops are asserted against white type, which is why the
+back card uses Coral 700→600 rather than the lighter steps — Coral 400 measures
+2.4:1 against white and cannot carry a label.
+
+## Contrast, and what changed
+
+The muted grey was Neutral 400, which measures 2.86:1 on white: legible on a
+desk, invisible on a phone at arm's length in daylight. It is now Neutral 500,
+and `borderPrimary` moved from Neutral 200 to 300 for the same reason. Both
+floors are asserted:
+
+- every text token clears AA on its background — as before
+- `textMuted` clears the large-text floor (3:1), in both themes
+- borders clear 1.35:1 against the surface they divide
+- `textOnInverse`, `navText`, `navTextActive` and both hero gradients are
+  asserted too, because navigation going unreadable is not a cosmetic failure
 
 ## Dark mode
 
@@ -71,8 +103,15 @@ low-alpha overlays rather than solid tints.
 
 **Spacing** is a 4pt grid: 2, 4, 8, 12, 16, 20, 24, 32, 40, 56, 72.
 
-**Radius**: 8, 12, 16, 20, 24, 32, and `pill` (999). Generous, but only chips
-and round buttons are fully pill-shaped.
+**Radius**: 8, 12, 16, 20, 24, 32, and `pill` (999). Generous, but only chips,
+round buttons and the tab bar are fully pill-shaped.
+
+**Breakpoints** — `compact` 360, `regular` 400, `medium` 600, `expanded` 900.
+Read through `useResponsive()`, never by comparing a raw width. Above `medium`
+content stops stretching and centres inside `layout.maxContentWidth` (560), so
+a tablet or a browser window shows a readable column instead of one card three
+feet wide. `layout` also carries the tab bar's height, which is how screens
+know how much room to leave under themselves.
 
 **Type** — financial figures get their own oversized steps, because the number
 must land before anything else on the screen:
@@ -90,18 +129,75 @@ must land before anything else on the screen:
 **Motion**: 90ms instant, 160 fast, 240 base, 340 slow, 700 for the currency
 count-up. Nothing longer — asserted by test.
 
+## Icons
+
+A 24×24 stroke set (`Icon`, `IconName`) drawn on one grid: 1.8 stroke, round
+caps, fills only where a shape must read solid at 16dp. It replaces the unicode
+glyphs the app used to draw for navigation and chevrons (`◎ ▤ ◈ ⋯ ›`), which
+rendered at a different weight, size and baseline on every device — the single
+biggest reason the interface looked homemade. Icons take their colour from the
+`color` prop, defaulting to the current text colour; an icon never needs a hex.
+
 ## Components
 
-`Text` · `Button` · `Card` · `Money` · `Metric` / `CurrencyMetric` ·
-`GoalProgress` · `EmptyState` · `Chip` · `Badge` / `CountBadge` · `InsightCard`
-· `Skeleton`
+**Layout** — `Screen` · `ScreenHeader` · `SectionHeader` · `Divider` · `Sheet`
 
-Two of them carry product rules rather than only style:
+**Content** — `Text` · `Card` · `HeroCard` · `Gradient` · `Money` · `Metric` /
+`CurrencyMetric` · `StatTile` · `GoalProgress` · `ProgressRing` · `EmptyState` ·
+`InsightCard` · `ListRow` · `Skeleton` · `Avatar` · `Badge` / `CountBadge`
 
-- **`Metric`** takes `value: string | null`. Null renders a dash and an
-  explanation ("sem km"), never a zero.
-- **`GoalProgress`** clamps to 100% and animates width on mount, because a
-  static bar reads as a picture while a growing one reads as progress.
+**Controls** — `Button` · `IconButton` · `Chip` · `SegmentedControl` ·
+`OptionCard` · `Field` · `AmountInput` · `Select` · `StepProgress`
+
+Several carry product rules rather than only style:
+
+- **`Metric`** and **`StatTile`** take `value: string | null`. Null renders a
+  dash and an explanation ("sem km"), never a zero.
+- **`GoalProgress`** and **`ProgressRing`** clamp to 100% and animate on mount,
+  because a static shape reads as a picture while a growing one reads as
+  progress.
+- **`Screen`** owns safe-area padding, the keyboard avoider and the responsive
+  column, so no screen re-derives them. `tabBarSpacing` also lifts the pinned
+  footer clear of the floating bar.
+- **`ScreenHeader`** makes the back control part of the screen. The root stack
+  runs with `headerShown: false`; the app previously set `<Stack.Screen
+  options={{ title }} />` from each screen anyway, so those titles were being
+  set on a header that never rendered — which is why Metas, Perfil, Plano and
+  the cost screens had no way back except a swipe.
+- **`OptionCard`** exists because onboarding used chips, which is a lot of
+  precision to ask of someone answering questions one-handed in a parked car.
+  Selection is carried by a border, a tint *and* a check mark.
+- **`Gradient`** draws its fill with `react-native-svg` rather than a native
+  gradient module, so it adds no dependency and behaves the same on iOS,
+  Android and web. Each instance generates its own gradient id — on the web all
+  SVG defs share one document, and a fixed id makes the second card on a screen
+  paint with the first card's colours.
+
+## Navigation
+
+The tab bar is a floating pill that clears the bottom edge, not a strip pinned
+to it. Only the active destination carries its label, and the pill animates its
+width, which is what lets five destinations fit without crowding. The centre
+action keeps its brand fill in every state — it is what the app is for — so
+"you are here" is said with a ring instead of a colour change.
+
+The header is fixed and deliberate: a menu control on the left, the bell and
+the user's own photo on the right. The photo is the largest, right-most element
+because "that is me, and this is my account" is the one thing a header has to
+communicate without a label.
+
+## The tour
+
+Coach marks, not a card in the corner. The screen dims, the control the step
+talks about stays lit inside a cut-out — a real hole punched with an even-odd
+SVG fill, not a lighter patch — and the text sits against it, flipping above
+the highlight when there is no room below. Each step moves the cut-out, so
+people learn *where* things are rather than only that they exist.
+
+Copy lives in `tour_steps` and is editable by the admin. The anchor cannot: an
+admin can write new text but cannot invent a control, so slugs map to UI keys
+in the app (`TARGET_BY_SLUG`). A step with no mapped or mounted target still
+shows, centred and without a cut-out, rather than pointing at nothing.
 
 ## Motion principles
 
@@ -112,11 +208,14 @@ transitions, nothing that costs a frame on a mid-range Android.
 ## Accessibility
 
 - every text token clears WCAG AA, asserted in both themes
-- minimum touch target 44dp
+- muted text, borders, the tab bar and both hero gradients are asserted too
+- minimum touch target 44dp — `IconButton` adds hit slop when drawn smaller
 - state is never carried by colour alone — the unread notification has a border
   *and* a badge; an internal note has a dashed border *and* a label
 - accessibility labels on every control; `accessibilityRole="progressbar"` with
-  real values on goal bars
+  real values on goal bars and rings
+- every pushed screen renders its own back control, so leaving never depends on
+  knowing the edge-swipe gesture
 - visible focus rings in the admin for keyboard navigation
 
 ## The admin

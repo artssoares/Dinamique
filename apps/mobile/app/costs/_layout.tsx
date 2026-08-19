@@ -5,11 +5,11 @@ export default function CostsLayout() {
   const theme = useTheme();
   return (
     <Stack
+      // Each screen draws its own <ScreenHeader>, so the native one is off.
       screenOptions={{
-        headerStyle: { backgroundColor: theme.colors.backgroundPrimary },
-        headerTintColor: theme.colors.textPrimary,
-        headerShadowVisible: false,
+        headerShown: false,
         contentStyle: { backgroundColor: theme.colors.backgroundPrimary },
+        animation: 'slide_from_right',
       }}
     />
   );

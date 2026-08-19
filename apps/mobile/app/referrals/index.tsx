@@ -1,9 +1,19 @@
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, Share, View } from 'react-native';
+import { Alert, Share, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { formatCents } from '@dinamique/utils';
 import { DEFAULT_REFERRAL_DISCOUNT } from '@dinamique/business-logic';
-import { Button, Card, EmptyState, Text, useTheme } from '@dinamique/ui';
+import {
+  Button,
+  Card,
+  EmptyState,
+  Screen,
+  ScreenHeader,
+  SectionHeader,
+  Text,
+  useTheme,
+} from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 import { useSession } from '@/hooks/useSession';
@@ -22,6 +32,7 @@ interface MyReferral {
  */
 export default function Referrals() {
   const theme = useTheme();
+  const router = useRouter();
   const { session } = useSession();
   const [code, setCode] = useState<string | null>(null);
   const [referrals, setReferrals] = useState<MyReferral[]>([]);
@@ -62,14 +73,13 @@ export default function Referrals() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.xl }}>
-      <View style={{ gap: theme.spacing.sm }}>
-        <Text variant="titleLg">Indique um motorista</Text>
-        <Text variant="body" color="secondary">
-          Convide alguém para usar o Dinamique. Quem entrar pelo seu convite recebe{' '}
-          {formatCents(DEFAULT_REFERRAL_DISCOUNT)} de desconto na primeira assinatura Pro.
-        </Text>
-      </View>
+    <Screen
+      header={<ScreenHeader title="Indique um motorista" onBack={() => router.back()} />}
+    >
+      <Text variant="body" color="secondary">
+        Convide alguém para usar o Dinamique. Quem entrar pelo seu convite recebe{' '}
+        {formatCents(DEFAULT_REFERRAL_DISCOUNT)} de desconto na primeira assinatura Pro.
+      </Text>
 
       <Card padding="xl" style={{ gap: theme.spacing.lg, alignItems: 'center' }}>
         <Text variant="caption" color="secondary">
@@ -79,11 +89,7 @@ export default function Referrals() {
           {code ?? '···'}
         </Text>
         <View style={{ flexDirection: 'row', gap: theme.spacing.sm, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <Button
-            label="Compartilhar convite"
-            onPress={share}
-            disabled={!code}
-          />
+          <Button label="Compartilhar convite" iconName="gift" onPress={share} disabled={!code} />
           <Button
             label="Copiar código"
             variant="ghost"
@@ -100,12 +106,11 @@ export default function Referrals() {
       </Card>
 
       <View style={{ gap: theme.spacing.md }}>
-        <Text variant="captionStrong" color="secondary">
-          MINHAS INDICAÇÕES
-        </Text>
+        <SectionHeader title="Minhas indicações" />
 
         {referrals.length === 0 ? (
           <EmptyState
+            iconName="gift"
             title="Ninguém entrou ainda"
             description="Compartilhe seu convite com outros motoristas que você conhece."
           />
@@ -132,6 +137,6 @@ export default function Referrals() {
           </>
         )}
       </View>
-    </ScrollView>
+    </Screen>
   );
 }

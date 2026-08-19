@@ -58,12 +58,17 @@ export const typography = {
 
 export type TypographyToken = keyof typeof typography;
 
-/** Elevation is deliberately soft — depth comes from spacing, not drop shadows. */
+/**
+ * Elevation is soft — depth comes from spacing first. `xl` exists only for the
+ * two things that genuinely float above the page: the tab bar and the hero
+ * card stack.
+ */
 export const elevation = {
   none: { shadowOpacity: 0, elevation: 0 },
   sm: { shadowColor: '#0D1016', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 },
   md: { shadowColor: '#0D1016', shadowOpacity: 0.07, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 3 },
   lg: { shadowColor: '#0D1016', shadowOpacity: 0.1, shadowRadius: 28, shadowOffset: { width: 0, height: 12 }, elevation: 6 },
+  xl: { shadowColor: '#0D1016', shadowOpacity: 0.16, shadowRadius: 36, shadowOffset: { width: 0, height: 18 }, elevation: 12 },
 } as const;
 
 /** Motion: short and purposeful. Nothing above 400ms (§18). */
@@ -78,3 +83,32 @@ export const motion = {
 
 /** Minimum touch target, in dp — accessibility floor (§116). */
 export const MIN_TOUCH_TARGET = 44;
+
+/**
+ * Width breakpoints. The app is phone-first, but it also runs on tablets and
+ * on the web, where a column of full-width cards 1200px across is unreadable.
+ * Everything above `md` centres inside `layout.maxContentWidth` instead.
+ */
+export const breakpoints = {
+  /** Small phones — iPhone SE and the cheap Androids most drivers carry. */
+  compact: 360,
+  /** Ordinary phones. */
+  regular: 400,
+  /** Large phones and small tablets in portrait. */
+  medium: 600,
+  /** Tablets, desktop web. */
+  expanded: 900,
+} as const;
+
+export type Breakpoint = keyof typeof breakpoints;
+
+export const layout = {
+  /** A reading column never wider than this, whatever the screen is. */
+  maxContentWidth: 560,
+  /** Two-column card grids get more room before they look sparse. */
+  maxWideContentWidth: 760,
+  /** Height of the floating tab bar, used to pad screens that scroll under it. */
+  tabBarHeight: 68,
+  /** Gap between the tab bar and the bottom safe area. */
+  tabBarInset: 12,
+} as const;

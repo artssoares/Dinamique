@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, Switch, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Switch, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { NOTIFICATION_CATEGORIES, type NotificationCategory } from '@dinamique/types';
-import { Card, Text, useTheme } from '@dinamique/ui';
+import { Card, Screen, ScreenHeader, Text, useTheme } from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/useSession';
 import { disablePush, registerForPush } from '@/features/notifications/push';
@@ -30,6 +30,7 @@ interface PrefRow {
 /** Preferências por categoria (§58) e ativação do Push (§59). */
 export default function NotificationSettings() {
   const theme = useTheme();
+  const router = useRouter();
   const { session } = useSession();
 
   const [prefs, setPrefs] = useState<PrefRow[]>([]);
@@ -81,12 +82,10 @@ export default function NotificationSettings() {
   }
 
   return (
-    <>
-      <Stack.Screen options={{ title: 'Notificações' }} />
-      <ScrollView
-        style={{ backgroundColor: theme.colors.backgroundPrimary }}
-        contentContainerStyle={{ padding: theme.spacing.xl, gap: theme.spacing.lg }}
-      >
+    <Screen
+      header={<ScreenHeader title="Preferências de aviso" onBack={() => router.back()} />}
+      gap="lg"
+    >
         <Card padding="xl" style={{ gap: theme.spacing.sm }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text variant="bodyStrong">Notificações no celular</Text>
@@ -126,7 +125,6 @@ export default function NotificationSettings() {
             );
           })}
         </Card>
-      </ScrollView>
-    </>
+    </Screen>
   );
 }
