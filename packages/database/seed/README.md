@@ -11,7 +11,7 @@ psql -d <database> -c 'select demo_teardown();'
 
 ## What it creates
 
-- **Arthur Soares** — São Paulo, Honda Civic 2020, Uber + 99, ~30 days of
+- **Arthur Soares** – São Paulo, Honda Civic 2020, Uber + 99, ~30 days of
   history with Sundays off and Fridays strongest, fuel logs every five days
   with a rising odometer so measured consumption becomes computable
 - **24 peer drivers** across six cities and three modalities, two weeks each
@@ -20,7 +20,7 @@ psql -d <database> -c 'select demo_teardown();'
 - referrals and discount benefits, some used
 - a campaign code
 
-Variation is deterministic — derived from the day and user index — so a reseed
+Variation is deterministic – derived from the day and user index – so a reseed
 produces identical data. Nothing here calls `random()`.
 
 ## It demonstrates the benchmark gate working

@@ -12,7 +12,7 @@ const ANALYST_ROLES = ['superadmin', 'admin', 'analyst'] as const;
  * Relatórios com cruzamento de filtros (§93, §94).
  *
  * Os filtros vêm pela URL, então um relatório útil é só um link que se salva
- * ou se compartilha — sem precisar de um mecanismo de "relatórios salvos"
+ * ou se compartilha – sem precisar de um mecanismo de "relatórios salvos"
  * antes de existir demanda para ele.
  */
 export default async function Reports({
@@ -31,7 +31,7 @@ export default async function Reports({
     .select('user_id, city, state, gender, age_band, plan, is_trial, last_seen_at, work_modes, acquisition_source, vehicle_type, vehicle_label, fuel_type, ownership, created_at')
     .limit(5000);
 
-  // Cada filtro é aplicado por igualdade em coluna conhecida — nunca por SQL
+  // Cada filtro é aplicado por igualdade em coluna conhecida – nunca por SQL
   // montado com texto do usuário.
   const eq = (column: string, key: string) => {
     const value = params[key];
@@ -150,12 +150,12 @@ export default async function Reports({
                   <td className="small mono">{formatCents(row.netProfit)}</td>
                   <td className="small mono">{formatCents(row.totalExpenses)}</td>
                   <td className="small mono">{formatDuration(row.workedSeconds)}</td>
-                  <td className="small mono">{row.revenuePerHour !== null ? formatCents(row.revenuePerHour) : '—'}</td>
-                  <td className="small mono">{row.revenuePerKm !== null ? formatCents(row.revenuePerKm) : '—'}</td>
-                  <td className="small mono">{row.costPerKm !== null ? formatCents(row.costPerKm) : '—'}</td>
+                  <td className="small mono">{row.revenuePerHour !== null ? formatCents(row.revenuePerHour) : '–'}</td>
+                  <td className="small mono">{row.revenuePerKm !== null ? formatCents(row.revenuePerKm) : '–'}</td>
+                  <td className="small mono">{row.costPerKm !== null ? formatCents(row.costPerKm) : '–'}</td>
                   <td className="small mono">{row.proUsers}</td>
-                  <td className="small mono">{row.conversionRate !== null ? formatPercent(row.conversionRate, 1) : '—'}</td>
-                  <td className="small mono">{row.retentionRate !== null ? formatPercent(row.retentionRate, 1) : '—'}</td>
+                  <td className="small mono">{row.conversionRate !== null ? formatPercent(row.conversionRate, 1) : '–'}</td>
+                  <td className="small mono">{row.retentionRate !== null ? formatPercent(row.retentionRate, 1) : '–'}</td>
                 </tr>
               ))}
             </tbody>

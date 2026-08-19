@@ -13,7 +13,7 @@ com credenciais, que este repositório não tem. O que está coberto por teste �
 seleção de destinatários e o respeito às preferências do usuário (no banco); a
 chamada HTTP é o trecho não verificado.
 
-A notificação interna funciona de ponta a ponta sem esta função — o Push é um
+A notificação interna funciona de ponta a ponta sem esta função – o Push é um
 canal adicional, nunca o único.
 
 ## Agendamento dos lembretes
@@ -37,7 +37,7 @@ teste).
 Para um projeto Supabase novo, use `supabase/setup.sql`: é a concatenação de
 todas as migrations, na ordem, num arquivo só. Cole no SQL Editor e execute.
 
-As migrations continuam separadas em `packages/database/migrations` — elas são
+As migrations continuam separadas em `packages/database/migrations` – elas são
 o que serve para evoluir o schema. O `setup.sql` é só o pacote de instalação, e
 é regenerado com:
 

@@ -35,7 +35,7 @@ const STATUS_LABELS: Record<FineStatus, string> = {
   appealed: 'Contestada',
 };
 
-/** Multas (§51). Controle manual — nunca afirmamos que existe um débito. */
+/** Multas (§51). Controle manual – nunca afirmamos que existe um débito. */
 export default function Fines() {
   const theme = useTheme();
   const router = useRouter();

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { Icon, type IconName } from '../icons/Icon';
@@ -8,6 +9,8 @@ export interface OptionCardProps {
   label: string;
   description?: string;
   icon?: IconName;
+  /** Replaces the icon puck entirely, e.g. a platform's brand tile. */
+  leading?: ReactNode;
   selected: boolean;
   onPress: () => void;
   /** Checkbox semantics for multi-select, radio for single. */
@@ -22,13 +25,14 @@ export interface OptionCardProps {
  * answering questions one-handed in a parked car. A card is roughly six times
  * the target area and has room to say what the option actually means.
  *
- * Selection is carried by a border, a tint AND a check mark — never colour
+ * Selection is carried by a border, a tint AND a check mark – never colour
  * alone (§116).
  */
 export function OptionCard({
   label,
   description,
   icon,
+  leading,
   selected,
   onPress,
   multiple = false,
@@ -58,24 +62,27 @@ export function OptionCard({
         style,
       ]}
     >
-      {icon ? (
-        <View
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: theme.radius.pill,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: selected ? theme.colors.brandPrimary : theme.colors.backgroundSecondary,
-          }}
-        >
-          <Icon
-            name={icon}
-            size={20}
-            color={selected ? theme.colors.textOnBrand : theme.colors.textSecondary}
-          />
-        </View>
-      ) : null}
+      {leading ??
+        (icon ? (
+          <View
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: theme.radius.pill,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: selected
+                ? theme.colors.brandPrimary
+                : theme.colors.backgroundSecondary,
+            }}
+          >
+            <Icon
+              name={icon}
+              size={20}
+              color={selected ? theme.colors.textOnBrand : theme.colors.textSecondary}
+            />
+          </View>
+        ) : null)}
 
       <View style={{ flex: 1, gap: 2 }}>
         <Text variant="bodyStrong">{label}</Text>

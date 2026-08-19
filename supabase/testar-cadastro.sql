@@ -6,8 +6,8 @@
 --
 -- O cadastro tem duas metades, e este teste diz qual delas quebrou:
 --
---   metade 1 — o BANCO: criar o perfil, o teste grátis e o código de indicação
---   metade 2 — o EMAIL: enviar a mensagem de confirmação
+--   metade 1 – o BANCO: criar o perfil, o teste grátis e o código de indicação
+--   metade 2 – o EMAIL: enviar a mensagem de confirmação
 --
 -- Se aparecer a linha "CADASTRO OK NO BANCO", a metade 1 está boa e o problema
 -- é a metade 2 (email). Se der erro vermelho, o erro é a resposta.

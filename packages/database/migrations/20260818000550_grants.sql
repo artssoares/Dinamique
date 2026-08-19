@@ -30,7 +30,7 @@ grant insert on support_messages to authenticated;
 
 -- Marcar como lida é a ÚNICA coisa que o usuário faz numa notificação. Um
 -- grant de update na tabela inteira deixaria ele reescrever o próprio título e
--- corpo — inofensivo para os outros, mas é dado nosso e não dele.
+-- corpo – inofensivo para os outros, mas é dado nosso e não dele.
 grant update (read_at) on user_notifications to authenticated;
 
 -- Influencer applications are user-submitted.
@@ -48,8 +48,8 @@ grant insert, update, delete on
   plans, campaigns, app_settings, saved_reports
 to authenticated;
 
--- Everything else — subscriptions, promotion_codes, referrals,
--- discount_benefits, user_attribution, admin_users, admin_logs, exports — is
+-- Everything else – subscriptions, promotion_codes, referrals,
+-- discount_benefits, user_attribution, admin_users, admin_logs, exports – is
 -- READ-ONLY to the client on purpose. Value is granted by SECURITY DEFINER
 -- functions or by the service role, never claimed by the app.
 

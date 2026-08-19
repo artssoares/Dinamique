@@ -17,7 +17,7 @@ Schema, security policies, server-side business functions and read models.
 
 ## Invariants the schema enforces
 
-These are constraints and policies, not conventions — code cannot violate them.
+These are constraints and policies, not conventions – code cannot violate them.
 
 - money is `bigint` cents; distance is `integer` metres; volume is millilitres
 - one active journey per user (`journeys_one_active_idx`)
@@ -43,4 +43,4 @@ is a local test fixture and is never applied to a Supabase project.
 Plans, discounts and referrals are never writable by the client. They are
 granted by `SECURITY DEFINER` functions (`redeem_code`) or by the service role
 from the admin panel. The `authenticated` role holds `select` on those tables
-and nothing more — see `…000550_grants.sql`.
+and nothing more – see `…000550_grants.sql`.

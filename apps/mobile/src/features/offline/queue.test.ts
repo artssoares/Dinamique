@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * A fila guarda dados que o motorista já registrou. Um erro aqui não é um bug
- * de interface — é trabalho de um dia perdido. Por isso ela é testada isolada
+ * de interface – é trabalho de um dia perdido. Por isso ela é testada isolada
  * do Supabase e do React Native.
  */
 
@@ -111,7 +111,7 @@ describe('fila de sincronização', () => {
   it('preserva a fila entre leituras, como se o app tivesse fechado', async () => {
     await enqueue('journeys', { started_at: '2026-08-18T07:00:00Z' }, 'j1');
 
-    // Nova leitura, mesmo armazenamento — é o que acontece ao reabrir.
+    // Nova leitura, mesmo armazenamento – é o que acontece ao reabrir.
     const queue = await readQueue();
     expect(queue[0]!.payload.started_at).toBe('2026-08-18T07:00:00Z');
   });

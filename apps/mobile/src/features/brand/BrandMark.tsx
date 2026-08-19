@@ -6,13 +6,19 @@ const HEIGHTS = { sm: 20, md: 28, lg: 40 } as const;
 
 export interface BrandMarkProps {
   size?: keyof typeof HEIGHTS;
+  /** Renders for a dark or coloured surface. */
+  onDark?: boolean;
 }
 
 /**
- * Renders the supplied logo at its own proportions. When the asset is missing
- * it shows a placeholder that says so — it never substitutes type for the mark.
+ * The Dinamique mark.
+ *
+ * When `assets/brand/logo.png` is in the repository this renders that file at
+ * its own proportions, and the mark is never stretched. Until then it renders
+ * a wordmark set in the app's own type: a stand-in, not the logo. Dropping the
+ * real file in and pointing `logo.ts` at it swaps every appearance at once.
  */
-export function BrandMark({ size = 'md' }: BrandMarkProps) {
+export function BrandMark({ size = 'md', onDark = false }: BrandMarkProps) {
   const theme = useTheme();
   const height = HEIGHTS[size];
 
@@ -28,23 +34,36 @@ export function BrandMark({ size = 'md' }: BrandMarkProps) {
     );
   }
 
+  const ink = onDark ? theme.colors.textOnBrand : theme.colors.textPrimary;
+  const dot = onDark ? theme.colors.textOnBrand : theme.colors.brandPrimary;
+
   return (
     <View
-      accessibilityLabel="Logo Dinamique pendente"
-      style={{
-        height,
-        width: height * LOGO_ASPECT_RATIO,
-        borderRadius: theme.radius.sm,
-        borderWidth: 1,
-        borderStyle: 'dashed',
-        borderColor: theme.colors.borderStrong,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
+      accessibilityLabel="Dinamique"
+      accessible
+      style={{ flexDirection: 'row', alignItems: 'flex-end', height }}
     >
-      <Text variant="overline" color="muted">
-        logo.png
+      <Text
+        style={{
+          fontSize: height * 0.62,
+          lineHeight: height,
+          fontWeight: '800',
+          letterSpacing: -height * 0.03,
+          color: ink,
+        }}
+      >
+        dinamique
       </Text>
+      <View
+        style={{
+          width: height * 0.16,
+          height: height * 0.16,
+          borderRadius: theme.radius.pill,
+          backgroundColor: dot,
+          marginLeft: height * 0.06,
+          marginBottom: height * 0.16,
+        }}
+      />
     </View>
   );
 }

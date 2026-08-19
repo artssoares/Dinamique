@@ -163,7 +163,7 @@ export default function Vehicles() {
                         A estimativa cadastrada é{' '}
                         {vehicle.estimated_consumption
                           ? formatConsumption(vehicle.estimated_consumption)
-                          : '—'}
+                          : '–'}
                         . Quer usar o seu consumo real nos cálculos?
                       </Text>
                       <Button

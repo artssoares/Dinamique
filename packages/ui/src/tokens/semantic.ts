@@ -1,7 +1,7 @@
 import { amber, blue, coral, green, neutral, red } from './palette';
 
 /**
- * Semantic design tokens (§16). Components consume ONLY these names — a raw
+ * Semantic design tokens (§16). Components consume ONLY these names – a raw
  * hex in a component is a bug, because it cannot follow the theme.
  */
 export interface ThemeTokens {
@@ -14,7 +14,7 @@ export interface ThemeTokens {
   /** Pressed/hover wash over a surface. */
   surfaceHover: string;
 
-  /* inverse — the dark, high-contrast surfaces: navigation bar, hero card,
+  /* inverse – the dark, high-contrast surfaces: navigation bar, hero card,
      spotlight tooltips. In dark mode they invert to near-white so the same
      component keeps its "this is the loud one" role in both themes. */
   surfaceInverse: string;
@@ -22,7 +22,7 @@ export interface ThemeTokens {
   textOnInverse: string;
   textOnInverseMuted: string;
 
-  /* navigation — the floating tab bar. Unlike `surfaceInverse` these do NOT
+  /* navigation – the floating tab bar. Unlike `surfaceInverse` these do NOT
      invert: a white bar glowing at the bottom of a dark screen is glare in a
      car at night, which is exactly when this app is open. */
   navSurface: string;
@@ -51,15 +51,17 @@ export interface ThemeTokens {
   brandSecondaryHover: string;
   brandSecondarySubtle: string;
 
-  /* hero — the two stops of the headline card's gradient. Same hue family as
+  /* hero – the two stops of the headline card's gradient. Same hue family as
      the brand; never an independently chosen colour (§138). */
   heroFrom: string;
   heroTo: string;
   /** Second card in the stack, peeking out behind the hero. */
   heroBackFrom: string;
   heroBackTo: string;
+  /** Type on the back card. Dark, because the orange is too bright for white. */
+  textOnHeroBack: string;
 
-  /* semantic — meaning only, never decoration (§13).
+  /* semantic – meaning only, never decoration (§13).
      `success`/`danger`/`warning` are FILL colours (bars, dots, badges).
      The `*Text` variants are the only ones safe to render type in, because a
      colour vivid enough to fill a shape rarely clears AA as small text. */
@@ -124,10 +126,11 @@ export const lightTokens: ThemeTokens = {
 
   heroFrom: blue[600],
   heroTo: blue[400],
-  // Coral 700→600 rather than 500→400: the card carries white type, and the
-  // lighter steps measure 2.4:1 against it. Asserted in the token test.
-  heroBackFrom: coral[700],
-  heroBackTo: coral[600],
+  // A vivid orange, which is only possible because the back card sets its type
+  // dark instead of white. White measures 2.4:1 here, near-black above 6:1.
+  heroBackFrom: '#FF8A2B',
+  heroBackTo: '#FF5F3D',
+  textOnHeroBack: neutral[950],
 
   success: green[500],
   successSubtle: green[50],
@@ -187,8 +190,9 @@ export const darkTokens: ThemeTokens = {
 
   heroFrom: blue[600],
   heroTo: blue[400],
-  heroBackFrom: coral[700],
-  heroBackTo: coral[600],
+  heroBackFrom: '#FF8A2B',
+  heroBackTo: '#FF5F3D',
+  textOnHeroBack: neutral[950],
 
   success: green[400],
   successSubtle: 'rgba(52, 199, 123, 0.16)',

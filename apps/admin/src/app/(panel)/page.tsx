@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Operational dashboard (§86). Only counts that are actually derivable from
- * the current schema are shown — a KPI tile with no real query behind it would
+ * the current schema are shown – a KPI tile with no real query behind it would
  * be a lie dressed as a metric (§131).
  */
 export default async function Dashboard() {

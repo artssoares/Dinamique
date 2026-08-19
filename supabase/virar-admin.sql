@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Te transforma em administrador do painel.
 --
--- Rode DEPOIS de criar sua conta no aplicativo — o comando procura pelo
+-- Rode DEPOIS de criar sua conta no aplicativo – o comando procura pelo
 -- e-mail que você usou no cadastro.
 --
 -- Troque o e-mail abaixo se tiver usado outro.

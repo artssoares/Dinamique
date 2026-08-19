@@ -3,7 +3,7 @@ import { KM, roundCents } from '@dinamique/utils';
 
 /**
  * Vehicle economics (§31, §35). Every function refuses to answer without the
- * data it needs — an invented cost/km is worse than no cost/km.
+ * data it needs – an invented cost/km is worse than no cost/km.
  */
 
 export interface FuelLogPoint {
@@ -66,7 +66,7 @@ export function computeMeasuredConsumption(
 
 /**
  * Which consumption figure to use right now. The measured value is only
- * applied after the user explicitly accepted it — we never switch silently.
+ * applied after the user explicitly accepted it – we never switch silently.
  */
 export function resolveConsumption(vehicle: {
   estimatedConsumption: number | null;
@@ -103,7 +103,7 @@ export interface VehicleCostBreakdown {
   /** Vehicle-attributable spend over the window. */
   totalCost: Cents;
   distance: Metres;
-  /** null without distance — see §6. */
+  /** null without distance – see §6. */
   costPerKm: Cents | null;
   revenuePerKm: Cents | null;
   marginPerKm: Cents | null;

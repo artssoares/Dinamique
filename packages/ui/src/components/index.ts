@@ -27,3 +27,4 @@ export * from './SegmentedControl';
 export * from './StepProgress';
 export * from './OptionCard';
 export * from './Sheet';
+export * from './Reveal';

@@ -4,7 +4,7 @@ import Stripe from 'stripe';
  * Cliente do Stripe. Servidor apenas.
  *
  * A chave secreta cobra dinheiro de verdade. Ela não tem prefixo
- * `NEXT_PUBLIC_`, então o Next se recusa a incluí-la no pacote do navegador —
+ * `NEXT_PUBLIC_`, então o Next se recusa a incluí-la no pacote do navegador –
  * a garantia é do bundler, não da disciplina de quem escreve o import.
  */
 

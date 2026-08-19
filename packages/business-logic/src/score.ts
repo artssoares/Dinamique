@@ -1,7 +1,7 @@
 import type { Cents } from '@dinamique/types';
 
 /**
- * Nota do dia (§45) — a 0–10 score with a fully documented, deterministic
+ * Nota do dia (§45) – a 0–10 score with a fully documented, deterministic
  * formula. No arbitrary weights invented at render time; no model.
  *
  * The score is the weighted mean of the components we can actually measure,
@@ -9,10 +9,10 @@ import type { Cents } from '@dinamique/types';
  * dropped rather than defaulted, so a driver without odometer readings is not
  * punished for it.
  *
- *   goal        weight 4 — progress against today's goal, capped at 1.0
- *   profitHour  weight 3 — today's profit/hour vs the personal average
- *   profitKm    weight 2 — today's profit/km vs the personal average
- *   costRatio   weight 1 — expense share vs the personal average (inverted)
+ *   goal        weight 4 – progress against today's goal, capped at 1.0
+ *   profitHour  weight 3 – today's profit/hour vs the personal average
+ *   profitKm    weight 2 – today's profit/km vs the personal average
+ *   costRatio   weight 1 – expense share vs the personal average (inverted)
  *
  * Ratio components map to 0..1 with 1.0 meaning "matched your average" at 0.5
  * and "double your average" at 1.0, i.e. `clamp(ratio / 2, 0, 1)`. Beating your

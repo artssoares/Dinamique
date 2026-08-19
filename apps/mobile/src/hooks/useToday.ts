@@ -13,7 +13,7 @@ import { useSession } from './useSession';
  * Everything the Home screen needs, in one query per concern.
  *
  * The aggregation happens in the `daily_totals` view; the interpretation
- * happens in @dinamique/business-logic. This hook only wires them together —
+ * happens in @dinamique/business-logic. This hook only wires them together –
  * no arithmetic lives in a screen (§120).
  */
 
@@ -106,7 +106,7 @@ export function useToday(): { data: TodayData | null; loading: boolean; refresh:
       distance,
       revenuePerHour: perUnit(grossRevenue, workedSeconds / 3600),
       profitPerHour: perUnit(netProfit, workedSeconds / 3600),
-      // Null without distance — never an invented R$/km (§6).
+      // Null without distance – never an invented R$/km (§6).
       revenuePerKm: perUnit(grossRevenue, distance / 1000),
       goal,
       goalBasis: basis,

@@ -61,7 +61,7 @@ function buildSummarySheet(data: ExportData): Sheet {
     })),
   });
 
-  // Métricas sem denominador aparecem em branco, não como zero — a planilha
+  // Métricas sem denominador aparecem em branco, não como zero – a planilha
   // segue a mesma regra do aplicativo (§6).
   const rows: Record<string, string | number | null>[] = [
     { item: 'Período', valor: `${data.period.start} a ${data.period.end}` },
@@ -161,7 +161,7 @@ function buildJourneysSheet(data: ExportData): Sheet {
 function buildRevenuesSheet(data: ExportData): Sheet {
   const rows = data.revenues.map((revenue) => ({
     data: revenue.date,
-    plataforma: revenue.platform ?? '—',
+    plataforma: revenue.platform ?? '–',
     valor: toReais(revenue.amount),
     gorjeta: revenue.tips > 0 ? toReais(revenue.tips) : null,
     corridas: revenue.tripCount,

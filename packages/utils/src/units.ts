@@ -24,7 +24,7 @@ export function secondsToHours(s: Seconds): number {
   return s / HOUR_SECONDS;
 }
 
-/** "7h 25min", "45min", "0min" — compact enough for a metric tile. */
+/** "7h 25min", "45min", "0min" – compact enough for a metric tile. */
 export function formatDuration(totalSeconds: Seconds): string {
   const safe = Math.max(0, Math.floor(totalSeconds));
   const hours = Math.floor(safe / HOUR_SECONDS);

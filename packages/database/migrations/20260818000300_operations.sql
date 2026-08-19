@@ -13,7 +13,7 @@ create table journeys (
   -- Sum of paused intervals; excluded from worked time.
   paused_seconds    integer not null default 0 check (paused_seconds >= 0),
   paused_at         timestamptz,
-  -- Metres. Both null is normal — distance is optional in V1 (§6).
+  -- Metres. Both null is normal – distance is optional in V1 (§6).
   odometer_start    integer check (odometer_start is null or odometer_start >= 0),
   odometer_end      integer check (odometer_end is null or odometer_end >= 0),
   distance_override integer check (distance_override is null or distance_override > 0),
@@ -116,7 +116,7 @@ create index maintenance_next_due_idx on maintenance_logs (user_id, next_due_dat
   where next_due_date is not null;
 
 -- Stated once, then apportioned across a window (§33). Never a real cash
--- movement — the UI must always label it as an estimate.
+-- movement – the UI must always label it as an estimate.
 create table recurring_costs (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references profiles(id) on delete cascade,
@@ -197,7 +197,7 @@ create index fines_user_status_idx on fines (user_id, status);
 create trigger fines_updated_at before update on fines
   for each row execute function set_updated_at();
 
--- Cached daily score (§45). Recomputed rather than trusted — it exists so the
+-- Cached daily score (§45). Recomputed rather than trusted – it exists so the
 -- Home screen does not re-aggregate a month of rows on every open.
 create table daily_scores (
   user_id      uuid not null references profiles(id) on delete cascade,

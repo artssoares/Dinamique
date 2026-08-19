@@ -8,7 +8,7 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 /**
- * Entrada no painel. Quem decide o acesso é o servidor, depois — aqui só
+ * Entrada no painel. Quem decide o acesso é o servidor, depois – aqui só
  * autenticamos.
  *
  * Sem as variáveis configuradas, mostramos o que falta em vez de deixar o

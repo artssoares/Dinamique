@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import type { Cents } from '@dinamique/types';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
@@ -19,9 +27,15 @@ export interface ActiveJourney {
 
 /**
  * Journey lifecycle (§25). One journey at a time is enforced by a unique index
- * in the database, so this hook does not have to defend against races.
+ * in the database, so this does not have to defend against races.
+ *
+ * This is deliberately a provider rather than a plain hook. It used to be a
+ * hook, and every screen that called it kept its own copy of the state: you
+ * could start a journey on Registrar and Home would still show no journey
+ * running, because Home had fetched once on mount and nothing told it to look
+ * again. One state, shared, is the whole fix.
  */
-export function useActiveJourney() {
+function useJourneyState() {
   const { session } = useSession();
   const [journey, setJourney] = useState<ActiveJourney | null>(null);
   const [loading, setLoading] = useState(true);
@@ -126,6 +140,30 @@ export function useActiveJourney() {
   );
 
   return { journey, loading, refresh, start, pause, resume, finish };
+}
+
+export type JourneyState = ReturnType<typeof useJourneyState>;
+
+const JourneyContext = createContext<JourneyState | null>(null);
+
+export function JourneyProvider({ children }: { children: ReactNode }) {
+  const value = useJourneyState();
+  const stable = useMemo(() => value, [
+    value.journey?.id,
+    value.journey?.status,
+    value.journey?.pausedSeconds,
+    value.journey?.pausedAt,
+    value.loading,
+  ]);
+  return <JourneyContext.Provider value={stable}>{children}</JourneyContext.Provider>;
+}
+
+export function useActiveJourney(): JourneyState {
+  const context = useContext(JourneyContext);
+  if (!context) {
+    throw new Error('useActiveJourney must be used inside a <JourneyProvider>.');
+  }
+  return context;
 }
 
 /**

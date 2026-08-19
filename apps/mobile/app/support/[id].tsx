@@ -7,7 +7,7 @@ import { useTicketConversation, type TicketMessage } from '@/features/support/us
 
 /**
  * The conversation. Deliberately shaped like a chat rather than a ticket
- * thread — a driver already knows how to use this (§70).
+ * thread – a driver already knows how to use this (§70).
  */
 export default function TicketConversation() {
   const theme = useTheme();

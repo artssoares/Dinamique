@@ -23,7 +23,7 @@ export interface TextProps extends RNTextProps {
 
 /**
  * Every string in the app renders through here, so type and colour always come
- * from tokens. `color` names a ROLE, not a hue — the semantic roles resolve to
+ * from tokens. `color` names a ROLE, not a hue – the semantic roles resolve to
  * the accessible `*Text` tokens rather than the vivid fill colours.
  */
 export function Text({ variant = 'body', color = 'primary', align, style, ...rest }: TextProps) {

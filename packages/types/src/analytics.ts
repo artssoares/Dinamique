@@ -1,5 +1,5 @@
 /**
- * Product analytics event names. Keep this list closed — an event that is not
+ * Product analytics event names. Keep this list closed – an event that is not
  * here cannot be emitted, which is what keeps the warehouse queryable.
  */
 export const ANALYTICS_EVENTS = [

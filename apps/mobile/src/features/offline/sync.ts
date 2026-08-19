@@ -18,7 +18,7 @@ export interface SyncResult {
  * Envia a fila. Chamada quando a conexão volta e ao abrir o aplicativo.
  *
  * As operações vão em ordem, uma a uma. Enviar em lote seria mais rápido, mas
- * um erro no lote inteiro esconderia qual linha falhou — e aqui saber qual
+ * um erro no lote inteiro esconderia qual linha falhou – e aqui saber qual
  * linha falhou vale mais que a velocidade.
  */
 export async function syncQueue(): Promise<SyncResult> {
@@ -47,7 +47,7 @@ async function sendOne(operation: QueuedOperation): Promise<boolean> {
   }
 
   // 23505 é violação de índice único: a linha JÁ chegou numa tentativa
-  // anterior. Isso é sucesso, não erro — é exatamente o que o client_id
+  // anterior. Isso é sucesso, não erro – é exatamente o que o client_id
   // existe para permitir.
   if (error.code === '23505') {
     await removeFromQueue(operation.id);

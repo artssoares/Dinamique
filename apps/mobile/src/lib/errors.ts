@@ -42,12 +42,12 @@ export function toFriendlyError(error: unknown): FriendlyError {
   }
 
   // As três falhas de cadastro que aparecem em projeto recém-configurado. Sem
-  // estas linhas, todas caem no texto genérico e ficam indistinguíveis — o que
+  // estas linhas, todas caem no texto genérico e ficam indistinguíveis – o que
   // aconteceu de verdade na primeira instalação.
   if (lowered.includes('database error saving new user')) {
     return {
       title: 'Não conseguimos criar sua conta',
-      message: 'O cadastro chegou, mas a criação do seu perfil falhou no banco de dados. É um problema do nosso lado — avise o suporte.',
+      message: 'O cadastro chegou, mas a criação do seu perfil falhou no banco de dados. É um problema do nosso lado, avise o suporte.',
       detail: raw,
     };
   }
@@ -55,7 +55,7 @@ export function toFriendlyError(error: unknown): FriendlyError {
   if (lowered.includes('error sending confirmation email') || lowered.includes('error sending email')) {
     return {
       title: 'Não conseguimos enviar o email',
-      message: 'Sua conta não foi criada porque o email de confirmação não pôde ser enviado. É um problema do nosso lado — avise o suporte.',
+      message: 'Sua conta não foi criada porque o email de confirmação não pôde ser enviado. É um problema do nosso lado, avise o suporte.',
       detail: raw,
     };
   }

@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 /**
  * Portal do cliente: trocar cartão, ver faturas, cancelar.
  *
- * É o próprio Stripe que atende — não reconstruímos gestão de assinatura, e o
+ * É o próprio Stripe que atende – não reconstruímos gestão de assinatura, e o
  * cancelamento volta para nós como webhook. Um botão de cancelar caseiro
  * dependeria de nós lembrarmos de avisar o Stripe; assim é o contrário.
  */

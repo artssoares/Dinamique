@@ -2,8 +2,8 @@
 
 ## Dois canais, um deles opcional
 
-**Interna** — aparece no sino dentro do aplicativo. Funciona sempre.
-**Push** — chega no celular. É um canal ADICIONAL: o aplicativo continua
+**Interna** – aparece no sino dentro do aplicativo. Funciona sempre.
+**Push** – chega no celular. É um canal ADICIONAL: o aplicativo continua
 inteiro se o usuário recusar a permissão.
 
 A permissão de Push só é pedida quando o usuário liga a opção nas preferências.
@@ -13,7 +13,7 @@ sempre.
 ## Quem recebe o quê
 
 `send_notification` monta o público e respeita a preferência de cada usuário
-por categoria. Isso é verificado **no banco**, não na tela que dispara — assim
+por categoria. Isso é verificado **no banco**, não na tela que dispara – assim
 uma tela nova não tem como esquecer de checar.
 
 Filtros disponíveis (§100): usuários específicos, cidade, estado, modalidade,
@@ -48,7 +48,7 @@ Marcar como lida. Só isso.
 
 A permissão de escrita é **na coluna `read_at`**, não na tabela. Um grant de
 update na tabela inteira deixaria o usuário reescrever o próprio título e corpo
-— inofensivo para os outros, mas é dado nosso e não dele. Coberto por teste.
+– inofensivo para os outros, mas é dado nosso e não dele. Coberto por teste.
 
 Criar notificação para si mesmo é impossível: não existe grant de insert.
 
@@ -56,7 +56,7 @@ Criar notificação para si mesmo é impossível: não existe grant de insert.
 
 O contador de não lidas assina mudanças nas próprias linhas do usuário via
 Supabase Realtime, e refaz a consulta em vez de aplicar o payload localmente.
-Refazer é um pouco mais lento e bastante mais difícil de errar — aqui
+Refazer é um pouco mais lento e bastante mais difícil de errar – aqui
 confiabilidade importa mais que instantaneidade (§75).
 
 No Admin, o contador de não respondidos é calculado a cada requisição em um
@@ -65,6 +65,6 @@ Server Component. Sem polling, sem badge velho.
 ## O que ainda não foi verificado
 
 A Edge Function `send-push` está escrita mas a chamada à API da Expo nunca
-rodou contra o serviço real — isso exige credenciais de um projeto Expo. A
+rodou contra o serviço real – isso exige credenciais de um projeto Expo. A
 seleção de destinatários e o respeito às preferências estão cobertos por teste
 de banco; a requisição HTTP é o trecho não verificado.

@@ -44,7 +44,7 @@ const FUELS: { value: FuelType; label: string }[] = [
  * Cadastro de veículo (§22 passo 3, §32).
  *
  * O catálogo preenche consumo e combustível sozinho. Se o veículo não estiver
- * lá, o usuário digita o nome e segue — nunca fica travado por falta de dado
+ * lá, o usuário digita o nome e segue – nunca fica travado por falta de dado
  * nosso.
  */
 export default function NewVehicle() {
@@ -69,7 +69,7 @@ export default function NewVehicle() {
 
   const selectedVersion = versions.find((v) => v.id === versionId) ?? null;
 
-  // Trocar um nível acima invalida os de baixo — sem isso ficaria uma versão
+  // Trocar um nível acima invalida os de baixo – sem isso ficaria uma versão
   // de Civic pendurada numa Fiat.
   useEffect(() => {
     setMakeId(null);

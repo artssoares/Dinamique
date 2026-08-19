@@ -47,7 +47,7 @@ export function isBenefitUsable(benefit: DiscountBenefit | null, now: Timestamp)
  * Decide o que mandar para o Stripe.
  *
  * O desconto nunca produz cobrança negativa: se o benefício é maior que o
- * preço, o Stripe zera a fatura e a diferença se perde — que é a política
+ * preço, o Stripe zera a fatura e a diferença se perde – que é a política
  * padrão configurada (§84). Isso é declarado aqui em vez de descoberto no
  * extrato.
  */

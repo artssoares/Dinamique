@@ -6,9 +6,9 @@ export interface Responsive {
   height: number;
   /** The largest breakpoint the current width satisfies. */
   size: Breakpoint;
-  /** 360dp and under — the cheap Androids. Tighten padding, drop decoration. */
+  /** 360dp and under – the cheap Androids. Tighten padding, drop decoration. */
   isCompact: boolean;
-  /** 600dp and up — large phones in landscape, tablets, web. */
+  /** 600dp and up – large phones in landscape, tablets, web. */
   isMedium: boolean;
   /** 900dp and up. */
   isExpanded: boolean;
@@ -16,7 +16,7 @@ export interface Responsive {
   isLandscape: boolean;
   /** Columns a card grid should use at this width. */
   columns: number;
-  /** Width a reading column is clamped to — forms, lists, headers. */
+  /** Width a reading column is clamped to – forms, lists, headers. */
   contentWidth: number;
   /** Width a card grid may use. Wider, because tiles tolerate more room. */
   wideContentWidth: number;

@@ -43,7 +43,7 @@ const REMINDERS = [
 /**
  * Free Flow (§50). Registro manual, sem GPS.
  *
- * A tela nunca afirma que existe uma cobrança — o Dinamique não consulta
+ * A tela nunca afirma que existe uma cobrança – o Dinamique não consulta
  * concessionária nenhuma. Ela serve para o motorista não esquecer de conferir.
  */
 export default function FreeFlow() {
@@ -119,7 +119,7 @@ export default function FreeFlow() {
     >
         <Text variant="body" color="secondary">
           Passou por um pedágio sem cancela? Registre aqui e o Dinamique lembra você de conferir o
-          pagamento. Não consultamos a concessionária — quem confere é você.
+          pagamento. Não consultamos a concessionária, quem confere é você.
         </Text>
 
         {toCheck > 0 ? (

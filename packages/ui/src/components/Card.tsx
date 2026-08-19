@@ -8,7 +8,7 @@ export interface CardProps extends ViewProps {
   padding?: SpacingToken;
   radius?: RadiusToken;
   elevated?: boolean;
-  /** Cards are borderless by default — whitespace does the separating (§14). */
+  /** Cards are borderless by default – whitespace does the separating (§14). */
   bordered?: boolean;
   tone?: CardTone;
   /** Makes the whole card a control. Adds a press state and a button role. */

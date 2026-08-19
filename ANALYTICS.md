@@ -2,8 +2,8 @@
 
 ## Duas camadas separadas de propósito
 
-**Operacional** — as tabelas que o aplicativo escreve o dia inteiro.
-**Analítica** — views que o Admin consulta.
+**Operacional** – as tabelas que o aplicativo escreve o dia inteiro.
+**Analítica** – views que o Admin consulta.
 
 Uma consulta de relatório nunca bate direto nas tabelas quentes. Quando o
 volume exigir, as views viram *materialized views* atualizadas por
@@ -27,7 +27,7 @@ Todas as views excluem contas de demonstração (`profiles.is_demo`).
 
 `analytics_acquisition` traz conversão e retenção junto com a contagem. Sem
 isso, um influenciador com 1.000 cadastros que não assinam parece melhor que um
-com 100 que assinam — e é o contrário.
+com 100 que assinam – e é o contrário.
 
 ## Report Builder
 
@@ -51,7 +51,7 @@ compartilha.
 O cruzamento acontece em TypeScript, não em SQL montado em tempo de execução.
 O volume aqui é de milhares de usuários e montar SQL a partir de entrada do
 usuário é a porta de entrada clássica de injeção. Se o volume um dia exigir, a
-troca é por uma função no banco com dimensões validadas — nunca por
+troca é por uma função no banco com dimensões validadas – nunca por
 concatenação de string.
 
 A mesma regra do aplicativo vale aqui: métrica sem denominador é `null`, não
@@ -61,7 +61,7 @@ zero. Um grupo sem quilometragem registrada mostra traço em R$/km.
 
 `/api/export/report` gera XLSX ou CSV com exatamente os filtros da tela,
 reaproveitando `@dinamique/exports`. Cada exportação grava uma linha em
-`exports` e uma entrada no Audit Log — exportar dados agregados de usuários é
+`exports` e uma entrada no Audit Log – exportar dados agregados de usuários é
 ação sensível (§95).
 
 ## Eventos de produto
@@ -74,5 +74,5 @@ emitido, e é isso que mantém a base consultável.
 ## O que ainda não existe
 
 - relatórios salvos (a tabela `saved_reports` existe; a tela não)
-- gráficos — os relatórios são tabelas
+- gráficos – os relatórios são tabelas
 - integração com data warehouse externo

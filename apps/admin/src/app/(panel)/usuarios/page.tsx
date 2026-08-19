@@ -153,10 +153,10 @@ export default async function Users({
                   </td>
                   <td className="small">{user.email}</td>
                   <td className="small">
-                    {[user.city, user.state].filter(Boolean).join('/') || <span className="muted">—</span>}
+                    {[user.city, user.state].filter(Boolean).join('/') || <span className="muted">–</span>}
                   </td>
                   <td className="small">
-                    {user.work_modes.length > 0 ? user.work_modes.join(', ') : <span className="muted">—</span>}
+                    {user.work_modes.length > 0 ? user.work_modes.join(', ') : <span className="muted">–</span>}
                   </td>
                   <td>
                     <span className={`badge ${user.blocked_at ? 'badge-danger' : 'badge-success'}`}>

@@ -22,7 +22,7 @@ export interface FuelCompletion extends FuelEntry {
 
 /**
  * Completa o campo que falta. Se o usuário informou os três, respeitamos o que
- * ele digitou — corrigir número de gente por conta própria gera desconfiança.
+ * ele digitou – corrigir número de gente por conta própria gera desconfiança.
  */
 export function completeFuelEntry(entry: FuelEntry): FuelCompletion {
   const { totalAmount, pricePerLitre, volume } = entry;

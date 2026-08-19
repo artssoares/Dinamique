@@ -88,7 +88,7 @@ export function SetupScreen() {
       ))}
 
       <Text variant="caption" color="muted">
-        A chave anon é pública por natureza — ela não dá acesso a nada sozinha, porque todas as
+        A chave anon é pública por natureza. Ela não dá acesso a nada sozinha, porque todas as
         tabelas estão protegidas por Row Level Security. A chave service_role nunca deve entrar
         aqui.
       </Text>

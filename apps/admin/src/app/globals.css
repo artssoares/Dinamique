@@ -2,7 +2,7 @@
  * Admin design tokens.
  *
  * The same brand palette as the app, expressed as CSS custom properties. The
- * values are copied from packages/ui/src/tokens — that package is the source
+ * values are copied from packages/ui/src/tokens – that package is the source
  * of truth, and `pnpm --filter @dinamique/ui test` asserts their contrast.
  */
 
@@ -27,7 +27,7 @@
   --border-subtle: #e3e6ed;
   --border-strong: #9aa1b1;
 
-  /* The inverse surface — the app's tab bar and hero card use the same role. */
+  /* The inverse surface – the app's tab bar and hero card use the same role. */
   --surface-inverse: #141821;
   --text-on-inverse: #ffffff;
 

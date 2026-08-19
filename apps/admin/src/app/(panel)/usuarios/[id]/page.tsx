@@ -81,11 +81,11 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
             <div className="stat-label">DADOS</div>
             <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '6px 16px', margin: 0 }}>
               <dt className="small muted">Cidade</dt>
-              <dd className="small" style={{ margin: 0 }}>{[profile.city, profile.state].filter(Boolean).join('/') || '—'}</dd>
+              <dd className="small" style={{ margin: 0 }}>{[profile.city, profile.state].filter(Boolean).join('/') || '–'}</dd>
               <dt className="small muted">Telefone</dt>
-              <dd className="small" style={{ margin: 0 }}>{profile.phone ?? '—'}</dd>
+              <dd className="small" style={{ margin: 0 }}>{profile.phone ?? '–'}</dd>
               <dt className="small muted">Modalidades</dt>
-              <dd className="small" style={{ margin: 0 }}>{(profile.work_modes ?? []).join(', ') || '—'}</dd>
+              <dd className="small" style={{ margin: 0 }}>{(profile.work_modes ?? []).join(', ') || '–'}</dd>
               <dt className="small muted">Cadastro</dt>
               <dd className="small mono" style={{ margin: 0 }}>{new Date(profile.created_at).toLocaleString('pt-BR')}</dd>
               <dt className="small muted">Último acesso</dt>

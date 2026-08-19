@@ -1,5 +1,5 @@
 -- ============================================================================
--- Reference data. This is product configuration, not demo content — it ships
+-- Reference data. This is product configuration, not demo content – it ships
 -- to production and is editable from the admin panel afterwards.
 -- ============================================================================
 

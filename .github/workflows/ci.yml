@@ -9,7 +9,7 @@ jobs:
   verify:
     runs-on: ubuntu-latest
 
-    # Job-wide, because `pnpm run test` runs the database package too — not
+    # Job-wide, because `pnpm run test` runs the database package too – not
     # just the dedicated step further down. Without these it probes 54322,
     # the port `supabase start` uses locally, and fails the whole run.
     env:
@@ -35,7 +35,7 @@ jobs:
 
       # No `version:` here on purpose. The action refuses to start when the
       # version is pinned in two places, and package.json's `packageManager`
-      # is the one that also governs local installs — so that stays the single
+      # is the one that also governs local installs – so that stays the single
       # source of truth.
       - uses: pnpm/action-setup@v4
 
@@ -65,7 +65,7 @@ jobs:
         run: pnpm --filter @dinamique/database test
 
       # Building is what catches monorepo resolution problems that typecheck
-      # cannot see — see the .npmrc comment about React hoisting.
+      # cannot see – see the .npmrc comment about React hoisting.
       - name: Build admin
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
@@ -73,9 +73,9 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ci
         run: pnpm --filter @dinamique/admin build
 
-      # `dist` rather than /tmp: Expo refuses to write outside the project —
+      # `dist` rather than /tmp: Expo refuses to write outside the project –
       # "CommandError: --output-dir must be a subdirectory of the project
-      # directory" — so the old path failed before bundling anything. `dist`
+      # directory" – so the old path failed before bundling anything. `dist`
       # is already gitignored.
       - name: Bundle mobile for web
         env:

@@ -10,7 +10,7 @@ export interface ScreenHeaderProps {
   title?: string;
   subtitle?: string;
   /**
-   * Back handler. Passing one renders the back control — every screen that is
+   * Back handler. Passing one renders the back control – every screen that is
    * pushed onto a stack must pass it. A screen the user can only leave by
    * gesture is a screen some users cannot leave.
    */
@@ -18,7 +18,7 @@ export interface ScreenHeaderProps {
   /** 'close' for anything presented as a sheet or modal. */
   backIcon?: 'chevronLeft' | 'close';
   backLabel?: string;
-  /** Buttons on the right — usually an IconButton or two. */
+  /** Buttons on the right – usually an IconButton or two. */
   actions?: ReactNode;
   /** Replaces the title entirely (the Home header uses this). */
   children?: ReactNode;
@@ -33,7 +33,7 @@ export interface ScreenHeaderProps {
  *
  * The app previously set `headerShown: false` on the root stack and then passed
  * `<Stack.Screen options={{ title }} />` from each screen, so the titles were
- * set on a header that never rendered — which is why there was no way back
+ * set on a header that never rendered – which is why there was no way back
  * from Metas, Perfil, Plano, Custos and the rest except a swipe. This component
  * makes the back control part of the screen itself, so it cannot go missing.
  */
@@ -79,7 +79,19 @@ export function ScreenHeader({
         }}
       >
         {onBack ? (
-          <IconButton icon={backIcon} label={backLabel} onPress={onBack} tone="surface" />
+          <IconButton
+            icon={backIcon}
+            label={backLabel}
+            onPress={onBack}
+            tone="surface"
+            // A hairline plus a soft shadow: on a near-white page a borderless
+            // white circle is invisible, and the way out of a screen is the
+            // one control that must never be hard to find.
+            style={[
+              { borderWidth: 1, borderColor: theme.colors.borderPrimary },
+              theme.elevation.sm,
+            ]}
+          />
         ) : null}
 
         {children ?? (

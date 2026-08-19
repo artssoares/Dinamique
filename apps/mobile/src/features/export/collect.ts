@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 /**
  * Busca no banco tudo que entra na exportação de um período (§55).
  *
- * As consultas são paralelas e cada uma traz só as colunas usadas — uma
+ * As consultas são paralelas e cada uma traz só as colunas usadas – uma
  * exportação de um ano inteiro em rede móvel não pode baixar o banco todo.
  */
 export async function collectExportData(

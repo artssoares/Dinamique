@@ -28,8 +28,8 @@ The referrer receives nothing automatically.
 
 That is a commercial decision rather than a technical one, and the copy in the
 app says so plainly instead of implying a reward that does not exist. The schema
-already supports referrer-side benefits — `discount_benefits` is keyed by user,
-not by role — so adding one later is a rule change, not a rebuild.
+already supports referrer-side benefits – `discount_benefits` is keyed by user,
+not by role – so adding one later is a rule change, not a rebuild.
 
 Configured in `app_settings`:
 
@@ -44,7 +44,7 @@ A discount never produces a negative charge.
 ## Redemption
 
 `redeem_code(p_code)` is a `SECURITY DEFINER` function. The client cannot write
-to `referrals`, `discount_benefits` or `user_attribution` at all — it has no
+to `referrals`, `discount_benefits` or `user_attribution` at all – it has no
 grant. Every rule runs server-side in one transaction:
 
 | Rejection | Reason |
@@ -67,7 +67,7 @@ would. The database remains the authority.
 ## Attribution is first-touch
 
 `user_attribution` has one row per user, written once. A `before update` trigger
-raises an exception rather than allowing an overwrite — the first relevant
+raises an exception rather than allowing an overwrite – the first relevant
 origin of a signup is preserved by construction, not by remembering to check.
 
 ## Antifraud (V1)
@@ -98,7 +98,7 @@ status and, once approved, their code.
 
 Approving in the panel is one Server Action that creates the influencer record,
 issues a code (auto-generated or admin-specified), updates the application, and
-notifies the user — then writes an audit entry.
+notifies the user – then writes an audit entry.
 
 **No automatic commission payment.** The structure supports attribution and
 conversion tracking per influencer; paying out is a commercial rule that does
@@ -106,7 +106,7 @@ not exist yet, and inventing one in code would be worse than waiting.
 
 ## Not built yet
 
-- acquisition analytics per source/influencer/campaign (§90, §96, §97) — the
+- acquisition analytics per source/influencer/campaign (§90, §96, §97) – the
   attribution data is captured and queryable; no page renders it
 - the influencer's own dashboard of clicks and conversions
 - click tracking on referral links (signups are attributed; clicks are not)

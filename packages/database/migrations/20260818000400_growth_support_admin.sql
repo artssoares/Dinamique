@@ -322,7 +322,7 @@ create table saved_reports (
 create trigger saved_reports_updated_at before update on saved_reports
   for each row execute function set_updated_at();
 
--- Every export is recorded — exports of user data are a privacy event (§95).
+-- Every export is recorded – exports of user data are a privacy event (§95).
 create table exports (
   id         uuid primary key default gen_random_uuid(),
   user_id    uuid references profiles(id) on delete set null,

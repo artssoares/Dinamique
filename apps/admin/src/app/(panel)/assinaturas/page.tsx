@@ -90,7 +90,7 @@ export default async function Subscriptions() {
       <section style={{ marginBottom: 32 }}>
         <h2 style={{ fontSize: 17, margin: '0 0 4px' }}>Preços</h2>
         <p className="small muted" style={{ margin: '0 0 12px' }}>
-          Preço no Stripe é imutável. Mudar o valor cria um preço novo e aposenta o anterior —
+          Preço no Stripe é imutável. Mudar o valor cria um preço novo e aposenta o anterior, e
           quem já assina continua no preço que contratou.
           {savings ? ` Hoje o anual economiza ${formatCents(savings.amount)} por ano.` : ''}
         </p>
@@ -114,7 +114,7 @@ export default async function Subscriptions() {
                   <td className="small mono">
                     {price.interval === 'year'
                       ? formatCents(monthlyEquivalent(Number(price.amount)))
-                      : '—'}
+                      : '–'}
                   </td>
                   <td className="small mono">
                     {price.stripe_price_id ?? (
