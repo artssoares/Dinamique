@@ -2,39 +2,28 @@ import { Image, View } from 'react-native';
 import { relativeLuminance, Text, useTheme } from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 
-/**
- * Brand tile colours, by platform slug.
- *
- * These are background colours for a monogram tile, not reproductions of
- * anyone's logo: we do not have the right to ship Uber's or iFood's marks in
- * this repository. A driver scanning the list still finds iFood by its red and
- * 99 by its yellow, which is the whole point of asking for logos.
- *
- * If a real logo is uploaded through the admin, `logo_path` wins and this is
- * never used for that platform.
- */
-const TILE: Record<string, string> = {
-  uber: '#0B0B0B',
-  '99': '#FFD400',
-  indrive: '#C1F11D',
-  ifood: '#EA1D2C',
-  rappi: '#FF441F',
-  lalamove: '#F16622',
-  loggi: '#00C2A8',
-  amazon: '#FF9900',
-  'mercado-livre': '#FFE600',
-  shopee: '#EE4D2D',
-  taxi: '#F5B700',
-};
-
 export interface PlatformMarkProps {
   slug: string;
   name: string;
   logoPath?: string | null;
+  /**
+   * `platforms.brand_color`, a six digit hex string from the catalogue.
+   *
+   * It is catalogue data, not a constant here: the tile exists so a driver
+   * finds iFood by its red instead of reading twelve labels, and when a
+   * platform rebrands an admin changes the row rather than waiting for a
+   * release. A platform with no colour gets a neutral tile, which is honest
+   * rather than a guess.
+   *
+   * The tile is a monogram, never a reproduction of anyone's mark: we do not
+   * have the right to ship Uber's or iFood's logos in this repository. If a
+   * real logo is uploaded through the admin, `logoPath` wins.
+   */
+  brandColor?: string | null;
   size?: number;
 }
 
-export function PlatformMark({ slug, name, logoPath, size = 40 }: PlatformMarkProps) {
+export function PlatformMark({ slug, name, logoPath, brandColor, size = 40 }: PlatformMarkProps) {
   const theme = useTheme();
 
   if (logoPath) {
@@ -49,10 +38,10 @@ export function PlatformMark({ slug, name, logoPath, size = 40 }: PlatformMarkPr
     );
   }
 
-  const background = TILE[slug] ?? theme.colors.backgroundSecondary;
-  // The ink is chosen from the tile's own luminance rather than hardcoded, so
-  // a yellow tile gets dark type and a black one gets white without a table of
-  // exceptions to keep in step.
+  const background = brandColor ?? theme.colors.backgroundSecondary;
+  // The ink is chosen from the tile's own luminance rather than stored beside
+  // it, so a yellow tile gets dark type and a black one gets white without a
+  // second column to keep in step.
   const luminance = relativeLuminance(background);
   const ink =
     luminance === null
@@ -72,6 +61,7 @@ export function PlatformMark({ slug, name, logoPath, size = 40 }: PlatformMarkPr
   return (
     <View
       accessibilityElementsHidden
+      testID={`platform-mark-${slug}`}
       style={{
         width: size,
         height: size,
