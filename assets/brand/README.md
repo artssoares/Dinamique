@@ -1,6 +1,6 @@
 # Brand assets
 
-## `logo.png` — required, not yet supplied
+## `logo.png`, required, not yet supplied
 
 The official Dinamique logo (transparent PNG) belongs here as `logo.png`.
 

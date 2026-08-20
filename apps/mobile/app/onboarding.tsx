@@ -88,7 +88,14 @@ export default function Onboarding() {
   const [workModes, setWorkModes] = useState<WorkMode[]>([]);
   const [platformIds, setPlatformIds] = useState<string[]>([]);
   const [platforms, setPlatforms] = useState<
-    { id: string; slug: string; name: string; logo_path: string | null; work_modes: string[] }[]
+    {
+      id: string;
+      slug: string;
+      name: string;
+      logo_path: string | null;
+      brand_color: string | null;
+      work_modes: string[];
+    }[]
   >([]);
   const [preferredName, setPreferredName] = useState('');
   const [city, setCity] = useState('');
@@ -112,7 +119,7 @@ export default function Onboarding() {
   useEffect(() => {
     void supabase
       .from('platforms')
-      .select('id, slug, name, logo_path, work_modes')
+      .select('id, slug, name, logo_path, brand_color, work_modes')
       .eq('is_active', true)
       .order('sort_order')
       .then(({ data }) => setPlatforms((data as typeof platforms | null) ?? []));
@@ -297,6 +304,7 @@ export default function Onboarding() {
                     slug={platform.slug}
                     name={platform.name}
                     logoPath={platform.logo_path}
+                    brandColor={platform.brand_color}
                   />
                 }
                 selected={platformIds.includes(platform.id)}
