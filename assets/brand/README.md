@@ -1,22 +1,17 @@
 # Brand assets
 
-## `logo.png`, required, not yet supplied
+## `logo.png` and `logo-negativo.png`
 
-The official Dinamique logo (transparent PNG) belongs here as `logo.png`.
+The official Dinamique logo, extracted from the brand mini-manual V1.0. Two
+files because the manual asks for both:
 
-It was not included in the repository, so `<BrandMark>` currently renders a
-dashed placeholder. That is deliberate: the logo is never redrawn, re-typeset
-in a font, or reproportioned, and a wrong mark shipped quietly would be worse
-than a visible gap.
+- `logo.png`, the blue wordmark with the coral dot, for light surfaces
+- `logo-negativo.png`, the white wordmark with the coral dot, for the brand
+  blue, headers and dark surfaces
 
-To activate it:
-
-1. save the supplied transparent PNG as `assets/brand/logo.png`
-2. in `apps/mobile/src/features/brand/logo.ts`, replace the `null` export with
-   `require('../../../../assets/brand/logo.png')`
-3. set `LOGO_ASPECT_RATIO` to the file's real width ÷ height
-
-The admin panel reads the same file from `apps/admin/public/logo.png`.
+`<BrandMark>` (`apps/mobile/src/features/brand/`) renders one or the other by
+its `onDark` prop. The logo is never redrawn, re-typeset in a font, or
+reproportioned; the coral dot is part of the signature and is never removed.
 
 ## Brand colours
 

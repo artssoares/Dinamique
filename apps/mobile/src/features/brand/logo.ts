@@ -1,21 +1,21 @@
 import type { ImageSourcePropType } from 'react-native';
 
 /**
- * The official Dinamique logo.
+ * O logotipo oficial da Dinamique, extraído do mini manual de marca V1.0.
  *
- * The logo is a supplied brand asset – it is never redrawn, re-typeset in a
- * font, or reproportioned. Until the real file is in the repository this stays
- * null and <BrandMark> renders a visible placeholder rather than a fake mark,
- * so a missing asset is obvious instead of silently wrong (§131).
+ * Duas versões, porque o manual pede as duas (§05 do manual):
+ *   - `logo.png`, wordmark azul com ponto coral, para fundos claros
+ *   - `logo-negativo.png`, wordmark branco com ponto coral, para o azul da
+ *     marca, cabeçalhos e superfícies escuras
  *
- * To activate it:
- *   1. save the supplied transparent PNG to `assets/brand/logo.png`
- *   2. replace the line below with:
- *        export const LOGO_SOURCE: ImageSourcePropType =
- *          require('../../../../assets/brand/logo.png');
- *   3. set LOGO_ASPECT_RATIO to the file's real width / height
+ * O logotipo nunca é redesenhado, re-tipografado nem reproporcionado. O ponto
+ * final coral faz parte da assinatura e não se remove.
  */
-export const LOGO_SOURCE: ImageSourcePropType | null = null;
+export const LOGO_SOURCE: ImageSourcePropType =
+  require('../../../../../assets/brand/logo.png');
 
-/** width ÷ height of the supplied file. Update it with the real asset. */
-export const LOGO_ASPECT_RATIO = 3.4;
+export const LOGO_NEGATIVE_SOURCE: ImageSourcePropType =
+  require('../../../../../assets/brand/logo-negativo.png');
+
+/** Largura ÷ altura do arquivo real (1168 × 213). A marca nunca é esticada. */
+export const LOGO_ASPECT_RATIO = 1168 / 213;
