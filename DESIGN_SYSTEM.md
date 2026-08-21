@@ -99,6 +99,28 @@ Built from the 850–950 neutrals, never absolute black. Brand steps lift (Blue
 400, Coral 400) so they stay legible without glowing. Subtle backgrounds become
 low-alpha overlays rather than solid tints.
 
+### Choosing it once, not three times
+
+The theme has to be right on the first frame, and on the web that frame belongs
+to the browser rather than to React. Three things make that true:
+
+1. **The device remembers.** `features/theme/preference.ts` stores the choice
+   locally and reads it synchronously on the web, so the app opens in it.
+   `useThemeBoot` then adopts the profile's preference once per person, and
+   anything chosen afterwards wins outright.
+2. **The document is painted before the bundle loads.** `app/+html.tsx`
+   interpolates `backgroundPrimary` from these very tokens into two CSS rules –
+   one on `prefers-color-scheme`, one on the stored choice – so the page can
+   never start white and turn dark.
+3. **The pre-rendered markup stays hidden until the app has painted.** The web
+   export renders every screen in Node, where there is no operating system
+   preference and no stored one, so the HTML in the file is always the light
+   theme. `#root` starts at `opacity: 0` and the app reveals it on mount, with
+   a four second failsafe in the inline script in case the bundle never runs.
+
+Together they replace what the app used to do, which was to open on the system
+default, switch when the profile arrived, and switch back when it reloaded.
+
 ## Scales
 
 **Spacing** is a 4pt grid: 2, 4, 8, 12, 16, 20, 24, 32, 40, 56, 72.
@@ -144,7 +166,8 @@ biggest reason the interface looked homemade. Icons take their colour from the
 
 **Content** – `Text` · `Card` · `HeroCard` · `Gradient` · `Money` · `Metric` /
 `CurrencyMetric` · `StatTile` · `GoalProgress` · `ProgressRing` · `EmptyState` ·
-`InsightCard` · `ListRow` · `Skeleton` · `Avatar` · `Badge` / `CountBadge`
+`InsightCard` · `ListRow` · `Notice` · `Skeleton` · `Avatar` · `Badge` /
+`CountBadge` · `Reveal`
 
 **Controls** – `Button` · `IconButton` · `Chip` · `SegmentedControl` ·
 `OptionCard` · `Field` · `AmountInput` · `Select` · `StepProgress`
@@ -164,6 +187,16 @@ Several carry product rules rather than only style:
   options={{ title }} />` from each screen anyway, so those titles were being
   set on a header that never rendered – which is why Metas, Perfil, Plano and
   the cost screens had no way back except a swipe.
+- **`Button`** centres itself when it is not `fullWidth`. It used to sit hard
+  against the left edge of whatever contained it, which reads as an
+  afterthought; the middle is where the eye already is after reading the text
+  above it. `align` overrides it in the rare case that a button really does
+  belong in a corner.
+- **`Notice`** is the band that says what went wrong, in place, beside the
+  control that failed. Writes used to fail in silence, which is how "eu clico e
+  nada acontece" happens. An alert interrupts; this stays on the screen the
+  person is already looking at, and carries the server's own words as a small
+  technical line for support to read back.
 - **`OptionCard`** exists because onboarding used chips, which is a lot of
   precision to ask of someone answering questions one-handed in a parked car.
   Selection is carried by a border, a tint *and* a check mark.
@@ -194,6 +227,15 @@ SVG fill, not a lighter patch – and the text sits against it, flipping above
 the highlight when there is no room below. Each step moves the cut-out, so
 people learn *where* things are rather than only that they exist.
 
+Placement is measured, never assumed, and lives in `tour/placement.ts` with
+tests. The first version compared the space below the highlight against a
+guess at the card's height; a longer description or a shorter screen was
+enough to push the card, and with it "Pular" and "Próximo", off the bottom of
+the screen. The scrim swallows every tap, so that left no way out but a
+reload. Now the card reports its own height, the result is clamped into the
+safe area whichever branch produced it, long copy scrolls inside the card
+instead of growing it, and "Pular o tour" is present on every step.
+
 Copy lives in `tour_steps` and is editable by the admin. The anchor cannot: an
 admin can write new text but cannot invent a control, so slugs map to UI keys
 in the app (`TARGET_BY_SLUG`). A step with no mapped or mounted target still
@@ -201,9 +243,25 @@ shows, centred and without a cut-out, rather than pointing at nothing.
 
 ## Motion principles
 
-Small and purposeful: numbers count up, progress bars grow, cards fade in,
-buttons scale slightly on press, skeletons pulse. No confetti, no long
-transitions, nothing that costs a frame on a mid-range Android.
+Small and purposeful: numbers count up, progress bars grow, screens and their
+sections arrive staggered, the segmented control's thumb slides, controls
+spring under a finger, skeletons pulse. No confetti, no long transitions,
+nothing that costs a frame on a mid-range Android.
+
+Two rules keep it from feeling stiff:
+
+- **Springs, not cuts, for anything a finger causes.** `usePressMotion` is the
+  one implementation, shared by `Button`, `IconButton`, `Card`, `Chip` and
+  `OptionCard`. A `({ pressed }) => …` style is a state change: the control
+  jumps down on touch and jumps back on release, and two jumps in a row is
+  what reads as stiff.
+- **Frames, not timers, for anything that runs over time.** The currency
+  count-up is driven by `requestAnimationFrame` and reads the real elapsed
+  time, so a dropped frame costs nothing and a backgrounded tab stops the work
+  entirely. On a 16ms timer the callbacks queued behind themselves and the
+  figure stuttered.
+
+Every animation checks `useReducedMotion` and falls back to an instant change.
 
 ## Accessibility
 

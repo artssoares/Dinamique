@@ -1,7 +1,6 @@
-import { useRef } from 'react';
 import { Animated, Pressable, type StyleProp, type ViewStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
-import { useReducedMotion } from '../hooks/useReducedMotion';
+import { usePressMotion } from '../hooks/usePressMotion';
 import { Icon, type IconName } from '../icons/Icon';
 import { MIN_TOUCH_TARGET } from '../tokens/index';
 import { CountBadge } from './Badge';
@@ -22,6 +21,8 @@ export interface IconButtonProps {
   style?: StyleProp<ViewStyle>;
 }
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 /**
  * The circular icon button used by every header, the tab bar and the quick
  * actions row. Always at least 44dp of touch area, whatever the visual size.
@@ -38,19 +39,8 @@ export function IconButton({
   style,
 }: IconButtonProps) {
   const theme = useTheme();
-  const reduced = useReducedMotion();
-  const press = useRef(new Animated.Value(0)).current;
-
-  const springTo = (to: number) => {
-    if (reduced) return;
-    Animated.spring(press, {
-      toValue: to,
-      damping: 14,
-      stiffness: 420,
-      mass: 0.5,
-      useNativeDriver: true,
-    }).start();
-  };
+  // Rounder controls tolerate a deeper press than rectangles do.
+  const press = usePressMotion({ scale: 0.92, opacity: 0.85, disabled });
 
   const tones: Record<IconButtonTone, { background: string; icon: string; border: string }> = {
     surface: {
@@ -79,43 +69,34 @@ export function IconButton({
   const palette = tones[tone];
 
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      onPressIn={() => springTo(1)}
-      onPressOut={() => springTo(0)}
+      {...press.handlers}
       hitSlop={Math.max(0, Math.round((MIN_TOUCH_TARGET - size) / 2))}
+      style={[
+        {
+          width: size,
+          height: size,
+          borderRadius: theme.radius.pill,
+          backgroundColor: palette.background,
+          borderWidth: palette.border === 'transparent' ? 0 : 1,
+          borderColor: palette.border,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        press.style,
+        disabled ? { opacity: 0.4 } : null,
+        style,
+      ]}
     >
-      <Animated.View
-        style={[
-          {
-            width: size,
-            height: size,
-            borderRadius: theme.radius.pill,
-            backgroundColor: palette.background,
-            borderWidth: palette.border === 'transparent' ? 0 : 1,
-            borderColor: palette.border,
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: disabled ? 0.4 : 1,
-            // A spring rather than a step: the button gives under the finger
-            // and comes back, which is the difference between a control that
-            // responds and one that merely changes.
-            transform: [
-              { scale: press.interpolate({ inputRange: [0, 1], outputRange: [1, 0.9] }) },
-            ],
-          },
-          style,
-        ]}
-      >
-        <Icon name={icon} size={iconSize ?? Math.round(size * 0.5)} color={palette.icon} />
-        {badge && badge > 0 ? (
-          <CountBadge count={badge} style={{ position: 'absolute', top: -2, right: -2 }} />
-        ) : null}
-      </Animated.View>
-    </Pressable>
+      <Icon name={icon} size={iconSize ?? Math.round(size * 0.5)} color={palette.icon} />
+      {badge && badge > 0 ? (
+        <CountBadge count={badge} style={{ position: 'absolute', top: -2, right: -2 }} />
+      ) : null}
+    </AnimatedPressable>
   );
 }

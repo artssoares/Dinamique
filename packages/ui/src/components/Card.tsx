@@ -1,5 +1,13 @@
-import { Pressable, View, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
+import {
+  Animated,
+  Pressable,
+  View,
+  type StyleProp,
+  type ViewProps,
+  type ViewStyle,
+} from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
+import { usePressMotion } from '../hooks/usePressMotion';
 import type { RadiusToken, SpacingToken } from '../tokens/index';
 
 export type CardTone = 'surface' | 'secondary' | 'inverse' | 'brand';
@@ -17,6 +25,8 @@ export interface CardProps extends ViewProps {
   style?: StyleProp<ViewStyle>;
 }
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 export function Card({
   padding = 'xl',
   radius = '2xl',
@@ -29,6 +39,9 @@ export function Card({
   ...rest
 }: CardProps) {
   const theme = useTheme();
+  // A card is a large surface: the same 0.97 that suits a button would look
+  // like the whole page moved, so it barely dips.
+  const press = usePressMotion({ scale: 0.985, opacity: 0.92, disabled: !onPress });
 
   const tones: Record<CardTone, string> = {
     surface: elevated ? theme.colors.surfaceElevated : theme.colors.surfacePrimary,
@@ -51,11 +64,12 @@ export function Card({
 
   if (onPress) {
     return (
-      <Pressable
+      <AnimatedPressable
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         onPress={onPress}
-        style={({ pressed }) => [base, { opacity: pressed ? 0.9 : 1 }]}
+        {...press.handlers}
+        style={[base, press.style]}
         {...rest}
       />
     );

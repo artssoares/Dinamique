@@ -13,6 +13,7 @@ export * from './EmptyState';
 export * from './Chip';
 export * from './Badge';
 export * from './InsightCard';
+export * from './Notice';
 export * from './Skeleton';
 export * from './Avatar';
 export * from './Field';

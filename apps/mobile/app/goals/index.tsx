@@ -230,7 +230,7 @@ export default function Goals() {
                     </Card>
                   ) : null}
 
-                  <View style={{ flexDirection: 'row', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
                     <Button
                       label="Salvar"
                       iconName="check"

@@ -174,7 +174,7 @@ export default function Profile() {
     >
         <Card padding="xl" style={{ alignItems: 'center', gap: theme.spacing.md }}>
           <Avatar url={photo} name={displayName} size={96} />
-          <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.sm }}>
             <Button label={photo ? 'Trocar foto' : 'Adicionar foto'} variant="secondary" size="sm" onPress={changePhoto} />
             {photo ? (
               <Pressable accessibilityRole="button" onPress={clearPhoto} style={{ justifyContent: 'center' }}>

@@ -201,7 +201,7 @@ export default function RecurringCosts() {
                 ))}
               </View>
             </View>
-            <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.sm }}>
               <Button
                 label="Salvar"
                 loading={saving}
