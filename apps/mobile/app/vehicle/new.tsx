@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import type { FuelType, VehicleOwnership, VehicleType } from '@dinamique/types';
 import { formatConsumption } from '@dinamique/utils';
@@ -8,6 +8,7 @@ import {
   Card,
   Chip,
   Field,
+  Notice,
   Screen,
   ScreenHeader,
   Select,
@@ -16,7 +17,16 @@ import {
 } from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
+import { toFriendlyError } from '@/lib/errors';
 import { useSession } from '@/hooks/useSession';
+import {
+  EMPTY_VEHICLE_COSTS,
+  useCostCategories,
+  VEHICLE_COST_SLUGS,
+  VehicleCostQuestions,
+  vehicleCostRows,
+  type VehicleCostAnswers,
+} from '@/features/vehicle/VehicleCosts';
 import { useMakes, useModels, useVersions } from '@/features/vehicle/useVehicleCatalogue';
 
 const TYPES: { value: VehicleType; label: string }[] = [
@@ -27,7 +37,7 @@ const TYPES: { value: VehicleType; label: string }[] = [
 ];
 
 const OWNERSHIPS: { value: VehicleOwnership; label: string }[] = [
-  { value: 'owned', label: 'Próprio' },
+  { value: 'owned', label: 'Próprio, quitado' },
   { value: 'financed', label: 'Financiado' },
   { value: 'rented', label: 'Alugado' },
 ];
@@ -61,7 +71,11 @@ export default function NewVehicle() {
   const [year, setYear] = useState('');
   const [fuelType, setFuelType] = useState<FuelType | null>(null);
   const [ownership, setOwnership] = useState<VehicleOwnership>('owned');
+  const [costs, setCosts] = useState<VehicleCostAnswers>(EMPTY_VEHICLE_COSTS);
   const [saving, setSaving] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+
+  const costCategories = useCostCategories(VEHICLE_COST_SLUGS);
 
   const makes = useMakes(vehicleType);
   const models = useModels(makeId, vehicleType);
@@ -98,34 +112,59 @@ export default function NewVehicle() {
 
   async function save() {
     if (!session?.user) return;
+    const userId = session.user.id;
     setSaving(true);
+    setFailure(null);
 
     // O primeiro veículo vira o principal automaticamente.
     const { count } = await supabase
       .from('user_vehicles')
       .select('id', { count: 'exact', head: true })
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .is('archived_at', null);
 
-    const { error } = await supabase.from('user_vehicles').insert({
-      user_id: session.user.id,
-      vehicle_type: vehicleType,
-      version_id: manual ? null : versionId,
-      custom_label: manual ? customLabel.trim() : null,
-      model_year: year.trim() === '' ? null : Number(year),
-      fuel_type: fuelType,
-      ownership,
-      estimated_consumption: selectedVersion?.urbanConsumption ?? null,
-      is_primary: (count ?? 0) === 0,
-    });
-
-    setSaving(false);
+    const { data: vehicle, error } = await supabase
+      .from('user_vehicles')
+      .insert({
+        user_id: userId,
+        vehicle_type: vehicleType,
+        version_id: manual ? null : versionId,
+        custom_label: manual ? customLabel.trim() : null,
+        model_year: year.trim() === '' ? null : Number(year),
+        fuel_type: fuelType,
+        ownership,
+        estimated_consumption: selectedVersion?.urbanConsumption ?? null,
+        is_primary: (count ?? 0) === 0,
+      })
+      .select('id')
+      .maybeSingle();
 
     if (error) {
-      Alert.alert('Não conseguimos salvar', 'Tente novamente em instantes.');
+      // An alert used to say "tente novamente" and throw the reason away, so
+      // the same failure repeated with nothing new to go on either time.
+      setFailure(toFriendlyError(error).message);
+      setSaving(false);
       return;
     }
-    void track('vehicle_added', { vehicle_type: vehicleType, from_catalogue: !manual });
+
+    const rows = vehicleCostRows({
+      userId,
+      vehicleId: vehicle ? String(vehicle.id) : null,
+      ownership,
+      answers: costs,
+      categoryIdBySlug: costCategories,
+    });
+    if (rows.length > 0) {
+      await supabase.from('recurring_costs').insert(rows);
+    }
+
+    setSaving(false);
+    void track('vehicle_added', {
+      vehicle_type: vehicleType,
+      from_catalogue: !manual,
+      ownership,
+      costs: rows.length,
+    });
     router.back();
   }
 
@@ -250,6 +289,17 @@ export default function NewVehicle() {
             ))}
           </View>
         </View>
+
+        {/* Parcela e aluguel vêm junto com a situação, do mesmo jeito que no
+            cadastro inicial. Saber que existe dívida sem saber o valor não
+            muda nenhuma conta. */}
+        <VehicleCostQuestions
+          ownership={ownership}
+          answers={costs}
+          onChange={(patch) => setCosts((current) => ({ ...current, ...patch }))}
+        />
+
+        {failure ? <Notice message={failure} onDismiss={() => setFailure(null)} /> : null}
 
         <Button
           label="Salvar veículo"
