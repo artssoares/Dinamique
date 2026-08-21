@@ -13,6 +13,8 @@ import { OfflineBanner } from '@/features/offline/OfflineBanner';
 import { Tour } from '@/features/tour/Tour';
 import { TourProvider } from '@/features/tour/TourProvider';
 import { JourneyProvider } from '@/features/journey/useJourney';
+import { markDocumentReady } from '@/features/theme/preference';
+import { useThemeBoot } from '@/features/theme/useThemeBoot';
 
 /**
  * Routing guard. Three destinations depending on session state:
@@ -75,6 +77,9 @@ function RootNavigator() {
 
 function ThemedApp() {
   const { profile } = useSession();
+  // The device remembers the theme, so the app opens in it instead of opening
+  // on the system default and correcting itself once the profile arrives.
+  const theme = useThemeBoot(profile?.id ?? null, profile?.theme ?? null);
 
   // Sem configuração não há o que navegar; mostramos o que falta fazer.
   if (!isSupabaseConfigured) {
@@ -87,7 +92,7 @@ function ThemedApp() {
   }
 
   return (
-    <ThemeProvider initialPreference={profile?.theme ?? 'system'}>
+    <ThemeProvider initialPreference={theme.preference} onPreferenceChange={theme.persist}>
       <StatusBarBridge />
       {/* The tour measures real controls, so its registry has to sit above
           every screen that can host one. */}
@@ -110,6 +115,12 @@ function StatusBarBridge() {
 }
 
 export default function RootLayout() {
+  // The web document hides its contents until the app has painted once, so
+  // nobody reads the pre-rendered light markup on the way to the dark theme.
+  useEffect(() => {
+    markDocumentReady();
+  }, []);
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
