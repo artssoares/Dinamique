@@ -3,13 +3,13 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useState,
   type ReactNode,
 } from 'react';
 import type { Cents } from '@dinamique/types';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
+import { toFriendlyError } from '@/lib/errors';
 import { useSession } from '@/hooks/useSession';
 import type { SyncableTable } from '@/features/offline/queue';
 
@@ -34,24 +34,46 @@ export interface ActiveJourney {
  * could start a journey on Registrar and Home would still show no journey
  * running, because Home had fetched once on mount and nothing told it to look
  * again. One state, shared, is the whole fix.
+ *
+ * Two rules the earlier version broke, and which are the reason "Iniciar" did
+ * nothing at all:
+ *
+ *   1. The provider must hand consumers the CURRENT callbacks. It used to
+ *      memoise the whole object on the journey's own fields, so the closures
+ *      captured at first render, when there was no session yet, were the
+ *      ones every screen kept calling. `start` began with `if (!session?.user)
+ *      return;` and returned, forever, without a sound.
+ *   2. A write that fails has to say so. Every mutation ignored Supabase's
+ *      error, so a rejected insert and a successful one looked identical from
+ *      the outside: nothing on screen changed either way.
  */
 function useJourneyState() {
   const { session } = useSession();
   const [journey, setJourney] = useState<ActiveJourney | null>(null);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const userId = session?.user?.id ?? null;
 
   const refresh = useCallback(async () => {
-    if (!session?.user) {
+    if (!userId) {
       setJourney(null);
       setLoading(false);
       return;
     }
-    const { data } = await supabase
+    const { data, error: readError } = await supabase
       .from('journeys')
       .select('id, status, started_at, paused_seconds, paused_at, odometer_start')
-      .eq('user_id', session.user.id)
+      .eq('user_id', userId)
       .in('status', ['active', 'paused'])
       .maybeSingle();
+
+    if (readError) {
+      setError(toFriendlyError(readError).message);
+      setLoading(false);
+      return;
+    }
 
     setJourney(
       data
@@ -66,96 +88,141 @@ function useJourneyState() {
         : null,
     );
     setLoading(false);
-  }, [session?.user?.id]);
+  }, [userId]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
+  /**
+   * Runs one write and reports the truth about it. `busy` drives the spinner
+   * on whichever control was pressed, so a slow connection looks like work in
+   * progress rather than a dead button.
+   */
+  const run = useCallback(
+    // PromiseLike, not Promise: a Supabase query builder is a thenable that
+    // only becomes a request when it is awaited.
+    async (write: () => PromiseLike<{ error: unknown } | void>): Promise<boolean> => {
+      setBusy(true);
+      setError(null);
+      try {
+        const result = await write();
+        const writeError = result && 'error' in result ? result.error : null;
+        if (writeError) {
+          setError(toFriendlyError(writeError).message);
+          return false;
+        }
+        await refresh();
+        return true;
+      } catch (thrown) {
+        setError(toFriendlyError(thrown).message);
+        return false;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [refresh],
+  );
+
   const start = useCallback(
     async (odometerStart: number | null) => {
-      if (!session?.user) return;
-      await supabase.from('journeys').insert({
-        user_id: session.user.id,
-        started_at: new Date().toISOString(),
-        status: 'active',
-        odometer_start: odometerStart,
-      });
-      void track('journey_started', {});
-      await refresh();
+      if (!userId) {
+        setError('Entre na sua conta para iniciar uma jornada.');
+        return false;
+      }
+      // Uma jornada já aberta não é erro: é o que a pessoa queria de qualquer
+      // forma, então só sincronizamos e seguimos.
+      if (journey) {
+        await refresh();
+        return true;
+      }
+      const ok = await run(() =>
+        supabase.from('journeys').insert({
+          user_id: userId,
+          started_at: new Date().toISOString(),
+          status: 'active',
+          odometer_start: odometerStart,
+        }),
+      );
+      if (ok) void track('journey_started', {});
+      return ok;
     },
-    [refresh, session?.user?.id],
+    [journey, refresh, run, userId],
   );
 
   const pause = useCallback(async () => {
-    if (!journey) return;
-    await supabase
-      .from('journeys')
-      .update({ status: 'paused', paused_at: new Date().toISOString() })
-      .eq('id', journey.id);
-    void track('journey_paused', {});
-    await refresh();
-  }, [journey, refresh]);
+    if (!journey) return false;
+    const ok = await run(() =>
+      supabase
+        .from('journeys')
+        .update({ status: 'paused', paused_at: new Date().toISOString() })
+        .eq('id', journey.id),
+    );
+    if (ok) void track('journey_paused', {});
+    return ok;
+  }, [journey, run]);
 
   const resume = useCallback(async () => {
-    if (!journey?.pausedAt) return;
+    if (!journey?.pausedAt) return false;
     // The pause is banked as seconds, so worked time stays correct even if the
     // app was closed for the whole break.
     const extra = Math.max(0, Math.round((Date.now() - Date.parse(journey.pausedAt)) / 1000));
-    await supabase
-      .from('journeys')
-      .update({
-        status: 'active',
-        paused_at: null,
-        paused_seconds: journey.pausedSeconds + extra,
-      })
-      .eq('id', journey.id);
-    await refresh();
-  }, [journey, refresh]);
+    return run(() =>
+      supabase
+        .from('journeys')
+        .update({
+          status: 'active',
+          paused_at: null,
+          paused_seconds: journey.pausedSeconds + extra,
+        })
+        .eq('id', journey.id),
+    );
+  }, [journey, run]);
 
   const finish = useCallback(
     async (input: { odometerEnd: number | null; distanceOverride: number | null }) => {
-      if (!journey) return;
+      if (!journey) return false;
       const now = new Date();
       const extra = journey.pausedAt
         ? Math.max(0, Math.round((now.getTime() - Date.parse(journey.pausedAt)) / 1000))
         : 0;
 
-      await supabase
-        .from('journeys')
-        .update({
-          status: 'completed',
-          ended_at: now.toISOString(),
-          paused_at: null,
-          paused_seconds: journey.pausedSeconds + extra,
-          odometer_end: input.odometerEnd,
-          distance_override: input.distanceOverride,
-        })
-        .eq('id', journey.id);
-
-      void track('journey_completed', {});
-      await refresh();
+      const ok = await run(() =>
+        supabase
+          .from('journeys')
+          .update({
+            status: 'completed',
+            ended_at: now.toISOString(),
+            paused_at: null,
+            paused_seconds: journey.pausedSeconds + extra,
+            odometer_end: input.odometerEnd,
+            distance_override: input.distanceOverride,
+          })
+          .eq('id', journey.id),
+      );
+      if (ok) void track('journey_completed', {});
+      return ok;
     },
-    [journey, refresh],
+    [journey, run],
   );
 
-  return { journey, loading, refresh, start, pause, resume, finish };
+  const dismissError = useCallback(() => setError(null), []);
+
+  return { journey, loading, busy, error, dismissError, refresh, start, pause, resume, finish };
 }
 
 export type JourneyState = ReturnType<typeof useJourneyState>;
 
 const JourneyContext = createContext<JourneyState | null>(null);
 
+/**
+ * No memo here on purpose. The value has to change whenever any part of it
+ * does, callbacks included, or screens go on calling a closure that captured
+ * a session that did not exist yet.
+ */
 export function JourneyProvider({ children }: { children: ReactNode }) {
   const value = useJourneyState();
-  const stable = useMemo(() => value, [
-    value.journey?.id,
-    value.journey?.status,
-    value.journey?.pausedSeconds,
-    value.journey?.pausedAt,
-    value.loading,
-  ]);
-  return <JourneyContext.Provider value={stable}>{children}</JourneyContext.Provider>;
+  return <JourneyContext.Provider value={value}>{children}</JourneyContext.Provider>;
 }
 
 export function useActiveJourney(): JourneyState {

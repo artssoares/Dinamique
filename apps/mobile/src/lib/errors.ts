@@ -18,8 +18,26 @@ export interface FriendlyError {
 
 const NETWORK_HINTS = ['network', 'fetch', 'timeout', 'offline', 'connection'];
 
+/**
+ * Supabase does not throw: it returns `{ error }`, and that error is a plain
+ * object, not an `Error`. Stringifying it gives "[object Object]", which
+ * matches none of the rules below and hides the one useful line, so the shape
+ * is unwrapped before anything is decided.
+ */
+function rawMessage(error: unknown): string {
+  if (error === null || error === undefined) return '';
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object') {
+    const shape = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown };
+    const parts = [shape.message, shape.details, shape.hint, shape.code]
+      .filter((part): part is string => typeof part === 'string' && part.trim() !== '');
+    if (parts.length > 0) return parts.join(' · ');
+  }
+  return String(error);
+}
+
 export function toFriendlyError(error: unknown): FriendlyError {
-  const raw = error instanceof Error ? error.message : String(error ?? '');
+  const raw = rawMessage(error);
   const lowered = raw.toLowerCase();
 
   if (NETWORK_HINTS.some((hint) => lowered.includes(hint))) {

@@ -10,6 +10,7 @@ import {
   IconButton,
   ListRow,
   Money,
+  Notice,
   ProgressRing,
   Reveal,
   Screen,
@@ -43,7 +44,7 @@ export default function Today() {
   const router = useRouter();
   const { profile } = useSession();
   const { data, loading, refresh } = useToday();
-  const { journey, start } = useActiveJourney();
+  const { journey, start, busy: journeyBusy, error: journeyError, dismissError } = useActiveJourney();
   const { isCompact } = useResponsive();
   const [refreshing, setRefreshing] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
@@ -128,6 +129,9 @@ export default function Today() {
             <Reveal delay={70}>
               <QuickActions
                 journeyRunning={journey !== null}
+                starting={journeyBusy}
+                error={journeyError}
+                onDismissError={dismissError}
                 onStart={() => void start(null)}
                 startRef={startTarget.ref}
               />
@@ -280,10 +284,16 @@ export default function Today() {
  */
 function QuickActions({
   journeyRunning,
+  starting,
+  error,
+  onDismissError,
   onStart,
   startRef,
 }: {
   journeyRunning: boolean;
+  starting: boolean;
+  error: string | null;
+  onDismissError: () => void;
   onStart: () => void;
   startRef: (node: View | null) => void;
 }) {
@@ -303,7 +313,11 @@ function QuickActions({
   ];
 
   return (
-    <Card padding="lg">
+    <Card padding="lg" style={{ gap: theme.spacing.md }}>
+      {/* A failed write used to look exactly like a successful one. It says so
+          here, next to the control that was pressed. */}
+      {error ? <Notice message={error} onDismiss={onDismissError} /> : null}
+
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         {actions.map((action) => (
           <View
@@ -313,10 +327,11 @@ function QuickActions({
             style={{ alignItems: 'center', gap: theme.spacing.sm, flex: 1 }}
           >
             <IconButton
-              icon={action.icon}
+              icon={action.primary && starting ? 'clock' : action.icon}
               label={action.label}
               tone={action.primary ? 'brand' : 'surface'}
               size={52}
+              disabled={action.primary && starting}
               onPress={action.onPress}
               style={
                 action.primary

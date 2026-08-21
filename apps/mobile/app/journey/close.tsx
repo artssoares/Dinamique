@@ -9,6 +9,7 @@ import {
   Chip,
   Field,
   Money,
+  Notice,
   Screen,
   ScreenHeader,
   StepProgress,
@@ -17,6 +18,7 @@ import {
 } from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
+import { toFriendlyError } from '@/lib/errors';
 import { useSession } from '@/hooks/useSession';
 import { useActiveJourney } from '@/features/journey/useJourney';
 
@@ -41,7 +43,7 @@ export default function CloseJourney() {
   const theme = useTheme();
   const router = useRouter();
   const { session } = useSession();
-  const { journey, finish, refresh } = useActiveJourney();
+  const { journey, finish, refresh, error: journeyError, dismissError } = useActiveJourney();
 
   const [step, setStep] = useState(0);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
@@ -54,6 +56,7 @@ export default function CloseJourney() {
   const [expenses, setExpenses] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -98,6 +101,8 @@ export default function CloseJourney() {
   async function save() {
     if (!session?.user || !journey) return;
     setSaving(true);
+    setFailure(null);
+    dismissError();
     const date = toDateOnly(new Date());
 
     // Tudo é gravado antes de encerrar a jornada, para que nada fique órfão se
@@ -114,7 +119,14 @@ export default function CloseJourney() {
       .filter((row) => row.amount > 0);
 
     if (revenueRows.length > 0) {
-      await supabase.from('revenues').insert(revenueRows);
+      const { error } = await supabase.from('revenues').insert(revenueRows);
+      // Encerrar a jornada sem ter gravado o faturamento apagaria o dia
+      // inteiro em silêncio, então nada segue adiante daqui.
+      if (error) {
+        setFailure(toFriendlyError(error).message);
+        setSaving(false);
+        return;
+      }
     }
 
     const expenseRows = quickCategories
@@ -128,23 +140,31 @@ export default function CloseJourney() {
       .filter((row) => row.amount > 0);
 
     if (expenseRows.length > 0) {
-      await supabase.from('expenses').insert(expenseRows);
+      const { error } = await supabase.from('expenses').insert(expenseRows);
+      if (error) {
+        setFailure(toFriendlyError(error).message);
+        setSaving(false);
+        return;
+      }
     }
 
     const parsedDistance = distance.trim() === '' ? null : Math.round(Number(distance) * 1000);
     const parsedOdometer = odometerEnd.trim() === '' ? null : Math.round(Number(odometerEnd) * 1000);
 
-    await finish({
+    const closed = await finish({
       odometerEnd: parsedOdometer,
       distanceOverride: Number.isFinite(parsedDistance) ? parsedDistance : null,
     });
+
+    setSaving(false);
+
+    if (!closed) return;
 
     void track('journey_completed', {
       platforms: revenueRows.length,
       has_distance: parsedDistance !== null || parsedOdometer !== null,
     });
 
-    setSaving(false);
     setDone(true);
     await refresh();
   }
@@ -330,6 +350,7 @@ export default function CloseJourney() {
 
   const current = steps[step]!;
   const isLast = step === steps.length - 1;
+  const problem = failure ?? journeyError;
 
   return (
     <Screen
@@ -362,6 +383,16 @@ export default function CloseJourney() {
         </View>
 
         <View style={{ flex: 1 }}>{current.content}</View>
+
+        {problem !== null ? (
+          <Notice
+            message={problem}
+            onDismiss={() => {
+              setFailure(null);
+              dismissError();
+            }}
+          />
+        ) : null}
 
         {totals.gross > 0 ? (
           <Card padding="lg">

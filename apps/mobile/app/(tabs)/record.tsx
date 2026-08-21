@@ -9,6 +9,7 @@ import {
   Chip,
   Field,
   Icon,
+  Notice,
   Reveal,
   Screen,
   SectionHeader,
@@ -35,7 +36,16 @@ export default function Record() {
   const reduced = useReducedMotion();
   const { session } = useSession();
   const { save } = useOffline();
-  const { journey, start, pause, resume, refresh } = useActiveJourney();
+  const {
+    journey,
+    start,
+    pause,
+    resume,
+    refresh,
+    busy: journeyBusy,
+    error: journeyError,
+    dismissError,
+  } = useActiveJourney();
 
   const [mode, setMode] = useState<Mode>('revenue');
   const [amount, setAmount] = useState('');
@@ -152,9 +162,12 @@ export default function Record() {
       <Reveal>
         <JourneyCard
           journey={journey}
-          onStart={() => start(null)}
-          onPause={pause}
-          onResume={resume}
+          busy={journeyBusy}
+          error={journeyError}
+          onDismissError={dismissError}
+          onStart={() => void start(null)}
+          onPause={() => void pause()}
+          onResume={() => void resume()}
           onFinish={() => router.push('/journey/close')}
         />
       </Reveal>
@@ -285,12 +298,18 @@ export default function Record() {
 
 function JourneyCard({
   journey,
+  busy,
+  error,
+  onDismissError,
   onStart,
   onPause,
   onResume,
   onFinish,
 }: {
   journey: ReturnType<typeof useActiveJourney>['journey'];
+  busy: boolean;
+  error: string | null;
+  onDismissError: () => void;
   onStart: () => void;
   onPause: () => void;
   onResume: () => void;
@@ -307,13 +326,18 @@ function JourneyCard({
 
   if (!journey) {
     return (
-      <Card padding="xl" style={{ gap: theme.spacing.md }}>
-        <Text variant="subtitle">Nenhuma jornada em andamento</Text>
-        <Text variant="body" color="secondary">
+      <Card padding="xl" style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+        <Text variant="subtitle" align="center">
+          Nenhuma jornada em andamento
+        </Text>
+        <Text variant="body" color="secondary" align="center">
           Inicie uma jornada para o Dinamique medir seu tempo trabalhado. É o que permite calcular
           quanto você ganha por hora.
         </Text>
-        <Button label="Iniciar jornada" iconName="play" onPress={onStart} />
+        {error ? (
+          <Notice message={error} onDismiss={onDismissError} style={{ alignSelf: 'stretch' }} />
+        ) : null}
+        <Button label="Iniciar jornada" iconName="play" loading={busy} onPress={onStart} />
       </Card>
     );
   }
@@ -346,11 +370,27 @@ function JourneyCard({
         {formatDuration(elapsed)}
       </Text>
 
-      <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+      {error ? <Notice message={error} onDismiss={onDismissError} /> : null}
+
+      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.sm }}>
         {journey.status === 'active' ? (
-          <Button label="Pausar" variant="ghost" size="sm" iconName="pause" onPress={onPause} />
+          <Button
+            label="Pausar"
+            variant="ghost"
+            size="sm"
+            iconName="pause"
+            loading={busy}
+            onPress={onPause}
+          />
         ) : (
-          <Button label="Continuar" variant="ghost" size="sm" iconName="play" onPress={onResume} />
+          <Button
+            label="Continuar"
+            variant="ghost"
+            size="sm"
+            iconName="play"
+            loading={busy}
+            onPress={onResume}
+          />
         )}
         <Button label="Encerrar" size="sm" iconName="stop" onPress={onFinish} />
       </View>
