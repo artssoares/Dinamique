@@ -133,11 +133,35 @@ export interface Journey {
   createdAt: Timestamp;
 }
 
+/**
+ * Something the driver sells inside the car: water, sweets, a phone charger,
+ * perfume. Money from the passenger rather than from the platform.
+ */
+export interface Product {
+  id: UUID;
+  userId: UUID;
+  name: string;
+  /** What the passenger pays for one. */
+  unitPrice: Cents;
+  /** What one cost the driver. Null when they never said. */
+  unitCost: Nullable<Cents>;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+/**
+ * A revenue row is either a platform's takings or a product sale, never both:
+ * `platformId` and `productId` exclude each other, enforced by the database.
+ */
 export interface Revenue {
   id: UUID;
   userId: UUID;
   journeyId: Nullable<UUID>;
   platformId: Nullable<UUID>;
+  /** Set when this row is a sale rather than a fare. */
+  productId: Nullable<UUID>;
+  /** How many units were sold. Null on everything that is not a sale. */
+  quantity: Nullable<number>;
   date: DateOnly;
   amount: Cents;
   tips: Cents;

@@ -73,6 +73,12 @@ export default function More() {
         { label: 'Meu veículo', description: 'Consumo e custo por km', href: '/vehicle', icon: 'car' },
         { label: 'Metas', description: 'Quanto você quer ganhar', href: '/goals', icon: 'target' },
         {
+          label: 'Meus produtos',
+          description: 'O que você vende dentro do carro',
+          href: '/products',
+          icon: 'box',
+        },
+        {
           label: 'Plano e assinatura',
           description: plan === 'pro' ? 'Você está no Pro' : 'Você está no Free',
           href: '/plan',

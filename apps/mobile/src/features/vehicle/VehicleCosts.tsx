@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import type { RecurringCostPeriod, VehicleOwnership } from '@dinamique/types';
 import { parseCents } from '@dinamique/utils';
 import { AmountInput, Card, Chip, Field, Icon, Reveal, Text, useTheme } from '@dinamique/ui';
-import { supabase } from '@/lib/supabase';
+import { useCostCategories } from '@/features/costs/categories';
 import {
   endDateFromInstalments,
   PERIOD_LABELS,
@@ -173,23 +172,4 @@ export function vehicleCostRows(input: {
   return rows.filter((row) => typeof row.category_id === 'string');
 }
 
-/** Maps the slugs a screen needs to the ids the table wants. */
-export function useCostCategories(slugs: readonly string[]): Record<string, string> {
-  const [bySlug, setBySlug] = useState<Record<string, string>>({});
-  const key = slugs.join(',');
-
-  useEffect(() => {
-    void supabase
-      .from('expense_categories')
-      .select('id, slug')
-      .in('slug', key.split(','))
-      .then(({ data }) => {
-        const rows = (data as { id: string; slug: string }[] | null) ?? [];
-        setBySlug(Object.fromEntries(rows.map((row) => [row.slug, row.id])));
-      });
-  }, [key]);
-
-  return bySlug;
-}
-
-export { VEHICLE_COST_SLUGS };
+export { useCostCategories, VEHICLE_COST_SLUGS };

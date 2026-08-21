@@ -12,6 +12,8 @@ export const ANALYTICS_EVENTS = [
   'journey_completed',
   'revenue_added',
   'expense_added',
+  'product_created',
+  'product_sale_added',
   'fuel_added',
   'goal_created',
   'goal_reached',

@@ -129,7 +129,14 @@ default, switch when the profile arrived, and switch back when it reloaded.
 round buttons and the tab bar are fully pill-shaped.
 
 **Breakpoints** – `compact` 360, `regular` 400, `medium` 600, `expanded` 900.
-Read through `useResponsive()`, never by comparing a raw width. Above `medium`
+Read through `useResponsive()`, never by comparing a raw width. The hook also
+defends against a window that reports itself as zero, which is what the web
+does until something resizes it: the static export renders in Node, where
+there is no window at all, and the subscription that would correct it only
+fires on a resize event that may never come. Anything that multiplied by that
+width produced zero in silence – it is why the floating tab bar opened 18
+pixels wide with its five controls spilling out of it, and stayed that way
+until the phone was rotated. Above `medium`
 content stops stretching and centres inside `layout.maxContentWidth` (560), so
 a tablet or a browser window shows a readable column instead of one card three
 feet wide. `layout` also carries the tab bar's height, which is how screens
@@ -170,7 +177,7 @@ biggest reason the interface looked homemade. Icons take their colour from the
 `CountBadge` · `Reveal`
 
 **Controls** – `Button` · `IconButton` · `Chip` · `SegmentedControl` ·
-`OptionCard` · `Field` · `AmountInput` · `Select` · `StepProgress`
+`OptionCard` · `Field` · `AmountInput` · `Select` · `StepProgress` · `Stepper`
 
 Several carry product rules rather than only style:
 
@@ -192,6 +199,9 @@ Several carry product rules rather than only style:
   afterthought; the middle is where the eye already is after reading the text
   above it. `align` overrides it in the rare case that a button really does
   belong in a corner.
+- **`Stepper`** counts units. Typing "3" is four actions – focus, open the
+  pad, press, dismiss – and counting is one, which is the one that works at a
+  traffic light. Used wherever the app asks how many of something.
 - **`Notice`** is the band that says what went wrong, in place, beside the
   control that failed. Writes used to fail in silence, which is how "eu clico e
   nada acontece" happens. An alert interrupts; this stays on the screen the

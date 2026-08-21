@@ -26,6 +26,7 @@ export * from './ListRow';
 export * from './Divider';
 export * from './SegmentedControl';
 export * from './StepProgress';
+export * from './Stepper';
 export * from './OptionCard';
 export * from './Sheet';
 export * from './Reveal';

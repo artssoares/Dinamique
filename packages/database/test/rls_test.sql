@@ -726,3 +726,84 @@ begin
   raise notice 'TESTES DE EXTENSÕES PASSARAM';
 end;
 $$;
+
+-- ============================================================================
+-- Sexta bateria: produtos vendidos dentro do carro.
+-- ============================================================================
+do $$
+declare
+  v_dono  uuid := gen_random_uuid();
+  v_outro uuid := gen_random_uuid();
+  v_agua  uuid;
+  v_conta integer;
+begin
+  insert into auth.users (id, email, raw_user_meta_data) values
+    (v_dono,  'vendedor@example.com', '{"full_name":"Vera Vendedora"}'::jsonb),
+    (v_outro, 'curioso@example.com',  '{"full_name":"Caio Curioso"}'::jsonb);
+
+  perform assert(
+    (select sells_products from profiles where id = v_dono) = false,
+    'ninguém vende nada até dizer que vende');
+
+  insert into products (user_id, name, unit_price, unit_cost)
+  values (v_dono, 'Água', 500, 150) returning id into v_agua;
+
+  -- O mesmo produto duas vezes divide os números sem motivo. Espaço e caixa
+  -- não fazem dois produtos diferentes.
+  begin
+    insert into products (user_id, name, unit_price) values (v_dono, '  ÁGUA ', 600);
+    perform assert(false, 'produto repetido deveria ser recusado');
+  exception when unique_violation then
+    perform assert(true, 'o mesmo produto não entra duas vezes, nem com outra caixa');
+  end;
+
+  -- A venda É uma receita, então tudo que já somava receita soma a venda.
+  insert into revenues (user_id, product_id, date, amount, quantity)
+  values (v_dono, v_agua, current_date, 1500, 3);
+
+  perform assert(
+    (select gross_revenue from daily_totals
+     where user_id = v_dono and date = current_date) = 1500,
+    'a venda entra no total do dia sem ninguém precisar somar duas tabelas');
+
+  perform assert(
+    coalesce((select trip_count from daily_totals
+              where user_id = v_dono and date = current_date), 0) = 0,
+    'vender três perfumes não vira três corridas');
+
+  -- Uma linha é receita de aplicativo OU venda de produto. As duas ao mesmo
+  -- tempo contariam o valor duas vezes na quebra por aplicativo.
+  begin
+    insert into revenues (user_id, product_id, platform_id, date, amount, quantity)
+    values (v_dono, v_agua, (select id from platforms limit 1), current_date, 100, 1);
+    perform assert(false, 'receita de aplicativo e de produto na mesma linha deveria ser recusada');
+  exception when check_violation then
+    perform assert(true, 'uma receita é de aplicativo ou de produto, nunca das duas');
+  end;
+
+  -- Tirar um produto de circulação não pode apagar o que já foi vendido.
+  update products set is_active = false where id = v_agua;
+  select count(*) into v_conta from revenues where product_id = v_agua;
+  perform assert(v_conta = 1, 'desativar o produto preserva as vendas antigas');
+
+  -- E o nome volta a ficar livre, porque o índice único só vale para ativos.
+  insert into products (user_id, name, unit_price) values (v_dono, 'Água', 700);
+
+  -- ------------------------------------------------------------ isolamento --
+  perform login_as(v_outro);
+  perform assert(
+    (select count(*) from products where user_id = v_dono) = 0,
+    'ninguém vê o catálogo de produtos de outra pessoa');
+
+  begin
+    insert into products (user_id, name, unit_price) values (v_dono, 'Intruso', 100);
+    perform assert(false, 'inserir produto no catálogo alheio deveria ser recusado');
+  exception when insufficient_privilege then
+    perform assert(true, 'ninguém cadastra produto na conta de outra pessoa');
+  end;
+  reset role;
+
+  raise notice '';
+  raise notice 'TESTES DE PRODUTOS PASSARAM';
+end;
+$$;

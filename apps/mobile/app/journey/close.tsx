@@ -21,6 +21,10 @@ import { track } from '@/lib/analytics';
 import { toFriendlyError } from '@/lib/errors';
 import { useSession } from '@/hooks/useSession';
 import { useActiveJourney } from '@/features/journey/useJourney';
+import { useCostCategories } from '@/features/costs/categories';
+import { ProductSalePicker } from '@/features/products/ProductSalePicker';
+import { costRows, revenueRows as saleRevenueRows, totalsFor } from '@/features/products/sales';
+import { useProducts } from '@/features/products/useProducts';
 
 interface Platform {
   id: string;
@@ -42,8 +46,10 @@ const QUICK_SLUGS = ['combustivel', 'alimentacao', 'pedagio', 'estacionamento'];
 export default function CloseJourney() {
   const theme = useTheme();
   const router = useRouter();
-  const { session } = useSession();
+  const { session, profile } = useSession();
   const { journey, finish, refresh, error: journeyError, dismissError } = useActiveJourney();
+  const { products, loading: productsLoading } = useProducts();
+  const productCategory = useCostCategories(['produtos']);
 
   const [step, setStep] = useState(0);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
@@ -54,6 +60,7 @@ export default function CloseJourney() {
   const [distance, setDistance] = useState('');
   const [odometerEnd, setOdometerEnd] = useState('');
   const [expenses, setExpenses] = useState<Record<string, string>>({});
+  const [units, setUnits] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -88,11 +95,21 @@ export default function CloseJourney() {
       });
   }, [session?.user?.id]);
 
+  const saleLines = useMemo(
+    () => products.map((product) => ({ product, quantity: units[product.id] ?? 0 })),
+    [products, units],
+  );
+  const saleTotals = useMemo(() => totalsFor(saleLines), [saleLines]);
+  const sells = Boolean(profile?.sellsProducts) || products.length > 0;
+
   const totals = useMemo(() => {
-    const gross = Object.values(amounts).reduce((acc, value) => acc + (parseCents(value) ?? 0), 0);
-    const costs = Object.values(expenses).reduce((acc, value) => acc + (parseCents(value) ?? 0), 0);
+    const fares = Object.values(amounts).reduce((acc, value) => acc + (parseCents(value) ?? 0), 0);
+    const spent = Object.values(expenses).reduce((acc, value) => acc + (parseCents(value) ?? 0), 0);
+    // The goods that left the boot are a cost of the day exactly like fuel is.
+    const gross = fares + saleTotals.gross;
+    const costs = spent + saleTotals.cost;
     return { gross, costs, profit: gross - costs };
-  }, [amounts, expenses]);
+  }, [amounts, expenses, saleTotals]);
 
   const workedSeconds = journey
     ? Math.max(0, Math.round((Date.now() - Date.parse(journey.startedAt)) / 1000) - journey.pausedSeconds)
@@ -118,8 +135,15 @@ export default function CloseJourney() {
       }))
       .filter((row) => row.amount > 0);
 
-    if (revenueRows.length > 0) {
-      const { error } = await supabase.from('revenues').insert(revenueRows);
+    const productRows = saleRevenueRows({
+      userId: session.user.id,
+      journeyId: journey.id,
+      date,
+      lines: saleLines,
+    });
+
+    if (revenueRows.length + productRows.length > 0) {
+      const { error } = await supabase.from('revenues').insert([...revenueRows, ...productRows]);
       // Encerrar a jornada sem ter gravado o faturamento apagaria o dia
       // inteiro em silêncio, então nada segue adiante daqui.
       if (error) {
@@ -129,15 +153,24 @@ export default function CloseJourney() {
       }
     }
 
-    const expenseRows = quickCategories
-      .map((category) => ({
-        user_id: session.user!.id,
-        journey_id: journey.id,
-        category_id: category.id,
+    const expenseRows = [
+      ...quickCategories
+        .map((category) => ({
+          user_id: session.user!.id,
+          journey_id: journey.id,
+          category_id: category.id,
+          date,
+          amount: parseCents(expenses[category.id] ?? '') ?? 0,
+        }))
+        .filter((row) => row.amount > 0),
+      ...costRows({
+        userId: session.user.id,
+        journeyId: journey.id,
         date,
-        amount: parseCents(expenses[category.id] ?? '') ?? 0,
-      }))
-      .filter((row) => row.amount > 0);
+        categoryId: productCategory.produtos ?? null,
+        lines: saleLines,
+      }),
+    ];
 
     if (expenseRows.length > 0) {
       const { error } = await supabase.from('expenses').insert(expenseRows);
@@ -200,7 +233,12 @@ export default function CloseJourney() {
         },
       ],
       revenues: [{ date: toDateOnly(new Date()), amount: totals.gross, tips: 0, tripCount: null, platformId: null }],
-      expenses: [{ date: toDateOnly(new Date()), amount: totals.costs, isVehicleCost: true }],
+      // Two entries, not one: a box of perfume is a cost of the day but not a
+      // cost of the vehicle, and lumping it in would inflate the cost per km.
+      expenses: [
+        { date: toDateOnly(new Date()), amount: totals.costs - saleTotals.cost, isVehicleCost: true },
+        { date: toDateOnly(new Date()), amount: saleTotals.cost, isVehicleCost: false },
+      ],
     });
 
     return (
@@ -284,6 +322,24 @@ export default function CloseJourney() {
         </View>
       ),
     },
+    ...(sells
+      ? [
+          {
+            title: 'Vendeu alguma coisa?',
+            subtitle: 'Conte quantas unidades saíram. O preço o Dinamique já sabe.',
+            content: (
+              <ProductSalePicker
+                products={products}
+                quantities={units}
+                loading={productsLoading}
+                onChange={(id, quantity) =>
+                  setUnits((current) => ({ ...current, [id]: quantity }))
+                }
+              />
+            ),
+          },
+        ]
+      : []),
     {
       title: 'Quantos km você rodou?',
       subtitle: 'É opcional. Sem km, deixamos de mostrar apenas as contas por quilômetro.',
@@ -398,6 +454,9 @@ export default function CloseJourney() {
           <Card padding="lg">
             <Text variant="caption" color="secondary">
               Parcial: {formatCents(totals.gross)} faturado
+              {saleTotals.units > 0
+                ? `, sendo ${formatCents(saleTotals.gross)} em ${saleTotals.units === 1 ? '1 venda' : `${saleTotals.units} vendas`}`
+                : ''}
               {totals.costs > 0 ? ` · ${formatCents(totals.costs)} em custos` : ''}
               {` · ${formatDuration(workedSeconds)} trabalhados`}
             </Text>

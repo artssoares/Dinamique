@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { formatDuration, parseCents, toDateOnly } from '@dinamique/utils';
+import { formatCents, formatDuration, parseCents, toDateOnly } from '@dinamique/utils';
 import {
   AmountInput,
   Button,
@@ -20,11 +20,17 @@ import {
 } from '@dinamique/ui';
 import { AppHeader } from '@/features/shell/AppHeader';
 import { supabase } from '@/lib/supabase';
+import { track } from '@/lib/analytics';
+import { toFriendlyError } from '@/lib/errors';
 import { useSession } from '@/hooks/useSession';
 import { addExpense, addRevenue, useActiveJourney } from '@/features/journey/useJourney';
 import { useOffline } from '@/features/offline/useOfflineSync';
+import { useCostCategories } from '@/features/costs/categories';
+import { ProductSalePicker } from '@/features/products/ProductSalePicker';
+import { costRows, revenueRows, totalsFor } from '@/features/products/sales';
+import { useProducts } from '@/features/products/useProducts';
 
-type Mode = 'revenue' | 'expense';
+type Mode = 'revenue' | 'expense' | 'sale';
 
 /**
  * The + destination (§26). One screen, two modes, and a running journey
@@ -34,7 +40,7 @@ export default function Record() {
   const theme = useTheme();
   const router = useRouter();
   const reduced = useReducedMotion();
-  const { session } = useSession();
+  const { session, profile } = useSession();
   const { save } = useOffline();
   const {
     journey,
@@ -56,6 +62,16 @@ export default function Record() {
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
+
+  // Selling in the car. Offered only to people who said they do it, or who
+  // registered a product anyway: an empty third tab is noise for everyone else.
+  const { products, loading: productsLoading } = useProducts();
+  const [units, setUnits] = useState<Record<string, number>>({});
+  const productCategory = useCostCategories(['produtos']);
+  const sells = Boolean(profile?.sellsProducts) || products.length > 0;
+  const saleLines = products.map((product) => ({ product, quantity: units[product.id] ?? 0 }));
+  const saleTotals = totalsFor(saleLines);
+  const [saleError, setSaleError] = useState<string | null>(null);
 
   useEffect(() => {
     void supabase
@@ -96,6 +112,7 @@ export default function Record() {
   }, [mode, modeShift, reduced, theme.motion.base]);
 
   const isExpense = mode === 'expense';
+  const isSale = mode === 'sale';
   const accent = isExpense ? theme.colors.dangerText : theme.colors.successText;
   const accentSurface = modeShift.interpolate({
     inputRange: [0, 1],
@@ -103,11 +120,16 @@ export default function Record() {
   });
 
   const cents = useMemo(() => parseCents(amount), [amount]);
-  const canSave =
-    cents !== null && cents > 0 && (mode === 'revenue' || categoryId !== null) && !saving;
+  const canSave = saving
+    ? false
+    : isSale
+      ? saleTotals.units > 0
+      : cents !== null && cents > 0 && (mode === 'revenue' || categoryId !== null);
 
   async function handleSave() {
-    if (!session?.user || cents === null) return;
+    if (!session?.user) return;
+    if (isSale) return void handleSaveSale();
+    if (cents === null) return;
     setSaving(true);
     const date = toDateOnly(new Date());
 
@@ -143,18 +165,72 @@ export default function Record() {
     await refresh();
   }
 
+  /**
+   * A sale is written straight to `revenues`, one row per product, rather than
+   * through the offline queue: the queue takes one flat record and a basket is
+   * several. It is the honest trade for now, and the screen says so if it
+   * fails rather than pretending it saved.
+   */
+  async function handleSaveSale() {
+    if (!session?.user || saleTotals.units === 0) return;
+    setSaving(true);
+    setSaleError(null);
+    const date = toDateOnly(new Date());
+    const userId = session.user.id;
+    const journeyId = journey?.id ?? null;
+
+    const { error: revenueError } = await supabase
+      .from('revenues')
+      .insert(revenueRows({ userId, journeyId, date, lines: saleLines }));
+
+    if (revenueError) {
+      setSaleError(toFriendlyError(revenueError).message);
+      setSaving(false);
+      return;
+    }
+
+    // The goods came out of a box that was paid for. Recording only the
+    // takings would call a perfume bought for twenty and sold for fifty a
+    // fifty real profit.
+    const costs = costRows({
+      userId,
+      journeyId,
+      date,
+      categoryId: productCategory.produtos ?? null,
+      lines: saleLines,
+    });
+    if (costs.length > 0) await supabase.from('expenses').insert(costs);
+
+    void track('product_sale_added', { units: saleTotals.units });
+
+    setUnits({});
+    setSaving(false);
+    setSaved(`${formatCents(saleTotals.gross)} em vendas`);
+    setTimeout(() => setSaved(null), 2500);
+    await refresh();
+  }
+
   return (
     <Screen
-      header={<AppHeader title="Registrar" subtitle="Lance um ganho ou um gasto em segundos" />}
+      header={
+        <AppHeader
+          title="Registrar"
+          subtitle={
+            sells
+              ? 'Lance um ganho, uma venda ou um gasto em segundos'
+              : 'Lance um ganho ou um gasto em segundos'
+          }
+        />
+      }
       tabBarSpacing
       footer={
         <Button
-          label={saved ?? 'Salvar'}
+          label={saved ?? (isSale ? saleButtonLabel(saleTotals.units) : 'Salvar')}
           size="lg"
           fullWidth
           loading={saving}
           disabled={!canSave}
-          iconName={saved ? 'check' : 'plus'}
+          iconName={saved ? 'check' : isSale ? 'box' : 'plus'}
           onPress={handleSave}
         />
       }
@@ -176,17 +252,46 @@ export default function Record() {
         label="O que você quer registrar"
         value={mode}
         onChange={setMode}
-        options={[
-          { value: 'revenue', label: 'Ganho' },
-          { value: 'expense', label: 'Gasto' },
-        ]}
+        options={
+          sells
+            ? [
+                { value: 'revenue' as Mode, label: 'Corrida' },
+                { value: 'sale' as Mode, label: 'Venda' },
+                { value: 'expense' as Mode, label: 'Gasto' },
+              ]
+            : [
+                { value: 'revenue' as Mode, label: 'Ganho' },
+                { value: 'expense' as Mode, label: 'Gasto' },
+              ]
+        }
       />
+
+      {/* Vender dentro do carro é dinheiro que não vem do aplicativo, e até
+          agora não tinha onde entrar: a única forma de um ganho era "um valor,
+          de um aplicativo". Aqui é uma lista do que a pessoa vende, com menos
+          e mais, porque a conta o app já sabe fazer. */}
+      {isSale ? (
+        <Reveal>
+          <View style={{ gap: theme.spacing.md }}>
+            {saleError ? (
+              <Notice message={saleError} onDismiss={() => setSaleError(null)} />
+            ) : null}
+            <ProductSalePicker
+              products={products}
+              quantities={units}
+              loading={productsLoading}
+              onChange={(id, quantity) => setUnits((current) => ({ ...current, [id]: quantity }))}
+            />
+          </View>
+        </Reveal>
+      ) : null}
 
       <Animated.View
         style={{
           borderRadius: theme.radius['2xl'],
           backgroundColor: theme.colors.surfacePrimary,
           overflow: 'hidden',
+          display: isSale ? 'none' : 'flex',
         }}
       >
         {/* The mode's colour runs along the top of the card. Subtle, always in
@@ -263,7 +368,7 @@ export default function Record() {
         </Animated.View>
       </Animated.View>
 
-      <View style={{ gap: theme.spacing.md }}>
+      <View style={{ gap: theme.spacing.md, display: isSale ? 'none' : 'flex' }}>
         <SectionHeader title="Registros com conta própria" />
         <Card
           padding="lg"
@@ -396,4 +501,10 @@ function JourneyCard({
       </View>
     </Card>
   );
+}
+
+/** "Registrar 3 vendas" says what the button will do, "Salvar" does not. */
+function saleButtonLabel(units: number): string {
+  if (units === 0) return 'Conte o que você vendeu';
+  return units === 1 ? 'Registrar 1 venda' : `Registrar ${units} vendas`;
 }

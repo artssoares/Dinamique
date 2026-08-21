@@ -20,6 +20,8 @@ export type IconName =
   | 'insights'
   | 'more'
   | 'plus'
+  | 'minus'
+  | 'box'
   | 'bell'
   | 'chevronLeft'
   | 'chevronRight'
@@ -122,6 +124,22 @@ export function Icon({ name, size = 22, color, strokeWidth = 1.8 }: IconProps) {
         <Svg {...common} strokeWidth={strokeWidth + 0.4}>
           <Line x1="12" y1="5.5" x2="12" y2="18.5" />
           <Line x1="5.5" y1="12" x2="18.5" y2="12" />
+        </Svg>
+      );
+    case 'minus':
+      return (
+        <Svg {...common} strokeWidth={strokeWidth + 0.4}>
+          <Line x1="5.5" y1="12" x2="18.5" y2="12" />
+        </Svg>
+      );
+    // Um caixa de papelão: o que o motorista vende dentro do carro. Nada de
+    // brilho nem estrela, o ícone descreve a coisa que ele nomeia.
+    case 'box':
+      return (
+        <Svg {...common}>
+          <Path d="M3.75 7.75 12 4l8.25 3.75v8.5L12 20l-8.25-3.75z" />
+          <Polyline points="3.75,7.75 12,11.5 20.25,7.75" />
+          <Line x1="12" y1="11.5" x2="12" y2="20" />
         </Svg>
       );
     case 'bell':

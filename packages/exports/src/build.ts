@@ -172,7 +172,9 @@ function buildRevenuesSheet(data: ExportData): Sheet {
     name: 'Receitas',
     columns: [
       { key: 'data', header: 'Data', format: 'date', width: 12 },
-      { key: 'plataforma', header: 'Plataforma', format: 'text', width: 16 },
+      // "Origem" rather than "Plataforma": a row can also be something sold
+      // inside the car, which has no platform behind it.
+      { key: 'plataforma', header: 'Origem', format: 'text', width: 20 },
       { key: 'valor', header: 'Valor', format: 'currency', width: 14 },
       { key: 'gorjeta', header: 'Gorjeta', format: 'currency', width: 12 },
       { key: 'corridas', header: 'Corridas', format: 'number', width: 10 },

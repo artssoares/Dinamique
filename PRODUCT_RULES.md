@@ -14,7 +14,7 @@ Rounding is half away from zero, which is how people expect money to round.
 
 | Term | Definition |
 | --- | --- |
-| **Faturamento** (gross revenue) | everything the platforms paid, tips included |
+| **Faturamento** (gross revenue) | everything that came in: what the platforms paid, tips included, plus anything sold in the car |
 | **Despesas** (expenses) | every expense recorded in the period |
 | **Lucro estimado** (net profit) | gross revenue − expenses |
 
@@ -23,6 +23,28 @@ product exists.
 
 Net profit is always labelled *estimated*, because recurring costs are
 apportioned rather than observed.
+
+### Selling inside the car
+
+Plenty of drivers sell water, sweets, chargers or perfume to the person in the
+back seat, and that money is theirs exactly like a fare is. Three rules keep it
+honest:
+
+- **A sale is a revenue row**, with `product_id` and `quantity` set and
+  `platform_id` null. The database rejects a row that claims to be both, since
+  it would be counted twice in the per-platform breakdown. Everything that
+  already reads `revenues` – daily totals, goals, insights, history, exports –
+  therefore counts sales without being taught to.
+- **The goods are a cost**, recorded against the `produtos` category as soon as
+  the driver has said what a unit costs them. A perfume bought for twenty and
+  sold for fifty is thirty of profit, not fifty, and the app never shows the
+  flattering number.
+- **`produtos` is not a vehicle cost**, so a box of perfume never reaches cost
+  per kilometre. The car did not get more expensive to drive.
+
+A driver who says they sell nothing is never shown any of it. Sales are never
+counted as trips: three perfumes are three units, not three rides, so ticket
+médio stays a fare average.
 
 ## Metrics that can be null
 

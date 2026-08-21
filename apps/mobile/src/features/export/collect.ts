@@ -30,7 +30,7 @@ export async function collectExportData(
       .order('started_at'),
     supabase
       .from('revenues')
-      .select('date, amount, tips, trip_count, note, platforms(name)')
+      .select('date, amount, tips, trip_count, quantity, note, platforms(name), products(name)')
       .eq('user_id', userId)
       .gte('date', period.start)
       .lte('date', period.end)
@@ -89,7 +89,13 @@ export async function collectExportData(
     })),
     revenues: rows<Record<string, any>>(revenues).map((row) => ({
       date: row.date,
-      platform: row.platforms?.name ?? null,
+      // A sale has no platform, so the product stands in its place. A blank
+      // cell in a spreadsheet is a question nobody can answer later.
+      platform:
+        row.platforms?.name ??
+        (row.products?.name
+          ? `Venda: ${row.products.name}${row.quantity ? ` (${row.quantity})` : ''}`
+          : null),
       amount: row.amount,
       tips: row.tips,
       tripCount: row.trip_count,

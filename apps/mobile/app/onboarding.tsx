@@ -50,6 +50,7 @@ import {
   type VehicleCostAnswers,
 } from '@/features/vehicle/VehicleCosts';
 import { useMakes, useModels } from '@/features/vehicle/useVehicleCatalogue';
+import { PRODUCT_SUGGESTIONS } from '@/features/products/suggestions';
 
 const WORK_MODE_OPTIONS: { value: WorkMode; label: string; description: string; icon: IconName }[] = [
   {
@@ -135,6 +136,12 @@ interface CostEntry {
   period: RecurringCostPeriod;
 }
 
+/** A product the driver is registering while still setting the app up. */
+interface ProductDraft {
+  name: string;
+  price: string;
+}
+
 /**
  * Onboarding.
  *
@@ -195,6 +202,12 @@ export default function Onboarding() {
   const [fixedCosts, setFixedCosts] = useState<Record<string, CostEntry>>({});
   const costCategories = useCostCategories(ONBOARDING_COST_SLUGS);
 
+  // Money that does not come from the platform: what gets sold to the person
+  // sitting in the back seat.
+  const [sellsProducts, setSellsProducts] = useState<boolean | null>(null);
+  const [productDrafts, setProductDrafts] = useState<ProductDraft[]>([]);
+  const [customProduct, setCustomProduct] = useState('');
+
   const makes = useMakes(vehicleType);
   const models = useModels(makeId, vehicleType);
 
@@ -244,6 +257,16 @@ export default function Onboarding() {
       else next[slug] = { amount: '', period };
       return next;
     });
+  }
+
+  function addProduct(name: string) {
+    const trimmed = name.trim();
+    if (trimmed === '') return;
+    setProductDrafts((current) =>
+      current.some((draft) => draft.name.toLowerCase() === trimmed.toLowerCase())
+        ? current
+        : [...current, { name: trimmed, price: '' }],
+    );
   }
 
   function setFixedCost(slug: string, patch: Partial<CostEntry>) {
@@ -301,6 +324,7 @@ export default function Onboarding() {
         phone: trimmedPhone === '' ? null : trimmedPhone,
         city: trimmedCity === '' ? null : trimmedCity,
         state: state ?? null,
+        sells_products: sellsProducts === true,
         onboarding_completed_at: new Date().toISOString(),
       })
       .eq('id', userId);
@@ -311,6 +335,20 @@ export default function Onboarding() {
       setFailure(toFriendlyError(profileError).message);
       setSaving(false);
       return;
+    }
+
+    // Products, before the vehicle, because a failure here should not leave a
+    // vehicle behind without its costs.
+    const products = productDrafts
+      .map((draft) => ({
+        user_id: userId,
+        name: draft.name.trim(),
+        unit_price: parseCents(draft.price) ?? 0,
+      }))
+      .filter((row) => row.name !== '' && row.unit_price > 0);
+
+    if (products.length > 0) {
+      await supabase.from('products').insert(products);
     }
 
     let vehicleId: string | null = null;
@@ -361,6 +399,7 @@ export default function Onboarding() {
       vehicle: vehicleType,
       ownership,
       fixed_costs: costs.length,
+      products: products.length,
     });
     await refresh();
     setSaving(false);
@@ -729,6 +768,134 @@ export default function Onboarding() {
       ),
     },
     {
+      key: 'products',
+      title: 'Você vende alguma coisa dentro do carro?',
+      subtitle: 'Água, bala, perfume, carregador. Muita gente vende, e isso é ganho seu também.',
+      canAdvance: true,
+      skippable: sellsProducts === null,
+      skipLabel: 'Deixar para depois',
+      content: (
+        <View style={{ gap: theme.spacing.lg }}>
+          <View style={{ gap: theme.spacing.sm }}>
+            <OptionCard
+              label="Sim, vendo"
+              description="Vou cadastrar o que vendo e o preço"
+              icon="box"
+              selected={sellsProducts === true}
+              onPress={() => setSellsProducts(true)}
+            />
+            <OptionCard
+              label="Não vendo nada"
+              description="Só corridas e entregas mesmo"
+              icon="car"
+              selected={sellsProducts === false}
+              onPress={() => {
+                setSellsProducts(false);
+                setProductDrafts([]);
+              }}
+            />
+          </View>
+
+          {sellsProducts ? (
+            <Reveal>
+              <View style={{ gap: theme.spacing.lg }}>
+                <View style={{ gap: theme.spacing.sm }}>
+                  <Text variant="captionStrong" color="secondary">
+                    O QUE VOCÊ VENDE?
+                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+                    {PRODUCT_SUGGESTIONS.filter(
+                      (suggestion) =>
+                        !productDrafts.some(
+                          (draft) => draft.name.toLowerCase() === suggestion.name.toLowerCase(),
+                        ),
+                    ).map((suggestion) => (
+                      <Chip
+                        key={suggestion.name}
+                        label={suggestion.name}
+                        iconName="plus"
+                        onPress={() => addProduct(suggestion.name)}
+                      />
+                    ))}
+                  </View>
+                </View>
+
+                {/* Nada de preço sugerido: o que uma garrafinha custa muda de
+                    cidade para cidade, e um valor pré-preenchido é um número
+                    que o aplicativo inventou. */}
+                {productDrafts.map((draft, position) => (
+                  <Card key={draft.name} padding="lg" style={{ gap: theme.spacing.md }}>
+                    <View
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}
+                    >
+                      <Icon name="box" size={18} color={theme.colors.brandPrimary} />
+                      <Text variant="bodyStrong" style={{ flex: 1 }}>
+                        {draft.name}
+                      </Text>
+                      <Button
+                        label="Tirar"
+                        variant="ghost"
+                        size="sm"
+                        onPress={() =>
+                          setProductDrafts((current) =>
+                            current.filter((_, index) => index !== position),
+                          )
+                        }
+                      />
+                    </View>
+                    <Field
+                      label="Você vende por quanto"
+                      value={draft.price}
+                      onChangeText={(value) =>
+                        setProductDrafts((current) =>
+                          current.map((item, index) =>
+                            index === position ? { ...item, price: value } : item,
+                          ),
+                        )
+                      }
+                      keyboardType="decimal-pad"
+                      placeholder="R$ 0,00"
+                    />
+                  </Card>
+                ))}
+
+                <View style={{ gap: theme.spacing.sm }}>
+                  <Field
+                    label="Vende outra coisa?"
+                    optional
+                    iconName="plus"
+                    placeholder="Escreva o nome e toque em adicionar"
+                    value={customProduct}
+                    onChangeText={setCustomProduct}
+                    onSubmitEditing={() => {
+                      addProduct(customProduct);
+                      setCustomProduct('');
+                    }}
+                  />
+                  <Button
+                    label="Adicionar à lista"
+                    variant="ghost"
+                    size="sm"
+                    iconName="plus"
+                    disabled={customProduct.trim() === ''}
+                    onPress={() => {
+                      addProduct(customProduct);
+                      setCustomProduct('');
+                    }}
+                  />
+                </View>
+
+                <Text variant="caption" color="muted">
+                  Depois, na hora de registrar, é só contar quantas unidades saíram. Dá para
+                  cadastrar mais produtos quando quiser, em Mais, Meus produtos.
+                </Text>
+              </View>
+            </Reveal>
+          ) : null}
+        </View>
+      ),
+    },
+    {
       key: 'goal',
       title: 'Quanto você quer ganhar por mês?',
       subtitle: 'Um valor de verdade, o que você precisa tirar. A gente divide por dia.',
@@ -824,6 +991,16 @@ export default function Onboarding() {
             }
           />
           <Summary label="Custos fixos" value={fixedCostSummary()} />
+          <Summary
+            label="Vende no carro"
+            value={
+              sellsProducts !== true
+                ? 'Não'
+                : productDrafts.length === 0
+                  ? 'Sim, cadastro depois'
+                  : productDrafts.map((draft) => draft.name).join(', ')
+            }
+          />
           <Summary
             label="Meta do mês"
             value={monthlyCents ? formatCents(monthlyCents) : 'Sem meta ainda'}
