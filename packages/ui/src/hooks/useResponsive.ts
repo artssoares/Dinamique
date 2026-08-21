@@ -1,6 +1,31 @@
 import { useWindowDimensions } from 'react-native';
 import { breakpoints, layout, type Breakpoint } from '../tokens/index';
 
+/** The width the type and spacing scales were drawn against: an iPhone 14. */
+const REFERENCE_WIDTH = 390;
+const REFERENCE_HEIGHT = 844;
+
+/**
+ * A window size that can actually be laid out against.
+ *
+ * On the web `useWindowDimensions` reports 0 x 0 until something resizes the
+ * window: the static export renders in Node, where there is no window at all,
+ * and the subscription that would correct it only fires on a resize event that
+ * may never come. Anything that multiplied by that width silently produced
+ * zero, which is how the floating tab bar ended up 18 pixels wide with its five
+ * controls spilling out of it on first load, and stayed that way until the
+ * phone was rotated.
+ *
+ * `innerWidth` is right from the first client frame, so it is read directly
+ * rather than waited for. In Node it does not exist and the reference size
+ * stands in, which is the size the design was drawn at.
+ */
+function usable(reported: number, fallback: number, browser: number | undefined): number {
+  if (Number.isFinite(reported) && reported > 0) return reported;
+  if (typeof browser === 'number' && browser > 0) return browser;
+  return fallback;
+}
+
 export interface Responsive {
   width: number;
   height: number;
@@ -35,7 +60,9 @@ export interface Responsive {
  * whitespace on an iPad and overflows on an SE.
  */
 export function useResponsive(): Responsive {
-  const { width, height } = useWindowDimensions();
+  const reported = useWindowDimensions();
+  const width = usable(reported.width, REFERENCE_WIDTH, globalThis.innerWidth);
+  const height = usable(reported.height, REFERENCE_HEIGHT, globalThis.innerHeight);
 
   // 390dp (an iPhone 14) is an ordinary phone, not a cramped one.
   const isCompact = width <= breakpoints.compact;
