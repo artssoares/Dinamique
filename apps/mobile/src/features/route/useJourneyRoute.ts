@@ -85,6 +85,13 @@ export function useJourneyRoute(journeyId: string | null) {
  * One query for the whole period rather than one per row — a month of days
  * would otherwise be thirty round trips to decide whether to draw an icon.
  * Nothing is decoded here: this only answers yes or no.
+ *
+ * The question is asked of `journey_routes`, through an inner join, rather
+ * than of `journeys.route_point_count`. That column is an audit trail, not
+ * proof: it is written when the journey closes, *before* the optional route
+ * upload, and it survives the retention job that deletes the drawing ninety
+ * days later. Trusting it left a glyph on days whose route had expired, or
+ * whose upload had failed, and every one of them opened an empty screen.
  */
 export function useRouteDays(start: DateOnly, end: DateOnly) {
   const { session } = useSession();
@@ -98,9 +105,8 @@ export function useRouteDays(start: DateOnly, end: DateOnly) {
 
     const { data, error } = await supabase
       .from('journeys')
-      .select('started_at')
+      .select('started_at, journey_routes!inner(journey_id)')
       .eq('user_id', session.user.id)
-      .not('route_point_count', 'is', null)
       .gte('started_at', from)
       .lt('started_at', to);
 
@@ -125,9 +131,15 @@ export function useRouteDays(start: DateOnly, end: DateOnly) {
 /**
  * The journey to replay for a given day.
  *
- * A driver can run more than one shift in a day. The longest route is the one
- * worth watching, and picking it deterministically means tapping the same day
- * twice never opens two different drawings.
+ * A driver can run more than one shift in a day, and the longest of them is
+ * the one worth watching. Longest means *distance*, not point count: a run up
+ * a motorway simplifies to a handful of points while a short errand round a
+ * few blocks keeps hundreds, so ordering by points opened the errand and then
+ * labelled it with the whole day's kilometres, hours and takings.
+ *
+ * The inner join is what proves a drawing still exists, and `started_at` then
+ * `id` break the tie, so tapping the same day twice never opens two different
+ * routes.
  */
 export function useDayJourney(date: DateOnly | null) {
   const { session } = useSession();
@@ -149,12 +161,15 @@ export function useDayJourney(date: DateOnly | null) {
     void (async () => {
       const { data } = await supabase
         .from('journeys')
-        .select('id, route_point_count')
+        .select('id, distance_gps, started_at, journey_routes!inner(journey_id)')
         .eq('user_id', session.user.id)
-        .not('route_point_count', 'is', null)
         .gte('started_at', range.start)
         .lt('started_at', range.end)
-        .order('route_point_count', { ascending: false })
+        // `nullsFirst: false` so a shift whose distance never landed sorts
+        // last rather than winning the day outright.
+        .order('distance_gps', { ascending: false, nullsFirst: false })
+        .order('started_at', { ascending: true })
+        .order('id', { ascending: true })
         .limit(1);
 
       if (cancelled) return;

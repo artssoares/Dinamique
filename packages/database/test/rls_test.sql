@@ -938,6 +938,30 @@ begin
     has_function_privilege('authenticated', 'prune_expired_routes()', 'execute') = false,
     'a poda de trajetos não é chamável pelo aplicativo');
 
+  -- --------------------------------------------- o contador não é o desenho ---
+  -- `route_point_count` é trilha de auditoria, não prova de existência: fica
+  -- para trás quando o trajeto é apagado, seja pela retenção, seja pelo botão
+  -- "apagar meus trajetos". Quem quiser saber se há desenho tem de perguntar a
+  -- `journey_routes`. Isto está aqui para que a diferença não vire suposição.
+  perform login_as(v_ana);
+  insert into journeys (user_id, started_at, ended_at, status, distance_gps, route_point_count)
+  values (v_ana, now() - interval '3 hours', now(), 'completed', 12000, 90)
+  returning id into v_j;
+  insert into journey_routes (journey_id, user_id, polyline, point_count)
+  values (v_j, v_ana, 'abcdef', 90);
+
+  delete from journey_routes where journey_id = v_j;
+  reset role;
+
+  perform assert(
+    (select route_point_count from journeys where id = v_j) = 90,
+    'apagar o trajeto não zera o contador na jornada');
+  perform assert(
+    (select count(*) from journeys j
+       join journey_routes r on r.journey_id = j.id
+      where j.id = v_j) = 0,
+    'só journey_routes sabe se ainda existe desenho');
+
   raise notice '';
   raise notice 'TESTES DE TRAJETO PASSARAM';
 end;
