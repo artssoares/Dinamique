@@ -12,6 +12,11 @@ import { OfflineProvider } from '@/features/offline/useOfflineSync';
 import { OfflineBanner } from '@/features/offline/OfflineBanner';
 import { Tour } from '@/features/tour/Tour';
 import { TourProvider } from '@/features/tour/TourProvider';
+// Side-effect import, and it has to stay at module scope. iOS relaunches the
+// app in the background for location events and re-runs task registrations,
+// but only the ones it finds while the bundle is being evaluated — registering
+// inside a component would work right up until the driver switched apps.
+import '@/features/tracking/backgroundTask';
 
 /**
  * Routing guard. Three destinations depending on session state:
