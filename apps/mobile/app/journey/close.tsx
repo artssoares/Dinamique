@@ -1,12 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { summarisePeriod } from '@dinamique/business-logic';
+import { summarisePeriod, type TrackSummary } from '@dinamique/business-logic';
 import {
+  encodePolyline,
   formatCents,
+  formatDistanceKm,
   formatDuration,
+  metresToKm,
   parseCents,
   parseKmToMetres,
+  POLYLINE_PRECISION,
   toDateOnly,
 } from '@dinamique/utils';
 import {
@@ -25,6 +29,10 @@ import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 import { useSession } from '@/hooks/useSession';
 import { useActiveJourney } from '@/features/journey/useJourney';
+import { closeRowClientId } from '@/features/journey/closeClientIds';
+import { resolveDistanceSource } from '@/features/journey/distanceSource';
+import { useJourneyTracking } from '@/features/tracking/useJourneyTracking';
+import { useRoutePreferences } from '@/features/tracking/preferences';
 
 interface Platform {
   id: string;
@@ -48,6 +56,15 @@ export default function CloseJourney() {
   const router = useRouter();
   const { session } = useSession();
   const { journey, finish, refresh } = useActiveJourney();
+  // `recover: false` — this screen ends journeys. A recovery here would race
+  // its own `finish()` and re-register background location for a shift that
+  // just ended.
+  const tracking = useJourneyTracking(journey?.id ?? null, { recover: false });
+  const {
+    preferences,
+    known: routePreferencesKnown,
+    read: readRoutePreferences,
+  } = useRoutePreferences();
 
   const [step, setStep] = useState(0);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
@@ -60,6 +77,57 @@ export default function CloseJourney() {
   const [expenses, setExpenses] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
+  const [measured, setMeasured] = useState<TrackSummary | null>(null);
+  /**
+   * How the drawing ended up. 'pending' until the upload settles, so the
+   * "o sinal do GPS falhou" card cannot flash on its way to succeeding.
+   */
+  const [routeOutcome, setRouteOutcome] = useState<'pending' | 'kept' | 'lost' | 'none'>(
+    'pending',
+  );
+  /**
+   * Everything the summary needs about the journey, captured before it closes.
+   *
+   * `finish()` calls `refresh()`, which nulls `journey` — so a summary reading
+   * `journey?.startedAt` sees undefined, falls back to "now", and renders a
+   * shift of zero seconds with no odometer.
+   */
+  const [closed, setClosed] = useState<{
+    id: string;
+    startedAt: string;
+    pausedSeconds: number;
+    odometerStart: number | null;
+    workedSeconds: number;
+    /**
+     * The GPS figure as it was *filed*, which is null when consent had been
+     * withdrawn. Showing the measured value instead would put km and R$/km on
+     * the summary that the history and the exports would never agree with.
+     */
+    gpsDistance: number | null;
+  } | null>(null);
+
+  // The same value as a ref. `save()` awaits the read, but awaiting cannot
+  // un-stale a `useState` captured in its own render's closure.
+  const measuredRef = useRef<TrackSummary | null>(null);
+  const suggestion = useRef<string | null>(null);
+  /**
+   * The km and odometer fields as they stand right now.
+   *
+   * `parsed` is a memo over render state, and `writeJourney` runs across
+   * awaits inside one render's closure. On a retry that re-seeds the field
+   * from a fresh track read, the memo it can see still holds the old number.
+   */
+  const distanceRef = useRef('');
+  const odometerRef = useRef('');
+  // `save()` needs the shift the effect below is still reading. Without this
+  // it can run first, drop `distance_gps` and the polyline, and then release a
+  // buffer it never looked at.
+  const reading = useRef<Promise<void> | null>(null);
+  /** True once a close has been attempted, so a retry knows to re-read. */
+  const attempted = useRef(false);
+  // Cleared once the journey is actually closed, so backing out of the
+  // wizard can tell the difference between "changed my mind" and "finished".
+  const openJourneyId = useRef<string | null>(null);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -97,6 +165,70 @@ export default function CloseJourney() {
     return { gross, costs, profit: gross - costs };
   }, [amounts, expenses]);
 
+  useEffect(() => {
+    distanceRef.current = distance;
+    odometerRef.current = odometerEnd;
+  }, [distance, odometerEnd]);
+
+  /**
+   * Stop capture and read the shift, once.
+   *
+   * This happens when the wizard opens rather than on save: the driver is done
+   * driving the moment they tap Encerrar, and every extra fix after that is a
+   * walk to the door being counted as work.
+   */
+  useEffect(() => {
+    if (!journey?.id) return;
+    let cancelled = false;
+    const journeyId = journey.id;
+
+    // Armed before anything is awaited. Arming it after the read meant that
+    // backing out while the read was still running left capture stopped with
+    // nothing to hand it back — the rest of an open shift going uncounted.
+    openJourneyId.current = journeyId;
+
+    reading.current = (async () => {
+      try {
+        // Stopping comes first and unconditionally. Gating it on the buffer
+        // meant that "Apagar meus trajetos" — which clears the active-route
+        // key — left the OS feeding location updates after the shift ended.
+        const summary = await tracking.finish(journeyId);
+        if (cancelled || !summary) return;
+
+        measuredRef.current = summary;
+        setMeasured(summary);
+
+        // Seeded once. The driver typing is always the last word — a
+        // suggestion that reappeared over their correction would be worse than
+        // no suggestion at all.
+        if (summary.distance !== null && suggestion.current === null) {
+          const km = formatSuggestedKm(summary.distance);
+          suggestion.current = km;
+          setDistance((current) => (current.trim() === '' ? km : current));
+        }
+      } catch {
+        // Reading the track is the optional half of this screen. If it throws,
+        // the driver still has to be able to close their day — so the failure
+        // is swallowed here rather than left to reject the promise `save()`
+        // awaits, which would have frozen the button and stranded the shift.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      // Backing out means the driver has not finished after all. Without this
+      // the rest of the shift goes uncounted, with nothing on screen to
+      // suggest it — the worst kind of failure this feature can have.
+      if (openJourneyId.current !== journeyId) return;
+      // Read again: someone who switched capture off while the wizard was open
+      // has withdrawn consent, and backing out must not quietly resume.
+      void readRoutePreferences().then((fresh) => {
+        if (fresh?.captureEnabled) void tracking.resume(journeyId);
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [journey?.id]);
+
   /**
    * Parsed once, read twice.
    *
@@ -116,59 +248,276 @@ export default function CloseJourney() {
     [distance, odometerEnd],
   );
 
+  /**
+   * Worked time, counting the break the driver is still on.
+   *
+   * `finish()` banks an open pause into `paused_seconds`, so ignoring
+   * `pausedAt` here meant someone who paused for lunch and closed without
+   * resuming saw about forty-five minutes more worked time — and a
+   * correspondingly better lucro por hora — than the history would show.
+   */
   const workedSeconds = journey
-    ? Math.max(0, Math.round((Date.now() - Date.parse(journey.startedAt)) / 1000) - journey.pausedSeconds)
+    ? Math.max(
+        0,
+        Math.round((Date.now() - Date.parse(journey.startedAt)) / 1000) -
+          journey.pausedSeconds -
+          (journey.pausedAt
+            ? Math.max(0, Math.round((Date.now() - Date.parse(journey.pausedAt)) / 1000))
+            : 0),
+      )
     : 0;
 
   async function save() {
-    if (!session?.user || !journey) return;
+    if (!session?.user || !journey || saving) return;
     setSaving(true);
+    try {
+      await writeJourney(session.user.id, journey);
+    } catch {
+      // Anything that rejects on the way — halting capture, a storage read —
+      // used to leave the journey open with nothing said and the button simply
+      // re-enabled, which reads as the app ignoring the tap.
+      Alert.alert(
+        'Não conseguimos encerrar',
+        'Sua jornada continua aberta e nada foi perdido. Tente de novo em instantes.',
+      );
+    } finally {
+      // Whatever happened, the driver gets their button back. A stuck spinner
+      // on the screen that files the day is the worst outcome available here.
+      setSaving(false);
+    }
+  }
+
+  async function writeJourney(
+    userId: string,
+    journey: NonNullable<ReturnType<typeof useActiveJourney>['journey']>,
+  ) {
+    if (attempted.current) {
+      // A rejected attempt handed capture back, so the driver may have carried
+      // on driving. Re-reading picks up those kilometres — and stops the feed
+      // again, which the successful attempt must do or GPS and the Android
+      // notification keep running after the journey is filed.
+      try {
+        const fresh = await tracking.finish(journey.id);
+        // Only when there is something new: an empty second read would
+        // otherwise throw away a summary we already hold.
+        if (fresh) {
+          measuredRef.current = fresh;
+          setMeasured(fresh);
+        }
+        if (fresh?.distance != null && suggestion.current !== null) {
+          const km = formatSuggestedKm(fresh.distance);
+          if (distanceRef.current.trim() === suggestion.current) {
+            distanceRef.current = km;
+            setDistance(km);
+          }
+          suggestion.current = km;
+        }
+      } catch {
+        // Same reasoning as the mount read: the money still has to be filed.
+      }
+    } else {
+      // The shift is read once, when the wizard opens. Saving before that
+      // lands would file the journey without its distance and then delete the
+      // buffer. The read swallows its own errors, so this cannot reject.
+      await reading.current;
+      // A previous attempt may have handed capture back after being rejected.
+      await tracking.halt();
+    }
+    attempted.current = true;
+
+    const measured = measuredRef.current;
+    // From the refs, so a retry saves the numbers now on screen rather than
+    // the ones this closure was rendered with.
+    const typedKm = distanceRef.current;
+    const effective = {
+      distanceOverride: parseKmToMetres(typedKm),
+      odometerEnd: parseKmToMetres(odometerRef.current),
+    };
     const date = toDateOnly(new Date());
 
     // Tudo é gravado antes de encerrar a jornada, para que nada fique órfão se
     // a conexão cair no meio.
     const revenueRows = platforms
       .map((platform) => ({
-        user_id: session.user!.id,
+        user_id: userId,
         journey_id: journey.id,
         platform_id: platform.id,
         date,
         amount: parseCents(amounts[platform.id] ?? '') ?? 0,
         trip_count: trips[platform.id]?.trim() ? Number(trips[platform.id]) : null,
+        client_id: closeRowClientId(journey.id, 'revenue', platform.id),
       }))
       .filter((row) => row.amount > 0);
 
-    if (revenueRows.length > 0) {
-      await supabase.from('revenues').insert(revenueRows);
-    }
-
     const expenseRows = quickCategories
       .map((category) => ({
-        user_id: session.user!.id,
+        user_id: userId,
         journey_id: journey.id,
         category_id: category.id,
         date,
         amount: parseCents(expenses[category.id] ?? '') ?? 0,
+        client_id: closeRowClientId(journey.id, 'expense', category.id),
       }))
       .filter((row) => row.amount > 0);
 
-    if (expenseRows.length > 0) {
-      await supabase.from('expenses').insert(expenseRows);
+    // Every id this close *could* write, not merely the ones it is about to.
+    // A retry where the driver blanked an amount would otherwise leave the
+    // first attempt's row behind — the history showing more than the summary
+    // confirms — and a table cleared entirely would not be touched at all.
+    const revenueIds = platforms.map((p) => closeRowClientId(journey.id, 'revenue', p.id));
+    const expenseIds = quickCategories.map((c) => closeRowClientId(journey.id, 'expense', c.id));
+
+    let revenuesLanded = true;
+    let expensesLanded = true;
+
+    if (revenueIds.length > 0) {
+      const { error } = await replaceRows('revenues', userId, revenueIds, revenueRows);
+      if (error) revenuesLanded = false;
     }
 
-    await finish({
-      odometerEnd: parsed.odometerEnd,
-      distanceOverride: parsed.distanceOverride,
+    if (expenseIds.length > 0) {
+      const { error } = await replaceRows('expenses', userId, expenseIds, expenseRows);
+      if (error) expensesLanded = false;
+    }
+
+    // The summary is rendered from what is on screen, not from the database.
+    // Closing the journey with the money still on the phone would show the
+    // driver a day they had, confirm it, and leave nothing behind.
+    if (!revenuesLanded || !expensesLanded) {
+      Alert.alert(
+        'Não conseguimos salvar seus lançamentos',
+        'Sua jornada continua aberta e nada foi perdido. Confira sua conexão e toque em Encerrar de novo.',
+      );
+      return;
+    }
+
+    // Consent is settled before anything GPS-derived is written. Reading it
+    // after `finish()` meant a driver who switched capture off mid-shift still
+    // had a measured distance uploaded — the route withheld, the number not.
+    //
+    // Unknown falls back to the last answer we successfully read, not to "no".
+    // Treating a failed query as a refusal dropped the distance, the point
+    // count and the polyline permanently, because nothing re-reads a closed
+    // journey's buffer. `known` is what distinguishes "we knew a moment ago"
+    // from "we have never known"; `loading` cannot, because it goes false on a
+    // failed read too.
+    const consent = (await readRoutePreferences()) ?? (routePreferencesKnown ? preferences : null);
+    const keepRoute = consent?.captureEnabled ?? false;
+    const consentKnown = consent !== null;
+    const gpsDistance = keepRoute ? (measured?.distance ?? null) : null;
+    const gpsPointCount = keepRoute ? (measured?.pointCount ?? null) : null;
+
+    // Cleared before `finish()`, because `finish()` calls `refresh()`, which
+    // nulls `journey` and fires this effect's cleanup mid-save. With the
+    // marker still set, that cleanup restarts background GPS for the shift
+    // being closed and races `beginRoute()` against `clearRoute()`.
+    openJourneyId.current = null;
+
+    setClosed({
+      id: journey.id,
+      startedAt: journey.startedAt,
+      pausedSeconds: journey.pausedSeconds,
+      odometerStart: journey.odometerStart,
+      workedSeconds,
+      gpsDistance,
     });
+
+    const distanceSource = resolveDistanceSource({
+      distanceOverride: effective.distanceOverride,
+      odometerStart: journey.odometerStart,
+      odometerEnd: effective.odometerEnd,
+      gpsDistance,
+      suggested: suggestion.current,
+      typed: typedKm,
+    });
+
+    const saved = await finish({
+      odometerEnd: effective.odometerEnd,
+      distanceOverride: effective.distanceOverride,
+      distanceGps: gpsDistance,
+      routePointCount: gpsPointCount,
+      distanceSource,
+    });
+
+    if (!saved) {
+      // The journey is still open, so backing out means "changed my mind"
+      // again. And a journey that did not close did not complete — emitting
+      // the event here would put a completion in the warehouse for a shift
+      // still running.
+      openJourneyId.current = journey.id;
+      // Handed back now rather than left to the effect cleanup, and awaited or
+      // it can land after the retry's stop.
+      await tracking.resume(journey.id);
+      Alert.alert(
+        'Não conseguimos encerrar',
+        'Sua jornada continua aberta e nada foi perdido. Tente de novo em instantes.',
+      );
+      return;
+    }
+
+    // The day is filed. Show it now: `finish()` has already nulled `journey`,
+    // so every await between here and the summary renders "Nenhuma jornada em
+    // andamento" over the driver's own results.
+    setDone(true);
 
     void track('journey_completed', {
       platforms: revenueRows.length,
-      has_distance: parsed.distanceOverride !== null || parsed.odometerEnd !== null,
+      has_distance:
+        effective.distanceOverride !== null ||
+        effective.odometerEnd !== null ||
+        gpsDistance != null,
+      distance_source: distanceSource,
     });
 
-    setSaving(false);
-    setDone(true);
-    await refresh();
+    void refresh();
+
+    // Everything below is the route, which is the optional half. It runs after
+    // the summary is on screen and it cannot take the summary down with it —
+    // the driver's money is filed either way.
+    try {
+      const hasRoute = Boolean(measured && measured.points.length >= 2) && keepRoute;
+      if (!hasRoute) setRouteOutcome('none');
+      let routeSettled = !hasRoute;
+
+      if (measured && hasRoute) {
+        const row = {
+          journey_id: journey.id,
+          user_id: userId,
+          polyline: encodePolyline(measured.points),
+          point_count: measured.points.length,
+          precision: POLYLINE_PRECISION,
+        };
+
+        // Tried twice, here and now. There is no later: nothing re-reads the
+        // buffer of a journey that has already closed, so holding it for a
+        // retry that does not exist would only leave raw positions on the
+        // phone for a week. If both attempts fail the drawing is gone, and the
+        // card on the summary says so rather than leaving the driver guessing.
+        let { error } = await supabase
+          .from('journey_routes')
+          .upsert(row, { onConflict: 'journey_id' });
+        if (error) {
+          ({ error } = await supabase
+            .from('journey_routes')
+            .upsert(row, { onConflict: 'journey_id' }));
+        }
+
+        // Settled either way: there is no third attempt.
+        routeSettled = true;
+        setRouteOutcome(error ? 'lost' : 'kept');
+      }
+
+      // The buffer goes only once the route is settled and we actually know
+      // what the driver wanted. Anything else leaves the day on the phone,
+      // where it is at worst seven days of clutter — as against deleting a
+      // shift somebody drove.
+      if (routeSettled && consentKnown) await tracking.release(journey.id);
+    } catch {
+      // Only if the upload had not already settled. `release()` runs after it
+      // and can throw on an unreadable key — overwriting 'kept' would tell the
+      // driver the GPS failed about a route sitting in the database.
+      setRouteOutcome((current) => (current === 'pending' ? 'lost' : current));
+    }
   }
 
   if (!journey && !done) {
@@ -192,14 +541,17 @@ export default function CloseJourney() {
     const summary = summarisePeriod({
       journeys: [
         {
-          id: journey?.id ?? 'x',
-          startedAt: journey?.startedAt ?? new Date().toISOString(),
-          endedAt: new Date().toISOString(),
-          pausedSeconds: journey?.pausedSeconds ?? 0,
-          odometerStart: journey?.odometerStart ?? null,
+          id: closed?.id ?? 'x',
+          startedAt: closed?.startedAt ?? new Date().toISOString(),
+          endedAt: new Date(
+            Date.parse(closed?.startedAt ?? new Date().toISOString()) +
+              ((closed?.workedSeconds ?? 0) + (closed?.pausedSeconds ?? 0)) * 1000,
+          ).toISOString(),
+          pausedSeconds: closed?.pausedSeconds ?? 0,
+          odometerStart: closed?.odometerStart ?? null,
           odometerEnd: parsed.odometerEnd,
           distanceOverride: parsed.distanceOverride,
-          distanceGps: null,
+          distanceGps: closed?.gpsDistance ?? null,
         },
       ],
       revenues: [{ date: toDateOnly(new Date()), amount: totals.gross, tips: 0, tripCount: null, platformId: null }],
@@ -236,6 +588,15 @@ export default function CloseJourney() {
               )}
             </View>
           </Card>
+
+        {routeOutcome === 'lost' ? (
+          <Card padding="lg">
+            <Text variant="caption" color="secondary">
+              Não conseguimos desenhar o trajeto de hoje — o sinal do GPS falhou em parte do
+              caminho. Seus ganhos e o tempo estão salvos normalmente.
+            </Text>
+          </Card>
+        ) : null}
 
         <Button
           label="Voltar para o início"
@@ -289,9 +650,17 @@ export default function CloseJourney() {
     },
     {
       title: 'Quantos km você rodou?',
-      subtitle: 'É opcional. Sem km, deixamos de mostrar apenas as contas por quilômetro.',
+      subtitle:
+        measured?.distance != null
+          ? 'Já preenchemos com o que medimos. Confira e corrija se estiver diferente.'
+          : 'É opcional. Sem km, deixamos de mostrar apenas as contas por quilômetro.',
       content: (
         <View style={{ gap: theme.spacing.lg }}>
+          {measured?.distance != null ? (
+            <Text variant="caption" color="secondary">
+              Contamos {formatDistanceKm(measured.distance, 1)} no seu trajeto de hoje.
+            </Text>
+          ) : null}
           <Field
             label="Quilômetros rodados"
             optional
@@ -409,4 +778,46 @@ function Row({ label, value }: { label: string; value: string }) {
       <Text variant="captionStrong">{value}</Text>
     </View>
   );
+}
+
+/** Written with a comma: what the field shows back, and what the keyboard gives. */
+function formatSuggestedKm(metres: number): string {
+  return metresToKm(metres).toLocaleString('pt-BR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+}
+
+/**
+ * Writes the close's own rows, replacing whatever a previous attempt left.
+ *
+ * `clientIds` is every id this close could write, while `rows` is only what it
+ * has to say this time — so blanking an amount removes the row a previous
+ * attempt left rather than orphaning it. Both are derived from the journey and
+ * the platform or category, so nothing the driver entered from the Record tab
+ * against the same journey is ever in range.
+ *
+ * Not an upsert: the unique index is partial (`where client_id is not null`),
+ * and Postgres cannot use a partial index as an ON CONFLICT arbiter without
+ * its predicate, which PostgREST has no way to send — every close with any
+ * revenue would fail outright with 42P10.
+ *
+ * The delete is scoped by `user_id` as well as by id: RLS already fences it,
+ * but the policy admits `is_admin()`.
+ */
+async function replaceRows(
+  table: 'revenues' | 'expenses',
+  userId: string,
+  clientIds: string[],
+  rows: Record<string, unknown>[],
+): Promise<{ error: unknown }> {
+  const { error: deleteError } = await supabase
+    .from(table)
+    .delete()
+    .eq('user_id', userId)
+    .in('client_id', clientIds);
+
+  if (deleteError) return { error: deleteError };
+  if (rows.length === 0) return { error: null };
+  return supabase.from(table).insert(rows);
 }

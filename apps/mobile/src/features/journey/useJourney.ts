@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Cents } from '@dinamique/types';
+import type { Cents, DistanceSource, Metres } from '@dinamique/types';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 import { useSession } from '@/hooks/useSession';
@@ -32,12 +32,20 @@ export function useActiveJourney() {
       setLoading(false);
       return;
     }
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('journeys')
       .select('id, status, started_at, paused_seconds, paused_at, odometer_start')
       .eq('user_id', session.user.id)
       .in('status', ['active', 'paused'])
       .maybeSingle();
+
+    // A query that failed says nothing about whether a journey is running.
+    // Clearing it here is what put "Nenhuma jornada em andamento" on screen
+    // for a driver whose shift was open and whose signal had dropped.
+    if (error) {
+      setLoading(false);
+      return;
+    }
 
     setJourney(
       data
@@ -58,17 +66,30 @@ export function useActiveJourney() {
     void refresh();
   }, [refresh]);
 
+  /**
+   * Returns the new journey's id.
+   *
+   * The caller needs it immediately — GPS capture is keyed by journey — and
+   * reading it off `journey` instead would hand back the previous render's
+   * snapshot, which at this point is still null.
+   */
   const start = useCallback(
-    async (odometerStart: number | null) => {
-      if (!session?.user) return;
-      await supabase.from('journeys').insert({
-        user_id: session.user.id,
-        started_at: new Date().toISOString(),
-        status: 'active',
-        odometer_start: odometerStart,
-      });
+    async (odometerStart: Metres | null): Promise<string | null> => {
+      if (!session?.user) return null;
+      const { data } = await supabase
+        .from('journeys')
+        .insert({
+          user_id: session.user.id,
+          started_at: new Date().toISOString(),
+          status: 'active',
+          odometer_start: odometerStart,
+        })
+        .select('id')
+        .maybeSingle();
+
       void track('journey_started', {});
       await refresh();
+      return data ? String(data.id) : null;
     },
     [refresh, session?.user?.id],
   );
@@ -100,14 +121,28 @@ export function useActiveJourney() {
   }, [journey, refresh]);
 
   const finish = useCallback(
-    async (input: { odometerEnd: number | null; distanceOverride: number | null }) => {
-      if (!journey) return;
+    async (input: {
+      odometerEnd: Metres | null;
+      distanceOverride: Metres | null;
+      /** The raw GPS measurement, kept as the audit trail behind the replay. */
+      distanceGps?: Metres | null;
+      routePointCount?: number | null;
+      distanceSource?: DistanceSource | null;
+    }): Promise<boolean> => {
+      if (!journey) return false;
       const now = new Date();
       const extra = journey.pausedAt
         ? Math.max(0, Math.round((now.getTime() - Date.parse(journey.pausedAt)) / 1000))
         : 0;
 
-      await supabase
+      // The caller needs to know whether this landed: the GPS buffer on the
+      // device is only safe to delete once the row is actually written.
+      //
+      // `select()` because a PostgREST update that matched nothing reports no
+      // error at all. Trusting that would confirm the driver's day, emit a
+      // completion event and release the buffer over a row that was never
+      // touched — an id that moved, or an RLS policy that said no.
+      const { data, error } = await supabase
         .from('journeys')
         .update({
           status: 'completed',
@@ -116,11 +151,19 @@ export function useActiveJourney() {
           paused_seconds: journey.pausedSeconds + extra,
           odometer_end: input.odometerEnd,
           distance_override: input.distanceOverride,
+          distance_gps: input.distanceGps ?? null,
+          route_point_count: input.routePointCount ?? null,
+          distance_source: input.distanceSource ?? null,
         })
-        .eq('id', journey.id);
+        .eq('id', journey.id)
+        .select('id')
+        .maybeSingle();
 
-      void track('journey_completed', {});
+      // `journey_completed` is emitted by the close screen, which knows what
+      // the journey actually contained. Firing it here too would have put two
+      // events with different properties under one name in the warehouse.
       await refresh();
+      return !error && data !== null;
     },
     [journey, refresh],
   );
