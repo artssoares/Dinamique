@@ -18,7 +18,7 @@
 --
 -- Numa Supabase, `pgcrypto` e `citext` já vêm instaladas no schema
 -- `extensions`, não em `public`. O `create extension if not exists` das nossas
--- migrations, portanto, não faz nada — a extensão já existe, em outro lugar.
+-- migrations, portanto, não faz nada – a extensão já existe, em outro lugar.
 --
 -- Isso sozinho não seria problema: a busca padrão da Supabase inclui
 -- `extensions`. O problema é que toda função nossa fixa `set search_path =
@@ -29,13 +29,13 @@
 -- dentro do gatilho de criação de conta, então a conta inteira falha e o
 -- aplicativo devolve um erro genérico. Ninguém conseguia se cadastrar.
 --
--- O teste local não pegou porque instalava as extensões em `public` — mais uma
+-- O teste local não pegou porque instalava as extensões em `public` – mais uma
 -- diferença entre o ambiente de teste e a Supabase real. O shim foi corrigido
 -- junto com esta migration.
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
--- Parte 1 — o cadastro deixa de depender de extensão nenhuma
+-- Parte 1 – o cadastro deixa de depender de extensão nenhuma
 --
 -- O sufixo do código de indicação são dois caracteres aleatórios. Não precisa
 -- de aleatoriedade criptográfica, e não vale a pena que o caminho mais crítico
@@ -98,7 +98,7 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- Parte 2 — toda função passa a enxergar o schema `extensions`
+-- Parte 2 – toda função passa a enxergar o schema `extensions`
 --
 -- `gen_random_bytes` era só o primeiro a estourar. A mesma armadilha existe
 -- para o tipo `citext`, usado em `profiles.email`: o operador de comparação

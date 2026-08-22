@@ -20,6 +20,8 @@ export type IconName =
   | 'insights'
   | 'more'
   | 'plus'
+  | 'minus'
+  | 'box'
   | 'bell'
   | 'chevronLeft'
   | 'chevronRight'
@@ -47,7 +49,6 @@ export type IconName =
   | 'download'
   | 'arrowUpRight'
   | 'arrowDownLeft'
-  | 'sparkle'
   | 'wrench'
   | 'alert'
   | 'info'
@@ -58,7 +59,10 @@ export type IconName =
   | 'sun'
   | 'moon'
   | 'phone'
-  | 'route';
+  | 'route'
+  | 'megaphone'
+  | 'compass'
+  | 'flag';
 
 export interface IconProps {
   name: IconName;
@@ -120,6 +124,22 @@ export function Icon({ name, size = 22, color, strokeWidth = 1.8 }: IconProps) {
         <Svg {...common} strokeWidth={strokeWidth + 0.4}>
           <Line x1="12" y1="5.5" x2="12" y2="18.5" />
           <Line x1="5.5" y1="12" x2="18.5" y2="12" />
+        </Svg>
+      );
+    case 'minus':
+      return (
+        <Svg {...common} strokeWidth={strokeWidth + 0.4}>
+          <Line x1="5.5" y1="12" x2="18.5" y2="12" />
+        </Svg>
+      );
+    // Um caixa de papelão: o que o motorista vende dentro do carro. Nada de
+    // brilho nem estrela, o ícone descreve a coisa que ele nomeia.
+    case 'box':
+      return (
+        <Svg {...common}>
+          <Path d="M3.75 7.75 12 4l8.25 3.75v8.5L12 20l-8.25-3.75z" />
+          <Polyline points="3.75,7.75 12,11.5 20.25,7.75" />
+          <Line x1="12" y1="11.5" x2="12" y2="20" />
         </Svg>
       );
     case 'bell':
@@ -317,13 +337,6 @@ export function Icon({ name, size = 22, color, strokeWidth = 1.8 }: IconProps) {
           <Polyline points="15.25,17 7,17 7,8.75" />
         </Svg>
       );
-    case 'sparkle':
-      return (
-        <Svg {...common}>
-          <Path d="M12 3.5c.6 3.9 1.85 5.15 5.75 5.75-3.9.6-5.15 1.85-5.75 5.75-.6-3.9-1.85-5.15-5.75-5.75C10.15 8.65 11.4 7.4 12 3.5z" />
-          <Path d="M17.75 15.25c.35 1.85.9 2.4 2.75 2.75-1.85.35-2.4.9-2.75 2.75-.35-1.85-.9-2.4-2.75-2.75 1.85-.35 2.4-.9 2.75-2.75z" />
-        </Svg>
-      );
     case 'wrench':
       return (
         <Svg {...common}>
@@ -409,6 +422,28 @@ export function Icon({ name, size = 22, color, strokeWidth = 1.8 }: IconProps) {
           <Circle cx="6.25" cy="6" r="2.5" />
           <Circle cx="17.75" cy="18" r="2.5" />
           <Path d="M8.75 6h5.5a3.5 3.5 0 0 1 0 7h-4.5a3.5 3.5 0 0 0 0 7h5.5" />
+        </Svg>
+      );
+    case 'megaphone':
+      return (
+        <Svg {...common}>
+          <Path d="M4.5 10.25v3.5a2 2 0 0 0 2 2h1.75l7.5 4.25V4L8.25 8.25H6.5a2 2 0 0 0-2 2z" />
+          <Path d="M18.75 9.25a3.4 3.4 0 0 1 0 5.5" />
+          <Path d="M8.25 15.75v3.5a1.5 1.5 0 0 0 3 0v-1.8" />
+        </Svg>
+      );
+    case 'compass':
+      return (
+        <Svg {...common}>
+          <Circle cx="12" cy="12" r="8.25" />
+          <Path d="m15.25 8.75-1.9 4.6-4.6 1.9 1.9-4.6z" />
+        </Svg>
+      );
+    case 'flag':
+      return (
+        <Svg {...common}>
+          <Line x1="5.5" y1="3.75" x2="5.5" y2="20.5" />
+          <Path d="M5.5 5h10.75l-1.6 3.5 1.6 3.5H5.5z" />
         </Svg>
       );
   }

@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase';
  * aplicativo continua inteiro se o usuário recusar a permissão.
  *
  * Não pedimos permissão na abertura. Só quando o usuário liga a opção nas
- * preferências — pedir logo de cara costuma resultar em recusa permanente.
+ * preferências – pedir logo de cara costuma resultar em recusa permanente.
  */
 
 export async function registerForPush(userId: string): Promise<string | null> {

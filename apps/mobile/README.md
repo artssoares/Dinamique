@@ -17,22 +17,22 @@ Security. The service role key must never appear in this app.
 
 | Route | State |
 | --- | --- |
-| `(auth)/sign-in`, `(auth)/sign-up` | built — sign-up captures a referral code |
-| `onboarding` | built — work modes, platforms, monthly goal |
-| `(tabs)/index` — Hoje | built — goal progress, profit, R$/hour, R$/km |
-| `(tabs)/history` — Histórico | built — day list with period totals |
-| `(tabs)/record` — + | built — journey start/pause/finish, revenue, expense |
-| `(tabs)/insights` — Insights | built — rule-based insights |
-| `(tabs)/more` — Mais | built — hub |
-| `support`, `support/new`, `support/[id]` | built — inbox, new ticket, live conversation |
-| `notifications` | built — list, deep links, mark all read |
-| `referrals` | built — code, native share, "minhas indicações" |
-| `influencer` | built — application form and status |
-| `settings/appearance` | built — light / dark / system |
-| `settings/route` | built — Trajeto e privacidade: GPS, cortar as pontas, retenção, apagar tudo |
-| `journey/close` | built — três passos, resumo, replay e compartilhar |
-| `journey/replay` | built — o trajeto de um dia, vindo do histórico |
-| `profile`, `vehicle`, `goals`, `plan`, `export` | **not built** — each renders `<ComingSoon>` naming its phase |
+| `(auth)/sign-in`, `(auth)/sign-up` | built – sign-up captures a referral code |
+| `onboarding` | built – work modes, platforms, monthly goal |
+| `(tabs)/index` – Hoje | built – goal progress, profit, R$/hour, R$/km |
+| `(tabs)/history` – Histórico | built – day list with period totals |
+| `(tabs)/record` – + | built – journey start/pause/finish, revenue, expense |
+| `(tabs)/insights` – Insights | built – rule-based insights |
+| `(tabs)/more` – Mais | built – hub |
+| `support`, `support/new`, `support/[id]` | built – inbox, new ticket, live conversation |
+| `notifications` | built – list, deep links, mark all read |
+| `referrals` | built – code, native share, "minhas indicações" |
+| `influencer` | built – application form and status |
+| `settings/appearance` | built – light / dark / system |
+| `settings/route` | built – Trajeto e privacidade: GPS, cortar as pontas, retenção, apagar tudo |
+| `journey/close` | built – três passos, resumo, replay e compartilhar |
+| `journey/replay` | built – o trajeto de um dia, vindo do histórico |
+| `profile`, `vehicle`, `goals`, `plan`, `export` | **not built** – each renders `<ComingSoon>` naming its phase |
 
 Routes marked *not built* say so on screen. A button that looks finished but
 does nothing is worse than an honest empty state (§131).
@@ -59,8 +59,6 @@ type come from `@dinamique/ui` tokens. A hex code in a screen is a bug.
 ## Known gaps
 
 - **Icons** are placeholder glyphs in the tab bar, not a finished icon set.
-- **The logo** is not in the repository; `<BrandMark>` renders a visible
-  placeholder until `assets/brand/logo.png` is supplied.
 - **Offline queueing** (§111) is not implemented. Writes go straight to
   Supabase; `client_id` columns exist so idempotent sync can be added without a
   migration.

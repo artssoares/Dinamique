@@ -46,7 +46,7 @@ export function nextTicketStatus(
   }
 }
 
-/** Statuses the team still owes an answer on — drives the "não respondidos" badge. */
+/** Statuses the team still owes an answer on – drives the "não respondidos" badge. */
 export const UNANSWERED_STATUSES: readonly SupportTicketStatus[] = [
   'new',
   'awaiting_agent',
@@ -93,7 +93,7 @@ export function timeToResolution(t: TicketTimings): number | null {
   return Math.max(0, Math.round((Date.parse(t.resolvedAt) - Date.parse(t.createdAt)) / 1000));
 }
 
-/** Mean of the defined values only — unanswered tickets are excluded, not zeroed. */
+/** Mean of the defined values only – unanswered tickets are excluded, not zeroed. */
 export function averageSeconds(values: readonly (number | null)[]): number | null {
   const defined = values.filter((v): v is number => v !== null);
   if (defined.length === 0) return null;

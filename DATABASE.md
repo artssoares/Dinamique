@@ -12,7 +12,7 @@ migration to a real Postgres and asserting behaviour.
 | volume | `integer` | millilitres |
 | duration | `integer` | seconds |
 | consumption | `integer` | metres per litre |
-| instants | `timestamptz` | — |
+| instants | `timestamptz` | – |
 | calendar days | `date` | local to the driver |
 
 No `numeric` currency and no float distances anywhere. `10.8 km/l` is stored as
@@ -58,7 +58,7 @@ These cannot be violated by application code, because they are constraints:
 
 ### Grants
 
-`anon` receives nothing — every screen requires a session.
+`anon` receives nothing – every screen requires a session.
 
 `authenticated` receives `select` on everything (narrowed to their own rows by
 RLS) and write access only where a user legitimately creates their own data.
@@ -76,20 +76,20 @@ These tables are **read-only to the client** because they grant value:
 - **support messages** can only be inserted with `author_kind = 'user'` and
   `author_id = auth.uid()`, on a ticket you own that is not closed
 - **notifications** are updatable by their owner (to mark read) but not
-  insertable — a user cannot write themselves a notification
+  insertable – a user cannot write themselves a notification
 - **analytics_events** is insert-only for users and readable only by admins with
   the analyst role
 
 ### Functions that grant value
 
-`handle_new_user()` — on `auth.users` insert, creates the profile, preferences,
+`handle_new_user()` – on `auth.users` insert, creates the profile, preferences,
 the 7-day Pro trial, the personal referral code and notification preferences, in
 one transaction.
 
-`redeem_code(text)` — every antifraud rule from `REFERRALS.md`, server-side, in
+`redeem_code(text)` – every antifraud rule from `REFERRALS.md`, server-side, in
 one transaction. Executable by `authenticated`, revoked from `public`.
 
-`mark_ticket_read(uuid)` — marks a ticket's messages and its matching
+`mark_ticket_read(uuid)` – marks a ticket's messages and its matching
 notifications read, after verifying the caller owns the ticket.
 
 ## Read models

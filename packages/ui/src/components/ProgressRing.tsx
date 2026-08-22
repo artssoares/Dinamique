@@ -11,7 +11,7 @@ export interface ProgressRingProps {
   ratio: number;
   size?: number;
   thickness?: number;
-  /** Big label in the middle — usually the figure itself. */
+  /** Big label in the middle – usually the figure itself. */
   centreLabel?: string;
   /** Small line under it. */
   centreHint?: string;

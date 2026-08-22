@@ -6,7 +6,7 @@ import { Text } from './Text';
 
 export interface MetricProps {
   label: string;
-  /** Pass null when the metric cannot be computed — see §6. */
+  /** Pass null when the metric cannot be computed – see §6. */
   value: string | null;
   hint?: string;
   /** Shown instead of the value when it is null. */
@@ -17,7 +17,7 @@ export interface MetricProps {
 
 /**
  * A single figure with its label. When `value` is null the metric renders an
- * honest dash and an explanation, never a zero — an invented R$/km is worse
+ * honest dash and an explanation, never a zero – an invented R$/km is worse
  * than no R$/km (§6, §131).
  */
 export function Metric({ label, value, hint, emptyHint, align = 'left', style }: MetricProps) {
@@ -32,7 +32,7 @@ export function Metric({ label, value, hint, emptyHint, align = 'left', style }:
       {value === null ? (
         <>
           <Text variant="moneyMedium" color="muted">
-            —
+            –
           </Text>
           {emptyHint ? (
             <Text variant="caption" color="muted">

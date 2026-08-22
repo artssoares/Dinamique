@@ -2,7 +2,7 @@
  * Shared primitive aliases.
  *
  * Money is ALWAYS stored and computed in integer cents (BRL). Floating point
- * currency is a defect class we refuse to ship — see PRODUCT_RULES.md §Money.
+ * currency is a defect class we refuse to ship – see PRODUCT_RULES.md §Money.
  */
 export type UUID = string;
 

@@ -219,7 +219,7 @@ create policy saved_reports_own on saved_reports
 create policy exports_select_own on exports
   for select using (user_id = auth.uid() or is_admin());
 
--- Events are written by the client and read only by admins — a user cannot
+-- Events are written by the client and read only by admins – a user cannot
 -- read the event stream, not even their own.
 create policy analytics_insert_own on analytics_events
   for insert with check (user_id = auth.uid() or user_id is null);

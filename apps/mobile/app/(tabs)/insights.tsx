@@ -89,7 +89,7 @@ export default function Insights() {
         </>
       ) : !report || report.daysWithData < MIN_DAYS ? (
         <EmptyState
-          iconName="sparkle"
+          iconName="compass"
           title="Ainda estamos conhecendo sua rotina"
           description={`Depois de ${MIN_DAYS} dias com registros, o Dinamique começa a comparar seus resultados e apontar o que mudou.`}
         />
@@ -205,7 +205,7 @@ export default function Insights() {
   );
 }
 
-/** Resumo automático em frases (§54) — cada uma só aparece se tiver dado real. */
+/** Resumo automático em frases (§54) – cada uma só aparece se tiver dado real. */
 function summaryLines(
   report: NonNullable<ReturnType<typeof usePeriodReport>['report']>,
   period: GoalPeriod,

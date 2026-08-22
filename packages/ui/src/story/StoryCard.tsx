@@ -1,8 +1,18 @@
 import { forwardRef, Fragment } from 'react';
-import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop, Text as SvgText } from 'react-native-svg';
+import Svg, {
+  Circle,
+  Defs,
+  Image as SvgImage,
+  LinearGradient,
+  Path,
+  Rect,
+  Stop,
+  Text as SvgText,
+} from 'react-native-svg';
 import type { LatLng } from '@dinamique/types';
 import { blue, coral, neutral } from '../tokens/palette';
 import { traceTo } from '../route/geometry';
+import { WORDMARK_ASPECT_RATIO, WORDMARK_NEGATIVE_DATA_URI } from './wordmark';
 import {
   FIGURE_ROW_Y,
   STORY_HEIGHT,
@@ -70,21 +80,18 @@ export const StoryCard = forwardRef<Svg, StoryCardProps>(function StoryCard(
       <Rect x="0" y="0" width={STORY_WIDTH} height={STORY_HEIGHT} fill="url(#story-bg)" />
 
       {/*
-        The wordmark is drawn as text rather than as the logo asset, and it
-        does so silently. Inside the app a missing asset should be loud — the
-        BrandMark draws its dashed box precisely so nobody ships without
-        noticing. On an image somebody is about to post, never.
+        The real mark, never a typeset stand-in. It is inlined as a data URI
+        rather than referenced as an asset because this card gets exported to a
+        PNG, and a bundled URL does not resolve inside that export on the web.
       */}
-      <SvgText
+      <SvgImage
         x={STORY_MARGIN}
-        y={STORY_MARGIN + STORY_TYPE.brand}
-        fill={neutral[0]}
-        fontSize={STORY_TYPE.brand}
-        fontWeight="700"
-        letterSpacing={4}
-      >
-        DINAMIQUE
-      </SvgText>
+        y={STORY_MARGIN}
+        width={STORY_TYPE.brand * WORDMARK_ASPECT_RATIO}
+        height={STORY_TYPE.brand}
+        href={{ uri: WORDMARK_NEGATIVE_DATA_URI }}
+        preserveAspectRatio="xMinYMin meet"
+      />
 
       <SvgText
         x={STORY_MARGIN}

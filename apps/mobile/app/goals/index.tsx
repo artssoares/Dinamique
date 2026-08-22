@@ -18,6 +18,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 import { useSession } from '@/hooks/useSession';
+import { applyMonthlyGoal } from '@/features/goals/applyGoals';
 
 const PERIODS: { value: GoalPeriod; label: string }[] = [
   { value: 'daily', label: 'Diária' },
@@ -108,18 +109,25 @@ export default function Goals() {
     }
 
     setSaving(true);
-    const existing = goals.find((goal) => goal.period === period);
 
-    if (existing) {
-      await supabase.from('goals').update({ target, basis: draftBasis }).eq('id', existing.id);
+    if (period === 'monthly') {
+      // The monthly figure is the one the other three are derived from, so
+      // editing it rewrites all four rather than leaving a daily target that
+      // contradicts the month.
+      await applyMonthlyGoal({ userId: session.user.id, monthly: target, basis: draftBasis });
     } else {
-      await supabase.from('goals').insert({
-        user_id: session.user.id,
-        period,
-        basis: draftBasis,
-        target,
-      });
-      void track('goal_created', { period });
+      const existing = goals.find((goal) => goal.period === period);
+      if (existing) {
+        await supabase.from('goals').update({ target, basis: draftBasis }).eq('id', existing.id);
+      } else {
+        await supabase.from('goals').insert({
+          user_id: session.user.id,
+          period,
+          basis: draftBasis,
+          target,
+        });
+        void track('goal_created', { period });
+      }
     }
 
     setSaving(false);
@@ -211,13 +219,18 @@ export default function Goals() {
                   </View>
 
                   {period === 'monthly' && parseCents(draftValue) ? (
-                    <Text variant="caption" color="secondary">
-                      Isso dá cerca de{' '}
-                      {formatCents(deriveGoalSuggestions(parseCents(draftValue)!).daily)} por dia.
-                    </Text>
+                    <Card padding="lg" tone="brand" style={{ gap: theme.spacing.xxs }}>
+                      <Text variant="bodyStrong" color="brand">
+                        {formatCents(deriveGoalSuggestions(parseCents(draftValue)!).daily)} por dia
+                      </Text>
+                      <Text variant="caption" color="secondary">
+                        Salvando aqui, a semana e o ano também são ajustados. Todas as metas seguem
+                        esse mesmo valor.
+                      </Text>
+                    </Card>
                   ) : null}
 
-                  <View style={{ flexDirection: 'row', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
                     <Button
                       label="Salvar"
                       iconName="check"

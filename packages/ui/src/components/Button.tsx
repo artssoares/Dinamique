@@ -1,6 +1,6 @@
-import { useCallback } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Pressable,
   StyleSheet,
   View,
@@ -9,12 +9,15 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
+import { usePressMotion } from '../hooks/usePressMotion';
 import { Icon, type IconName } from '../icons/Icon';
 import { MIN_TOUCH_TARGET } from '../tokens/index';
 import { Text } from './Text';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'inverse';
 export type ButtonSize = 'sm' | 'md' | 'lg';
+/** Where the button sits when it is not stretched to the full width. */
+export type ButtonAlign = 'center' | 'start' | 'end';
 
 export interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> {
   label: string;
@@ -22,6 +25,12 @@ export interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> 
   size?: ButtonSize;
   loading?: boolean;
   fullWidth?: boolean;
+  /**
+   * Centred by default. A button that hugs the left edge of a card reads as an
+   * afterthought, and one pinned to the right reads as a dialog's "OK": the
+   * middle is where the eye already is after reading the text above it.
+   */
+  align?: ButtonAlign;
   /** Icon drawn from the set, tinted to match the label. */
   iconName?: IconName;
   iconPosition?: 'leading' | 'trailing';
@@ -41,12 +50,21 @@ const SIZES: Record<
   lg: { height: 58, paddingHorizontal: 24, variant: 'subtitle', icon: 20 },
 };
 
+const ALIGNMENTS: Record<ButtonAlign, ViewStyle['alignSelf']> = {
+  center: 'center',
+  start: 'flex-start',
+  end: 'flex-end',
+};
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 export function Button({
   label,
   variant = 'primary',
   size = 'md',
   loading = false,
   fullWidth = false,
+  align = 'center',
   iconName,
   iconPosition = 'leading',
   icon,
@@ -58,6 +76,7 @@ export function Button({
   const theme = useTheme();
   const sizing = SIZES[size];
   const isDisabled = disabled === true || loading;
+  const press = usePressMotion({ scale: 0.97, opacity: 0.92, disabled: isDisabled });
 
   const surfaces: Record<
     ButtonVariant,
@@ -97,26 +116,6 @@ export function Button({
 
   const surface = surfaces[variant];
 
-  const buildStyle = useCallback(
-    ({ pressed }: { pressed: boolean }): StyleProp<ViewStyle> => [
-      styles.base,
-      {
-        height: sizing.height,
-        paddingHorizontal: sizing.paddingHorizontal,
-        borderRadius: pill ? theme.radius.pill : theme.radius.lg,
-        backgroundColor: surface.background,
-        borderWidth: variant === 'ghost' ? 1 : 0,
-        borderColor: surface.border,
-        alignSelf: fullWidth ? 'stretch' : 'flex-start',
-        // Pressed state is a subtle scale + fade rather than a colour jump.
-        opacity: isDisabled ? 0.45 : pressed ? 0.85 : 1,
-        transform: [{ scale: pressed && !isDisabled ? 0.985 : 1 }],
-      },
-      style,
-    ],
-    [fullWidth, isDisabled, pill, sizing, style, surface, theme.radius, variant],
-  );
-
   const glyph = iconName ? (
     <Icon name={iconName} size={sizing.icon} color={surface.content} />
   ) : (
@@ -124,12 +123,27 @@ export function Button({
   );
 
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       accessibilityLabel={label}
       disabled={isDisabled}
-      style={buildStyle}
+      {...press.handlers}
+      style={[
+        styles.base,
+        {
+          height: sizing.height,
+          paddingHorizontal: sizing.paddingHorizontal,
+          borderRadius: pill ? theme.radius.pill : theme.radius.lg,
+          backgroundColor: surface.background,
+          borderWidth: variant === 'ghost' ? 1 : 0,
+          borderColor: surface.border,
+          alignSelf: fullWidth ? 'stretch' : ALIGNMENTS[align],
+        },
+        press.style,
+        isDisabled ? styles.disabled : null,
+        style,
+      ]}
       {...rest}
     >
       {loading ? (
@@ -143,11 +157,12 @@ export function Button({
           {iconPosition === 'trailing' ? glyph : null}
         </View>
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
 const styles = StyleSheet.create({
   base: { alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
   content: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  disabled: { opacity: 0.45 },
 });

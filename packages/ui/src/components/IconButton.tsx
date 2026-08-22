@@ -1,5 +1,6 @@
-import { Pressable, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Pressable, type StyleProp, type ViewStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
+import { usePressMotion } from '../hooks/usePressMotion';
 import { Icon, type IconName } from '../icons/Icon';
 import { MIN_TOUCH_TARGET } from '../tokens/index';
 import { CountBadge } from './Badge';
@@ -20,6 +21,8 @@ export interface IconButtonProps {
   style?: StyleProp<ViewStyle>;
 }
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 /**
  * The circular icon button used by every header, the tab bar and the quick
  * actions row. Always at least 44dp of touch area, whatever the visual size.
@@ -36,6 +39,8 @@ export function IconButton({
   style,
 }: IconButtonProps) {
   const theme = useTheme();
+  // Rounder controls tolerate a deeper press than rectangles do.
+  const press = usePressMotion({ scale: 0.92, opacity: 0.85, disabled });
 
   const tones: Record<IconButtonTone, { background: string; icon: string; border: string }> = {
     surface: {
@@ -64,14 +69,15 @@ export function IconButton({
   const palette = tones[tone];
 
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
+      {...press.handlers}
       hitSlop={Math.max(0, Math.round((MIN_TOUCH_TARGET - size) / 2))}
-      style={({ pressed }) => [
+      style={[
         {
           width: size,
           height: size,
@@ -81,9 +87,9 @@ export function IconButton({
           borderColor: palette.border,
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: disabled ? 0.4 : pressed ? 0.75 : 1,
-          transform: [{ scale: pressed && !disabled ? 0.94 : 1 }],
         },
+        press.style,
+        disabled ? { opacity: 0.4 } : null,
         style,
       ]}
     >
@@ -91,6 +97,6 @@ export function IconButton({
       {badge && badge > 0 ? (
         <CountBadge count={badge} style={{ position: 'absolute', top: -2, right: -2 }} />
       ) : null}
-    </Pressable>
+    </AnimatedPressable>
   );
 }

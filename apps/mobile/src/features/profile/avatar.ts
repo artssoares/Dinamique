@@ -39,7 +39,7 @@ export async function pickAndUploadAvatar(userId: string): Promise<AvatarResult 
   const response = await fetch(compressed.uri);
   const bytes = await response.arrayBuffer();
 
-  // O caminho precisa começar com o id do usuário — é assim que a política do
+  // O caminho precisa começar com o id do usuário – é assim que a política do
   // Storage sabe que a pasta é dele. O timestamp evita cache velho.
   const path = `${userId}/avatar-${Date.now()}.jpg`;
 

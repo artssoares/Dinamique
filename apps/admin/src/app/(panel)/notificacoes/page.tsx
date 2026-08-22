@@ -28,7 +28,7 @@ export default async function Notifications() {
     <>
       <h1 className="page-title">Notificações</h1>
       <p className="page-subtitle">
-        Envio interno para o aplicativo. Quem desativou a categoria não recebe — isso é
+        Envio interno para o aplicativo. Quem desativou a categoria não recebe, e isso é
         verificado no banco, não aqui.
       </p>
 
@@ -123,10 +123,10 @@ export default async function Notifications() {
               {sends.map((send) => (
                 <tr key={send.id}>
                   <td className="small mono">{new Date(send.created_at).toLocaleString('pt-BR')}</td>
-                  <td>{send.metadata?.title ?? '—'}</td>
-                  <td className="small">{send.metadata?.category ?? '—'}</td>
+                  <td>{send.metadata?.title ?? '–'}</td>
+                  <td className="small">{send.metadata?.category ?? '–'}</td>
                   <td className="small mono">{send.metadata?.recipients ?? 0}</td>
-                  <td className="small">{send.profiles?.first_name ?? '—'}</td>
+                  <td className="small">{send.profiles?.first_name ?? '–'}</td>
                 </tr>
               ))}
             </tbody>

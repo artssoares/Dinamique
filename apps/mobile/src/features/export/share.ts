@@ -16,7 +16,7 @@ const MIME: Record<ExportFormat, string> = {
  * Gera o arquivo e entrega ao usuário (§55).
  *
  * No celular usa a folha de compartilhamento nativa; na web, um download
- * comum. O arquivo é montado no aparelho — os dados não passam por servidor
+ * comum. O arquivo é montado no aparelho – os dados não passam por servidor
  * nenhum além do Supabase de onde vieram.
  */
 export async function exportAndShare(
@@ -29,7 +29,7 @@ export async function exportAndShare(
 
   const rowCount = workbook.sheets.reduce((acc, sheet) => acc + sheet.rows.length, 0);
 
-  // Toda exportação fica registrada — é um evento de privacidade (§95).
+  // Toda exportação fica registrada – é um evento de privacidade (§95).
   await supabase.from('exports').insert({
     user_id: userId,
     scope: 'user_data',

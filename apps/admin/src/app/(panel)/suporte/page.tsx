@@ -127,7 +127,7 @@ export default async function SupportInbox({
                 <tr key={ticket.id}>
                   <td>
                     <Link href={`/suporte/${ticket.id}`}>
-                      <div style={{ fontWeight: 600 }}>{ticket.profiles?.first_name ?? '—'}</div>
+                      <div style={{ fontWeight: 600 }}>{ticket.profiles?.first_name ?? '–'}</div>
                       <div className="small muted">{ticket.profiles?.email ?? ''}</div>
                     </Link>
                   </td>
@@ -137,7 +137,7 @@ export default async function SupportInbox({
                       <div className="small muted mono">{ticket.reference}</div>
                     </Link>
                   </td>
-                  <td className="small">{ticket.support_categories?.name ?? '—'}</td>
+                  <td className="small">{ticket.support_categories?.name ?? '–'}</td>
                   <td>
                     <span className={`badge ${statusTone(ticket.status)}`}>
                       {STATUS_LABELS[ticket.status]}
@@ -148,7 +148,7 @@ export default async function SupportInbox({
                       {PRIORITY_LABELS[ticket.priority]}
                     </span>
                   </td>
-                  <td className="small">{ticket.assigned?.first_name ?? <span className="muted">—</span>}</td>
+                  <td className="small">{ticket.assigned?.first_name ?? <span className="muted">–</span>}</td>
                   <td className="small mono">
                     {new Date(ticket.last_message_at).toLocaleString('pt-BR', {
                       day: '2-digit',

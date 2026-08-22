@@ -6,7 +6,7 @@ import { parseDecimal } from './decimal';
  * is at the formatting boundary and in ratios (which are never money).
  */
 
-/** Round half away from zero — matches how people expect currency to round. */
+/** Round half away from zero – matches how people expect currency to round. */
 export function roundCents(value: number): Cents {
   if (!Number.isFinite(value)) return 0;
   return value < 0 ? -Math.round(-value) : Math.round(value);

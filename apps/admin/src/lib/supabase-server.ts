@@ -9,8 +9,8 @@ import { cookies } from 'next/headers';
  * Use it for everything the panel merely reads.
  *
  * `getServiceClient()` bypasses RLS entirely. It exists for the handful of
- * operations that legitimately write across users — granting a plan, replying
- * to a ticket, promoting an admin — and every one of them must check the
+ * operations that legitimately write across users – granting a plan, replying
+ * to a ticket, promoting an admin – and every one of them must check the
  * caller's role first and write an audit log entry (§109, §118).
  */
 
@@ -44,7 +44,7 @@ export async function getSessionClient() {
 }
 
 /**
- * Service-role client. Server-side only — importing this from a Client
+ * Service-role client. Server-side only – importing this from a Client
  * Component is a build error because `next/headers` and this key are not
  * available in the browser bundle.
  */

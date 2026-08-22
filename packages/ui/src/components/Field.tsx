@@ -21,7 +21,7 @@ export interface FieldProps extends TextInputProps {
  *
  * A borda muda de cor no foco: sem isso, em um celular barato com a tela no
  * sol, não dá para saber onde o texto vai cair. Senhas ganham o botão de
- * revelar — errar a senha às cegas é o motivo número um de não conseguir
+ * revelar – errar a senha às cegas é o motivo número um de não conseguir
  * entrar.
  */
 export function Field({

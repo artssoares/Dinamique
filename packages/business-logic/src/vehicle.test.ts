@@ -89,7 +89,7 @@ describe('computeVehicleCost', () => {
       vehicleExpenses: 100_000,
       apportionedRecurring: 48_000,
       grossRevenue: 416_000,
-      distance: 200_000_000, // 200 000 km? no — 200 000 m ×1000 = keep simple below
+      distance: 200_000_000, // 200 000 km? no – 200 000 m ×1000 = keep simple below
     });
     expect(result.costPerKm).not.toBeNull();
     expect(result.marginPerKm).toBe((result.revenuePerKm ?? 0) - (result.costPerKm ?? 0));

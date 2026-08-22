@@ -22,7 +22,7 @@ export const isSupabaseConfigured = Boolean(url && anonKey);
 
 /**
  * Cliente falso usado só quando falta configuração. Toda chamada devolve um
- * erro claro em vez de estourar — assim uma tela que não checou o estado
+ * erro claro em vez de estourar – assim uma tela que não checou o estado
  * mostra "não configurado" em vez de derrubar o aplicativo inteiro.
  */
 function buildUnconfiguredClient(): SupabaseClient {

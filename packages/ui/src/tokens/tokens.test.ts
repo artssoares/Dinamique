@@ -110,7 +110,7 @@ describe('inverse surfaces', () => {
       expect(contrastRatio(tokens.textOnInverse, tokens.surfaceInverse)!).toBeGreaterThanOrEqual(
         WCAG_AA_NORMAL,
       );
-      // The dimmed variant carries inactive tab labels — large-text floor.
+      // The dimmed variant carries inactive tab labels – large-text floor.
       expect(
         contrastRatio(tokens.textOnInverseMuted, tokens.surfaceInverse)!,
       ).toBeGreaterThanOrEqual(WCAG_AA_LARGE);
@@ -139,10 +139,23 @@ describe('inverse surfaces', () => {
     );
   });
 
-  it('renders white type legibly on both stops of the hero gradient', () => {
+  it('renders white type legibly on both stops of the front hero gradient', () => {
     for (const tokens of [lightTokens, darkTokens]) {
-      for (const stop of [tokens.heroFrom, tokens.heroTo, tokens.heroBackFrom, tokens.heroBackTo]) {
+      for (const stop of [tokens.heroFrom, tokens.heroTo]) {
         expect(contrastRatio(tokens.textOnBrand, stop)!).toBeGreaterThanOrEqual(WCAG_AA_LARGE);
+      }
+    }
+  });
+
+  // The back card gets to be a vivid orange precisely because it sets its type
+  // dark. Held to the normal floor, not the large-text one: it carries a real
+  // sentence about the goal, in caption size.
+  it('renders dark type legibly on both stops of the back hero gradient', () => {
+    for (const tokens of [lightTokens, darkTokens]) {
+      for (const stop of [tokens.heroBackFrom, tokens.heroBackTo]) {
+        expect(contrastRatio(tokens.textOnHeroBack, stop)!).toBeGreaterThanOrEqual(
+          WCAG_AA_NORMAL,
+        );
       }
     }
   });

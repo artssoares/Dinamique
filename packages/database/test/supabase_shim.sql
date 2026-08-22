@@ -40,7 +40,7 @@ exception when duplicate_object then null; end $$;
 
 -- ------------------------------------------------------------- extensões --
 -- Numa Supabase, `pgcrypto` e `citext` JÁ VÊM instaladas, e no schema
--- `extensions` — não em `public`. O `create extension if not exists` das
+-- `extensions` – não em `public`. O `create extension if not exists` das
 -- migrations não muda isso: a extensão já existe, então o comando não faz
 -- nada e ela continua onde estava.
 --

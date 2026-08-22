@@ -9,6 +9,15 @@ jobs:
   verify:
     runs-on: ubuntu-latest
 
+    # Job-wide, because `pnpm run test` runs the database package too – not
+    # just the dedicated step further down. Without these it probes 54322,
+    # the port `supabase start` uses locally, and fails the whole run.
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
     services:
       postgres:
         image: postgres:16
@@ -26,7 +35,7 @@ jobs:
 
       # No `version:` here on purpose. The action refuses to start when the
       # version is pinned in two places, and package.json's `packageManager`
-      # is the one that also governs local installs — so that stays the single
+      # is the one that also governs local installs – so that stays the single
       # source of truth.
       - uses: pnpm/action-setup@v4
 
@@ -66,15 +75,10 @@ jobs:
           exit 0
 
       - name: Database migrations and security assertions
-        env:
-          PGHOST: localhost
-          PGPORT: 5432
-          PGUSER: postgres
-          PGPASSWORD: postgres
         run: pnpm --filter @dinamique/database test
 
       # Building is what catches monorepo resolution problems that typecheck
-      # cannot see — see the .npmrc comment about React hoisting.
+      # cannot see – see the .npmrc comment about React hoisting.
       - name: Build admin
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
@@ -82,11 +86,15 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ci
         run: pnpm --filter @dinamique/admin build
 
+      # `dist` rather than /tmp: Expo refuses to write outside the project –
+      # "CommandError: --output-dir must be a subdirectory of the project
+      # directory" – so the old path failed before bundling anything. `dist`
+      # is already gitignored.
       - name: Bundle mobile for web
         env:
           EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ci
-        run: pnpm --filter @dinamique/mobile exec expo export --platform web --output-dir .web-export
+        run: pnpm --filter @dinamique/mobile exec expo export --platform web --output-dir dist
 
       # O export passar é só a prova negativa. Módulos nativos são mantidos fora
       # da web por extensão de plataforma (`.native.ts`), e um import distraído
@@ -97,10 +105,10 @@ jobs:
           echo "MapLibre e o TaskManager não podem existir no navegador."
           # Um `grep` num diretório que não existe sai com 2, e `! grep` leria
           # isso como aprovação — a verificação passaria sem ter olhado nada.
-          test -d apps/mobile/.web-export || { echo "FALHOU: pacote web ausente"; exit 1; }
+          test -d apps/mobile/dist || { echo "FALHOU: pacote web ausente"; exit 1; }
 
           for modulo in maplibre expo-task-manager; do
-            if grep -rq "$modulo" apps/mobile/.web-export; then
+            if grep -rq "$modulo" apps/mobile/dist; then
               echo "FALHOU: $modulo entrou no pacote web"
               exit 1
             fi

@@ -43,7 +43,7 @@ const REMINDERS = [
 /**
  * Free Flow (§50). Registro manual, sem GPS.
  *
- * A tela nunca afirma que existe uma cobrança — o Dinamique não consulta
+ * A tela nunca afirma que existe uma cobrança – o Dinamique não consulta
  * concessionária nenhuma. Ela serve para o motorista não esquecer de conferir.
  */
 export default function FreeFlow() {
@@ -119,7 +119,7 @@ export default function FreeFlow() {
     >
         <Text variant="body" color="secondary">
           Passou por um pedágio sem cancela? Registre aqui e o Dinamique lembra você de conferir o
-          pagamento. Não consultamos a concessionária — quem confere é você.
+          pagamento. Não consultamos a concessionária, quem confere é você.
         </Text>
 
         {toCheck > 0 ? (
@@ -175,7 +175,7 @@ export default function FreeFlow() {
                 />
               </View>
             </View>
-            <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.sm }}>
               <Button label="Salvar" loading={saving} disabled={operator.trim() === ''} onPress={save} />
               <Button label="Cancelar" variant="ghost" onPress={() => setAdding(false)} />
             </View>
@@ -202,7 +202,7 @@ export default function FreeFlow() {
             </View>
 
             {record.status !== 'paid' ? (
-              <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.sm }}>
                 <Chip label="Já paguei" onPress={() => setStatus(record, 'paid')} />
                 {record.status === 'to_check' ? (
                   <Chip label="Está pendente" onPress={() => setStatus(record, 'pending')} />

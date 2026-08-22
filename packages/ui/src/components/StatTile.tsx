@@ -5,7 +5,7 @@ import { Text } from './Text';
 
 export interface StatTileProps {
   label: string;
-  /** null when the figure cannot be computed — see §6. Never a fake zero. */
+  /** null when the figure cannot be computed – see §6. Never a fake zero. */
   value: string | null;
   emptyHint?: string;
   icon?: IconName;
@@ -71,7 +71,7 @@ export function StatTile({
       {value === null ? (
         <>
           <Text variant="moneyMedium" color="muted">
-            —
+            –
           </Text>
           {emptyHint ? (
             <Text variant="caption" color="muted" numberOfLines={2}>

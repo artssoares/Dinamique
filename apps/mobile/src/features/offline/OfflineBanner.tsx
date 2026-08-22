@@ -7,7 +7,7 @@ import { useOffline } from './useOfflineSync';
  * Barra de estado da sincronização.
  *
  * Um motorista sem sinal precisa saber que o registro dele foi guardado, e não
- * perdido. Só aparece quando há algo a dizer — sem sinal ou com fila pendente.
+ * perdido. Só aparece quando há algo a dizer – sem sinal ou com fila pendente.
  */
 export function OfflineBanner() {
   const theme = useTheme();

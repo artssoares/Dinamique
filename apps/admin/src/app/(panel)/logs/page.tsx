@@ -13,7 +13,7 @@ interface LogRow {
   profiles: { first_name: string; email: string } | null;
 }
 
-/** Audit log (§109). Read-only by construction — there is no delete path. */
+/** Audit log (§109). Read-only by construction – there is no delete path. */
 export default async function AuditLog() {
   await requireAdmin(PRIVILEGED_ROLES);
   const supabase = await getSessionClient();
@@ -49,13 +49,13 @@ export default async function AuditLog() {
               {logs.map((log) => (
                 <tr key={log.id}>
                   <td className="small mono">{new Date(log.created_at).toLocaleString('pt-BR')}</td>
-                  <td className="small">{log.profiles?.first_name ?? '—'}</td>
+                  <td className="small">{log.profiles?.first_name ?? '–'}</td>
                   <td className="small mono">{log.action}</td>
                   <td className="small mono">
-                    {log.target_table ? `${log.target_table}:${log.target_id ?? ''}` : '—'}
+                    {log.target_table ? `${log.target_table}:${log.target_id ?? ''}` : '–'}
                   </td>
                   <td className="small mono muted" style={{ maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {Object.keys(log.metadata ?? {}).length > 0 ? JSON.stringify(log.metadata) : '—'}
+                    {Object.keys(log.metadata ?? {}).length > 0 ? JSON.stringify(log.metadata) : '–'}
                   </td>
                 </tr>
               ))}

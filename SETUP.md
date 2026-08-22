@@ -7,7 +7,7 @@ Três etapas. A primeira leva cinco minutos e destrava tudo.
 ## 1. Banco de dados (Supabase)
 
 1. Em [supabase.com](https://supabase.com), crie um projeto.
-   Região: **South America (São Paulo)** — é a mais perto dos usuários.
+   Região: **South America (São Paulo)** – é a mais perto dos usuários.
 2. Abra **SQL Editor** → **New query**.
 3. Cole o conteúdo de [`supabase/setup.sql`](./supabase/setup.sql) e execute.
 
@@ -21,7 +21,7 @@ iniciais (plataformas, categorias, catálogo de veículos, preços dos planos).
 
 > A chave **anon** é pública por natureza: ela não dá acesso a nada sozinha,
 > porque todas as tabelas estão atrás de Row Level Security. A **service_role**
-> ignora o RLS — ela só entra no servidor, nunca no aplicativo.
+> ignora o RLS – ela só entra no servidor, nunca no aplicativo.
 
 ### Dados de demonstração (opcional)
 
@@ -58,7 +58,7 @@ No projeto **dinamiqueoficial**, as mesmas chaves com outro prefixo:
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | a Project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | a chave anon |
-| `SUPABASE_SERVICE_ROLE_KEY` | a chave service_role — marque como **Sensitive** |
+| `SUPABASE_SERVICE_ROLE_KEY` | a chave service_role – marque como **Sensitive** |
 | `NEXT_PUBLIC_APP_URL` | a URL do aplicativo (etapa 2) |
 
 ### Virar administrador
@@ -73,7 +73,7 @@ select id, 'superadmin' from profiles where email = 'seu@email.com';
 
 ---
 
-## 4. Pagamento (Stripe) — quando quiser cobrar
+## 4. Pagamento (Stripe) – quando quiser cobrar
 
 1. Crie a conta no [Stripe](https://stripe.com) e pegue a chave secreta.
 2. No projeto do painel, adicione:
@@ -95,7 +95,7 @@ O arquivo ainda não está no repositório. Salve o PNG com fundo transparente e
 `assets/brand/logo.png` e siga as duas linhas descritas em
 [`assets/brand/README.md`](./assets/brand/README.md).
 
-Até lá o aplicativo mostra um espaço tracejado no lugar da marca — de
+Até lá o aplicativo mostra um espaço tracejado no lugar da marca – de
 propósito, para a ausência ficar visível em vez de o nome ser recriado com
 outra fonte.
 
@@ -165,7 +165,7 @@ sem estragar nada.
 | [`supabase/testar-cadastro.sql`](./supabase/testar-cadastro.sql) | Diz se o cadastro está funcionando, sem criar nada. | Quando o cadastro falhar. |
 | [`supabase/virar-admin.sql`](./supabase/virar-admin.sql) | Transforma a sua conta em administrador do painel. | Depois de criar sua conta no aplicativo. |
 
-O `virar-admin.sql` procura pelo e-mail do cadastro — troque o e-mail dentro do
+O `virar-admin.sql` procura pelo e-mail do cadastro – troque o e-mail dentro do
 arquivo se você usou outro.
 
 ---
@@ -182,6 +182,6 @@ pnpm mobile   # aplicativo (iOS, Android e web)
 pnpm admin    # painel em http://localhost:3000
 ```
 
-Para publicar nas lojas, o caminho é o EAS Build da Expo — o projeto já está
+Para publicar nas lojas, o caminho é o EAS Build da Expo – o projeto já está
 configurado para isso (`apps/mobile/app.json`), mas o envio para App Store e
 Google Play exige as contas de desenvolvedor.

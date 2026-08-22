@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert, Animated, Easing, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import type { Metres } from '@dinamique/types';
-import { formatDistanceKm, formatDuration, parseCents, toDateOnly } from '@dinamique/utils';
+import { formatCents, formatDistanceKm, formatDuration, parseCents, toDateOnly } from '@dinamique/utils';
 import {
   AmountInput,
   Button,
@@ -10,39 +10,55 @@ import {
   Chip,
   Field,
   Icon,
+  Notice,
+  Reveal,
   Screen,
   SectionHeader,
   SegmentedControl,
   Text,
+  useReducedMotion,
   useTheme,
 } from '@dinamique/ui';
 import { AppHeader } from '@/features/shell/AppHeader';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
+import { toFriendlyError } from '@/lib/errors';
 import { useSession } from '@/hooks/useSession';
+import { runningJourneyId } from '@/features/journey/runningJourneyId';
 import { addExpense, addRevenue, useActiveJourney } from '@/features/journey/useJourney';
+import { useOffline } from '@/features/offline/useOfflineSync';
 import { useJourneyTracking } from '@/features/tracking/useJourneyTracking';
 import { useRoutePreferences } from '@/features/tracking/preferences';
-import {
-  BackgroundConsentSheet,
-  RouteConsentSheet,
-} from '@/features/tracking/RouteConsentSheet';
+import { BackgroundConsentSheet, RouteConsentSheet } from '@/features/tracking/RouteConsentSheet';
 import { locationService } from '@/features/tracking/locationService';
 import { PERMISSION_COPY } from '@/features/tracking/permission';
-import { useOffline } from '@/features/offline/useOfflineSync';
+import { useCostCategories } from '@/features/costs/categories';
+import { ProductSalePicker } from '@/features/products/ProductSalePicker';
+import { costRows, revenueRows, totalsFor } from '@/features/products/sales';
+import { useProducts } from '@/features/products/useProducts';
 
-type Mode = 'revenue' | 'expense';
+type Mode = 'revenue' | 'expense' | 'sale';
 
 /**
  * The + destination (§26). One screen, two modes, and a running journey
- * summary on top — the goal is a completed entry in well under a minute.
+ * summary on top – the goal is a completed entry in well under a minute.
  */
 export default function Record() {
   const theme = useTheme();
   const router = useRouter();
-  const { session } = useSession();
+  const reduced = useReducedMotion();
+  const { session, profile } = useSession();
   const { save } = useOffline();
-  const { journey, start, pause, resume, refresh } = useActiveJourney();
+  const {
+    journey,
+    start,
+    pause,
+    resume,
+    refresh,
+    busy: journeyBusy,
+    error: journeyError,
+    dismissError,
+  } = useActiveJourney();
   const { read: readRoutePreferences, update: updateRoutePreferences } = useRoutePreferences();
   const tracking = useJourneyTracking(journey?.id ?? null);
   const [askingConsent, setAskingConsent] = useState(false);
@@ -59,7 +75,10 @@ export default function Record() {
    * which is why the sheet is shown after `start()`, not before it.
    */
   async function beginJourney() {
-    const id = await start(null);
+    if (!(await start(null))) return;
+    // Read back rather than trusting the provider's state: `start()` awaits
+    // its own refresh, but this closure was rendered before either happened.
+    const id = await runningJourneyId();
     if (!id) return;
     journeyIdRef.current = id;
 
@@ -174,6 +193,16 @@ export default function Record() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
 
+  // Selling in the car. Offered only to people who said they do it, or who
+  // registered a product anyway: an empty third tab is noise for everyone else.
+  const { products, loading: productsLoading } = useProducts();
+  const [units, setUnits] = useState<Record<string, number>>({});
+  const productCategory = useCostCategories(['produtos']);
+  const sells = Boolean(profile?.sellsProducts) || products.length > 0;
+  const saleLines = products.map((product) => ({ product, quantity: units[product.id] ?? 0 }));
+  const saleTotals = totalsFor(saleLines);
+  const [saleError, setSaleError] = useState<string | null>(null);
+
   useEffect(() => {
     void supabase
       .from('platforms')
@@ -190,12 +219,47 @@ export default function Record() {
       .then(({ data }) => setCategories((data as { id: string; name: string }[] | null) ?? []));
   }, []);
 
+  // 0 is ganho, 1 is gasto. Everything that changes colour between the two
+  // reads from this one value, so the whole card shifts together instead of
+  // half a dozen elements each deciding for themselves.
+  const modeShift = useRef(new Animated.Value(mode === 'expense' ? 1 : 0)).current;
+
+  useEffect(() => {
+    const to = mode === 'expense' ? 1 : 0;
+    if (reduced) {
+      modeShift.setValue(to);
+      return;
+    }
+    const animation = Animated.timing(modeShift, {
+      toValue: to,
+      duration: theme.motion.base,
+      easing: Easing.out(Easing.cubic),
+      // Colour interpolation cannot run on the native thread.
+      useNativeDriver: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [mode, modeShift, reduced, theme.motion.base]);
+
+  const isExpense = mode === 'expense';
+  const isSale = mode === 'sale';
+  const accent = isExpense ? theme.colors.dangerText : theme.colors.successText;
+  const accentSurface = modeShift.interpolate({
+    inputRange: [0, 1],
+    outputRange: [theme.colors.successSubtle, theme.colors.dangerSubtle],
+  });
+
   const cents = useMemo(() => parseCents(amount), [amount]);
-  const canSave =
-    cents !== null && cents > 0 && (mode === 'revenue' || categoryId !== null) && !saving;
+  const canSave = saving
+    ? false
+    : isSale
+      ? saleTotals.units > 0
+      : cents !== null && cents > 0 && (mode === 'revenue' || categoryId !== null);
 
   async function handleSave() {
-    if (!session?.user || cents === null) return;
+    if (!session?.user) return;
+    if (isSale) return void handleSaveSale();
+    if (cents === null) return;
     setSaving(true);
     const date = toDateOnly(new Date());
 
@@ -231,32 +295,91 @@ export default function Record() {
     await refresh();
   }
 
+  /**
+   * A sale is written straight to `revenues`, one row per product, rather than
+   * through the offline queue: the queue takes one flat record and a basket is
+   * several. It is the honest trade for now, and the screen says so if it
+   * fails rather than pretending it saved.
+   */
+  async function handleSaveSale() {
+    if (!session?.user || saleTotals.units === 0) return;
+    setSaving(true);
+    setSaleError(null);
+    const date = toDateOnly(new Date());
+    const userId = session.user.id;
+    const journeyId = journey?.id ?? null;
+
+    const { error: revenueError } = await supabase
+      .from('revenues')
+      .insert(revenueRows({ userId, journeyId, date, lines: saleLines }));
+
+    if (revenueError) {
+      setSaleError(toFriendlyError(revenueError).message);
+      setSaving(false);
+      return;
+    }
+
+    // The goods came out of a box that was paid for. Recording only the
+    // takings would call a perfume bought for twenty and sold for fifty a
+    // fifty real profit.
+    const costs = costRows({
+      userId,
+      journeyId,
+      date,
+      categoryId: productCategory.produtos ?? null,
+      lines: saleLines,
+    });
+    if (costs.length > 0) await supabase.from('expenses').insert(costs);
+
+    void track('product_sale_added', { units: saleTotals.units });
+
+    setUnits({});
+    setSaving(false);
+    setSaved(`${formatCents(saleTotals.gross)} em vendas`);
+    setTimeout(() => setSaved(null), 2500);
+    await refresh();
+  }
+
   return (
     <Screen
-      header={<AppHeader title="Registrar" subtitle="Lance um ganho ou um gasto em segundos" />}
+      header={
+        <AppHeader
+          title="Registrar"
+          subtitle={
+            sells
+              ? 'Lance um ganho, uma venda ou um gasto em segundos'
+              : 'Lance um ganho ou um gasto em segundos'
+          }
+        />
+      }
       tabBarSpacing
       footer={
         <Button
-          label={saved ?? 'Salvar'}
+          label={saved ?? (isSale ? saleButtonLabel(saleTotals.units) : 'Salvar')}
           size="lg"
           fullWidth
           loading={saving}
           disabled={!canSave}
-          iconName={saved ? 'check' : 'plus'}
+          iconName={saved ? 'check' : isSale ? 'box' : 'plus'}
           onPress={handleSave}
         />
       }
     >
-      <JourneyCard
-        journey={journey}
-        onStart={() => void beginJourney()}
-        onPause={() => void pauseJourney()}
-        onResume={() => void resumeJourney()}
-        liveDistance={tracking.tracking ? tracking.liveDistance : null}
-        foregroundOnly={tracking.tracking && !tracking.background}
-        recovered={tracking.recovered}
-        onFinish={() => router.push('/journey/close')}
-      />
+      <Reveal>
+        <JourneyCard
+          journey={journey}
+          busy={journeyBusy}
+          error={journeyError}
+          onDismissError={dismissError}
+          onStart={() => void beginJourney()}
+          onPause={() => void pauseJourney()}
+          onResume={() => void resumeJourney()}
+          liveDistance={tracking.tracking ? tracking.liveDistance : null}
+          foregroundOnly={tracking.tracking && !tracking.background}
+          recovered={tracking.recovered}
+          onFinish={() => router.push('/journey/close')}
+        />
+      </Reveal>
 
       <RouteConsentSheet
         visible={askingConsent}
@@ -277,20 +400,75 @@ export default function Record() {
         label="O que você quer registrar"
         value={mode}
         onChange={setMode}
-        options={[
-          { value: 'revenue', label: 'Ganho' },
-          { value: 'expense', label: 'Gasto' },
-        ]}
+        options={
+          sells
+            ? [
+                { value: 'revenue' as Mode, label: 'Corrida' },
+                { value: 'sale' as Mode, label: 'Venda' },
+                { value: 'expense' as Mode, label: 'Gasto' },
+              ]
+            : [
+                { value: 'revenue' as Mode, label: 'Ganho' },
+                { value: 'expense' as Mode, label: 'Gasto' },
+              ]
+        }
       />
 
-      <Card padding="xl" style={{ gap: theme.spacing.xl }}>
+      {/* Vender dentro do carro é dinheiro que não vem do aplicativo, e até
+          agora não tinha onde entrar: a única forma de um ganho era "um valor,
+          de um aplicativo". Aqui é uma lista do que a pessoa vende, com menos
+          e mais, porque a conta o app já sabe fazer. */}
+      {isSale ? (
+        <Reveal>
+          <View style={{ gap: theme.spacing.md }}>
+            {saleError ? (
+              <Notice message={saleError} onDismiss={() => setSaleError(null)} />
+            ) : null}
+            <ProductSalePicker
+              products={products}
+              quantities={units}
+              loading={productsLoading}
+              onChange={(id, quantity) => setUnits((current) => ({ ...current, [id]: quantity }))}
+            />
+          </View>
+        </Reveal>
+      ) : null}
+
+      <Animated.View
+        style={{
+          borderRadius: theme.radius['2xl'],
+          backgroundColor: theme.colors.surfacePrimary,
+          overflow: 'hidden',
+          display: isSale ? 'none' : 'flex',
+        }}
+      >
+        {/* The mode's colour runs along the top of the card. Subtle, always in
+            view, and it moves when you switch, so you never have to re-read
+            the control to know what you are about to save. */}
+        <Animated.View style={{ height: 4, backgroundColor: accentSurface }} />
+        <Animated.View
+          style={{ padding: theme.spacing.xl, gap: theme.spacing.xl, backgroundColor: accentSurface }}
+        >
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: theme.spacing.sm,
+          }}
+        >
+          <Icon name={isExpense ? 'arrowDownLeft' : 'arrowUpRight'} size={17} color={accent} />
+          <Text variant="captionStrong" style={{ color: accent }}>
+            {isExpense ? 'Saindo do bolso' : 'Entrando no bolso'}
+          </Text>
+        </View>
+
         <AmountInput
-          label={mode === 'revenue' ? 'Quanto entrou' : 'Quanto saiu'}
+          label={isExpense ? 'Quanto saiu' : 'Quanto entrou'}
           value={amount}
           onChangeText={setAmount}
         />
 
-        {mode === 'revenue' ? (
+        {!isExpense ? (
           <>
             <View style={{ gap: theme.spacing.sm }}>
               <Text variant="captionStrong" color="secondary">
@@ -335,9 +513,10 @@ export default function Record() {
             </View>
           </View>
         )}
-      </Card>
+        </Animated.View>
+      </Animated.View>
 
-      <View style={{ gap: theme.spacing.md }}>
+      <View style={{ gap: theme.spacing.md, display: isSale ? 'none' : 'flex' }}>
         <SectionHeader title="Registros com conta própria" />
         <Card
           padding="lg"
@@ -360,7 +539,7 @@ export default function Record() {
           <View style={{ flex: 1, gap: 2 }}>
             <Text variant="bodyStrong">Abastecimento</Text>
             <Text variant="caption" color="secondary">
-              Informe litros e preço — o consumo o Dinamique calcula
+              Informe litros e preço, o consumo o Dinamique calcula
             </Text>
           </View>
           <Icon name="chevronRight" size={18} color={theme.colors.textMuted} />
@@ -372,6 +551,9 @@ export default function Record() {
 
 function JourneyCard({
   journey,
+  busy,
+  error,
+  onDismissError,
   onStart,
   onPause,
   onResume,
@@ -381,6 +563,9 @@ function JourneyCard({
   recovered,
 }: {
   journey: ReturnType<typeof useActiveJourney>['journey'];
+  busy: boolean;
+  error: string | null;
+  onDismissError: () => void;
   onStart: () => void;
   onPause: () => void;
   onResume: () => void;
@@ -403,13 +588,18 @@ function JourneyCard({
 
   if (!journey) {
     return (
-      <Card padding="xl" style={{ gap: theme.spacing.md }}>
-        <Text variant="subtitle">Nenhuma jornada em andamento</Text>
-        <Text variant="body" color="secondary">
-          Inicie uma jornada para o Dinamique medir seu tempo trabalhado — é o que permite calcular
+      <Card padding="xl" style={{ gap: theme.spacing.md, alignItems: 'center' }}>
+        <Text variant="subtitle" align="center">
+          Nenhuma jornada em andamento
+        </Text>
+        <Text variant="body" color="secondary" align="center">
+          Inicie uma jornada para o Dinamique medir seu tempo trabalhado. É o que permite calcular
           quanto você ganha por hora.
         </Text>
-        <Button label="Iniciar jornada" iconName="play" onPress={onStart} />
+        {error ? (
+          <Notice message={error} onDismiss={onDismissError} style={{ alignSelf: 'stretch' }} />
+        ) : null}
+        <Button label="Iniciar jornada" iconName="play" loading={busy} onPress={onStart} />
       </Card>
     );
   }
@@ -459,14 +649,36 @@ function JourneyCard({
         </Text>
       ) : null}
 
-      <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+      {error ? <Notice message={error} onDismiss={onDismissError} /> : null}
+
+      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.sm }}>
         {journey.status === 'active' ? (
-          <Button label="Pausar" variant="ghost" size="sm" iconName="pause" onPress={onPause} />
+          <Button
+            label="Pausar"
+            variant="ghost"
+            size="sm"
+            iconName="pause"
+            loading={busy}
+            onPress={onPause}
+          />
         ) : (
-          <Button label="Continuar" variant="ghost" size="sm" iconName="play" onPress={onResume} />
+          <Button
+            label="Continuar"
+            variant="ghost"
+            size="sm"
+            iconName="play"
+            loading={busy}
+            onPress={onResume}
+          />
         )}
         <Button label="Encerrar" size="sm" iconName="stop" onPress={onFinish} />
       </View>
     </Card>
   );
+}
+
+/** "Registrar 3 vendas" says what the button will do, "Salvar" does not. */
+function saleButtonLabel(units: number): string {
+  if (units === 0) return 'Conte o que você vendeu';
+  return units === 1 ? 'Registrar 1 venda' : `Registrar ${units} vendas`;
 }

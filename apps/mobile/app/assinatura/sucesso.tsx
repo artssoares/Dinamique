@@ -7,7 +7,7 @@ import { useSession } from '@/hooks/useSession';
 /**
  * Retorno do checkout.
  *
- * "Voltou do Stripe" não é o mesmo que "pagamento confirmado" — quem confirma
+ * "Voltou do Stripe" não é o mesmo que "pagamento confirmado" – quem confirma
  * é o webhook, e ele pode levar alguns segundos. Por isso a tela recarrega o
  * plano algumas vezes e, se ainda não chegou, diz a verdade em vez de fingir.
  */
@@ -59,7 +59,7 @@ export default function CheckoutSuccess() {
               <Text variant="titleLg">Pagamento em processamento</Text>
               <Text variant="body" color="secondary">
                 Recebemos seu pagamento, mas a confirmação ainda não chegou até nós. Ela costuma
-                levar poucos minutos — você não precisa pagar de novo. Se demorar mais que isso,
+                levar poucos minutos e você não precisa pagar de novo. Se demorar mais que isso,
                 fale com o suporte.
               </Text>
             </>

@@ -35,7 +35,7 @@ const STATUS_LABELS: Record<FineStatus, string> = {
   appealed: 'Contestada',
 };
 
-/** Multas (§51). Controle manual — nunca afirmamos que existe um débito. */
+/** Multas (§51). Controle manual – nunca afirmamos que existe um débito. */
 export default function Fines() {
   const theme = useTheme();
   const router = useRouter();
@@ -131,7 +131,7 @@ export default function Fines() {
             <Field label="Vencimento" optional hint="No formato AAAA-MM-DD." value={dueDate} onChangeText={setDueDate} placeholder="2026-09-15" />
             <Field label="Valor com desconto" optional value={discount} onChangeText={setDiscount} keyboardType="decimal-pad" />
             <Field label="Prazo do desconto" optional value={discountDeadline} onChangeText={setDiscountDeadline} placeholder="2026-09-01" />
-            <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.sm }}>
               <Button label="Salvar" loading={saving} disabled={description.trim() === '' || !parseCents(amount)} onPress={save} />
               <Button label="Cancelar" variant="ghost" onPress={() => setAdding(false)} />
             </View>
@@ -167,7 +167,7 @@ export default function Fines() {
             ) : null}
 
             {fine.status === 'pending' ? (
-              <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.sm }}>
                 <Chip label="Marcar como paga" onPress={() => setStatus(fine, 'paid')} />
                 <Chip label="Contestei" onPress={() => setStatus(fine, 'appealed')} />
               </View>

@@ -78,15 +78,15 @@ export default async function Referrals() {
               {referrals.map((referral) => (
                 <tr key={referral.id}>
                   <td>
-                    <div style={{ fontWeight: 600 }}>{referral.referrer?.first_name ?? '—'}</div>
+                    <div style={{ fontWeight: 600 }}>{referral.referrer?.first_name ?? '–'}</div>
                     <div className="small muted">{referral.referrer?.email}</div>
                   </td>
                   <td>
-                    <div style={{ fontWeight: 600 }}>{referral.referred?.first_name ?? '—'}</div>
+                    <div style={{ fontWeight: 600 }}>{referral.referred?.first_name ?? '–'}</div>
                     <div className="small muted">{referral.referred?.email}</div>
                   </td>
-                  <td className="small mono">{referral.promotion_codes?.code ?? '—'}</td>
-                  <td className="small">{referral.referred?.city ?? <span className="muted">—</span>}</td>
+                  <td className="small mono">{referral.promotion_codes?.code ?? '–'}</td>
+                  <td className="small">{referral.referred?.city ?? <span className="muted">–</span>}</td>
                   <td>
                     <span className={`badge ${referral.status === 'converted' ? 'badge-success' : 'badge-neutral'}`}>
                       {referral.status}

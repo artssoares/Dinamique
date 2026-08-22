@@ -9,7 +9,7 @@ export interface SkeletonProps {
   style?: StyleProp<ViewStyle>;
 }
 
-/** A calm pulse while data loads — never a spinner on top of content (§18). */
+/** A calm pulse while data loads – never a spinner on top of content (§18). */
 export function Skeleton({ width = '100%', height = 16, radius, style }: SkeletonProps) {
   const theme = useTheme();
   const pulse = useRef(new Animated.Value(0.5)).current;

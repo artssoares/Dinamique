@@ -51,6 +51,19 @@ describe('toFriendlyError', () => {
       .toBeUndefined();
   });
 
+  // O Supabase não lança: devolve `{ error }`, e esse erro é um objeto simples.
+  // Passar por String() dava "[object Object]", que não bate com nenhuma regra
+  // e apagava a única linha útil.
+  it('lê a mensagem de um erro do Supabase, que não é um Error', () => {
+    const { title, detail } = toFriendlyError({
+      message: 'new row violates row-level security policy for table "journeys"',
+      code: '42501',
+    });
+    expect(title).toBe('Sem permissão');
+    expect(detail).toContain('row-level security');
+    expect(detail).toContain('42501');
+  });
+
   it('trata a falta de conexão como dado preservado, não como perda', () => {
     const { message } = toFriendlyError(new Error('Network request failed'));
     expect(message).toContain('continuam neste aparelho');

@@ -1,5 +1,5 @@
 /**
- * Product analytics event names. Keep this list closed — an event that is not
+ * Product analytics event names. Keep this list closed – an event that is not
  * here cannot be emitted, which is what keeps the warehouse queryable.
  */
 export const ANALYTICS_EVENTS = [
@@ -16,6 +16,8 @@ export const ANALYTICS_EVENTS = [
   'route_story_shared',
   'revenue_added',
   'expense_added',
+  'product_created',
+  'product_sale_added',
   'fuel_added',
   'goal_created',
   'goal_reached',

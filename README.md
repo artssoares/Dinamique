@@ -1,6 +1,6 @@
 # dinamique.
 
-Financial and performance app for people who earn money with a vehicle —
+Financial and performance app for people who earn money with a vehicle –
 rideshare drivers, taxi drivers, couriers and delivery riders.
 
 The product answers one question that platform apps do not: **not how much you
@@ -15,7 +15,7 @@ plan and exactly where each area stands.
 
 | Layer | State |
 | --- | --- |
-| Business logic (`packages/business-logic`) | 102 tests — profit, R$/h, R$/km, goals, projections, score, vehicle cost, benchmark, codes, referrals, plans, support |
+| Business logic (`packages/business-logic`) | 102 tests – profit, R$/h, R$/km, goals, projections, score, vehicle cost, benchmark, codes, referrals, plans, support |
 | Database (`packages/database`) | 42 tables, 105 RLS policies, 29 behaviour assertions |
 | Design system (`packages/ui`) | tokens + icon set + 27 components, contrast asserted in both themes |
 | Mobile app (`apps/mobile`) | auth, onboarding, Home, journeys, entries, history, insights, support, referrals, influencer |
@@ -30,7 +30,7 @@ plan and exactly where each area stands.
 
 ## Colocar no ar
 
-Veja [`SETUP.md`](./SETUP.md) — instalação do banco em um passo, depois as
+Veja [`SETUP.md`](./SETUP.md) – instalação do banco em um passo, depois as
 variáveis de ambiente.
 
 ## Setup
@@ -67,7 +67,7 @@ never leaves the server.
 One deliberate exception: the mobile app's two `EXPO_PUBLIC_` values are
 committed in `apps/mobile/vercel.json` under `build.env`. Expo inlines them at
 build time, so a deployment without them can only render the "falta conectar o
-banco" screen — and both are public by construction. The URL is a hostname, and
+banco" screen – and both are public by construction. The URL is a hostname, and
 the anon key is shipped inside the JavaScript bundle to every visitor whatever
 we do; it grants nothing on its own, because every table is behind Row Level
 Security. The service role key remains absolutely excluded.
@@ -75,8 +75,8 @@ Security. The service role key remains absolutely excluded.
 ## Layout
 
 ```
-apps/mobile              Expo Router — iOS, Android, Web
-apps/admin               Next.js 15 — admin panel
+apps/mobile              Expo Router – iOS, Android, Web
+apps/admin               Next.js 15 – admin panel
 packages/types           domain model, enums mirroring the database
 packages/utils           integer-cent money, units, calendar-day helpers
 packages/business-logic  every financial rule, pure and tested
@@ -92,7 +92,7 @@ assets/brand             logo and brand colours
 Metro resolves from the filesystem rather than Node's algorithm, and parts of
 the Expo toolchain require transitive dependencies they never declare, so a
 strict pnpm layout cannot bundle the app. React is excluded because the mobile
-app is on React 18 (React Native 0.76) and the admin on React 19 — hoisting
+app is on React 18 (React Native 0.76) and the admin on React 19 – hoisting
 either makes Next's `styled-jsx` bind a second React copy and every prerender
 fails. Both builds are verified after any dependency change.
 
@@ -126,5 +126,5 @@ pnpm admin       # Next.js dev server
 ## Two rules the codebase enforces structurally
 
 1. **Money is integer cents.** Never a float, anywhere, at any layer.
-2. **A metric with no denominator is `null`.** No distance means no R$/km — the
+2. **A metric with no denominator is `null`.** No distance means no R$/km – the
    UI shows a dash and says why. An invented number is worse than no number.

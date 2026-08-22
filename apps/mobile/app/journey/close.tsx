@@ -19,6 +19,7 @@ import {
   Chip,
   Field,
   Money,
+  Notice,
   Screen,
   ScreenHeader,
   StepProgress,
@@ -27,8 +28,13 @@ import {
 } from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
+import { toFriendlyError } from '@/lib/errors';
 import { useSession } from '@/hooks/useSession';
 import { useActiveJourney } from '@/features/journey/useJourney';
+import { useCostCategories } from '@/features/costs/categories';
+import { ProductSalePicker } from '@/features/products/ProductSalePicker';
+import { costRows, revenueRows as saleRevenueRows, totalsFor } from '@/features/products/sales';
+import { useProducts } from '@/features/products/useProducts';
 import { closeRowClientId } from '@/features/journey/closeClientIds';
 import { resolveDistanceSource } from '@/features/journey/distanceSource';
 import { useJourneyTracking } from '@/features/tracking/useJourneyTracking';
@@ -56,8 +62,16 @@ const QUICK_SLUGS = ['combustivel', 'alimentacao', 'pedagio', 'estacionamento'];
 export default function CloseJourney() {
   const theme = useTheme();
   const router = useRouter();
-  const { session } = useSession();
-  const { journey, finish, refresh } = useActiveJourney();
+  const { session, profile } = useSession();
+  const {
+    journey,
+    finish,
+    refresh,
+    error: journeyError,
+    dismissError,
+  } = useActiveJourney();
+  const { products, loading: productsLoading } = useProducts();
+  const productCategory = useCostCategories(['produtos']);
   // `recover: false` — this screen ends journeys. A recovery here would race
   // its own `finish()` and re-register background location for a shift that
   // just ended.
@@ -77,7 +91,9 @@ export default function CloseJourney() {
   const [distance, setDistance] = useState('');
   const [odometerEnd, setOdometerEnd] = useState('');
   const [expenses, setExpenses] = useState<Record<string, string>>({});
+  const [units, setUnits] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [measured, setMeasured] = useState<TrackSummary | null>(null);
   /**
@@ -161,11 +177,21 @@ export default function CloseJourney() {
       });
   }, [session?.user?.id]);
 
+  const saleLines = useMemo(
+    () => products.map((product) => ({ product, quantity: units[product.id] ?? 0 })),
+    [products, units],
+  );
+  const saleTotals = useMemo(() => totalsFor(saleLines), [saleLines]);
+  const sells = Boolean(profile?.sellsProducts) || products.length > 0;
+
   const totals = useMemo(() => {
-    const gross = Object.values(amounts).reduce((acc, value) => acc + (parseCents(value) ?? 0), 0);
-    const costs = Object.values(expenses).reduce((acc, value) => acc + (parseCents(value) ?? 0), 0);
+    const fares = Object.values(amounts).reduce((acc, value) => acc + (parseCents(value) ?? 0), 0);
+    const spent = Object.values(expenses).reduce((acc, value) => acc + (parseCents(value) ?? 0), 0);
+    // The goods that left the boot are a cost of the day exactly like fuel is.
+    const gross = fares + saleTotals.gross;
+    const costs = spent + saleTotals.cost;
     return { gross, costs, profit: gross - costs };
-  }, [amounts, expenses]);
+  }, [amounts, expenses, saleTotals]);
 
   useEffect(() => {
     distanceRef.current = distance;
@@ -272,6 +298,8 @@ export default function CloseJourney() {
   async function save() {
     if (!session?.user || !journey || saving) return;
     setSaving(true);
+    setFailure(null);
+    dismissError();
     try {
       await writeJourney(session.user.id, journey);
     } catch {
@@ -351,6 +379,33 @@ export default function CloseJourney() {
       }))
       .filter((row) => row.amount > 0);
 
+    // As vendas viram linhas de receita com `product_id`, uma por produto — e
+    // ganham um `client_id` derivado do produto pelo mesmo motivo das demais:
+    // uma segunda tentativa substitui a primeira em vez de somar-se a ela.
+    const productRows = saleLines.flatMap((line) =>
+      saleRevenueRows({ userId, journeyId: journey.id, date, lines: [line] }).map((row) => ({
+        ...row,
+        client_id: closeRowClientId(journey.id, 'revenue', line.product.id),
+      })),
+    );
+
+    // Um `client_id` por produto, não por categoria: todo custo de produto cai
+    // na mesma categoria, e um id por categoria faria três perfumes apagarem
+    // uns aos outros. Chamado linha a linha porque `costRows` filtra as que
+    // não têm custo, e casar índices depois de um filtro é como se erra isso.
+    const productCostRows = saleLines.flatMap((line) =>
+      costRows({
+        userId,
+        journeyId: journey.id,
+        date,
+        categoryId: productCategory.produtos ?? null,
+        lines: [line],
+      }).map((row) => ({
+        ...row,
+        client_id: closeRowClientId(journey.id, 'expense', line.product.id),
+      })),
+    );
+
     const expenseRows = quickCategories
       .map((category) => ({
         user_id: userId,
@@ -366,29 +421,51 @@ export default function CloseJourney() {
     // A retry where the driver blanked an amount would otherwise leave the
     // first attempt's row behind — the history showing more than the summary
     // confirms — and a table cleared entirely would not be touched at all.
-    const revenueIds = platforms.map((p) => closeRowClientId(journey.id, 'revenue', p.id));
-    const expenseIds = quickCategories.map((c) => closeRowClientId(journey.id, 'expense', c.id));
+    // Os produtos entram na mesma lista: quem tirou uma venda na segunda
+    // tentativa precisa vê-la sumir, não ficar.
+    const revenueIds = [
+      ...platforms.map((p) => closeRowClientId(journey.id, 'revenue', p.id)),
+      ...products.map((p) => closeRowClientId(journey.id, 'revenue', p.id)),
+    ];
+    const expenseIds = [
+      ...quickCategories.map((c) => closeRowClientId(journey.id, 'expense', c.id)),
+      ...products.map((p) => closeRowClientId(journey.id, 'expense', p.id)),
+    ];
 
     let revenuesLanded = true;
     let expensesLanded = true;
+    let revenueError: unknown = null;
+    let expenseError: unknown = null;
 
     if (revenueIds.length > 0) {
-      const { error } = await replaceRows('revenues', userId, revenueIds, revenueRows);
-      if (error) revenuesLanded = false;
+      const { error } = await replaceRows('revenues', userId, revenueIds, [
+        ...revenueRows,
+        ...productRows,
+      ]);
+      if (error) {
+        revenuesLanded = false;
+        revenueError = error;
+      }
     }
 
     if (expenseIds.length > 0) {
-      const { error } = await replaceRows('expenses', userId, expenseIds, expenseRows);
-      if (error) expensesLanded = false;
+      const { error } = await replaceRows('expenses', userId, expenseIds, [
+        ...expenseRows,
+        ...productCostRows,
+      ]);
+      if (error) {
+        expensesLanded = false;
+        expenseError = error;
+      }
     }
 
     // The summary is rendered from what is on screen, not from the database.
     // Closing the journey with the money still on the phone would show the
     // driver a day they had, confirm it, and leave nothing behind.
     if (!revenuesLanded || !expensesLanded) {
-      Alert.alert(
-        'Não conseguimos salvar seus lançamentos',
-        'Sua jornada continua aberta e nada foi perdido. Confira sua conexão e toque em Encerrar de novo.',
+      setFailure(
+        toFriendlyError(revenueError ?? expenseError).message +
+          ' Sua jornada continua aberta e nada foi perdido.',
       );
       return;
     }
@@ -557,7 +634,12 @@ export default function CloseJourney() {
         },
       ],
       revenues: [{ date: toDateOnly(new Date()), amount: totals.gross, tips: 0, tripCount: null, platformId: null }],
-      expenses: [{ date: toDateOnly(new Date()), amount: totals.costs, isVehicleCost: true }],
+      // Two entries, not one: a box of perfume is a cost of the day but not a
+      // cost of the vehicle, and lumping it in would inflate the cost per km.
+      expenses: [
+        { date: toDateOnly(new Date()), amount: totals.costs - saleTotals.cost, isVehicleCost: true },
+        { date: toDateOnly(new Date()), amount: saleTotals.cost, isVehicleCost: false },
+      ],
     });
 
     return (
@@ -673,6 +755,24 @@ export default function CloseJourney() {
         </View>
       ),
     },
+    ...(sells
+      ? [
+          {
+            title: 'Vendeu alguma coisa?',
+            subtitle: 'Conte quantas unidades saíram. O preço o Dinamique já sabe.',
+            content: (
+              <ProductSalePicker
+                products={products}
+                quantities={units}
+                loading={productsLoading}
+                onChange={(id, quantity) =>
+                  setUnits((current) => ({ ...current, [id]: quantity }))
+                }
+              />
+            ),
+          },
+        ]
+      : []),
     {
       title: 'Quantos km você rodou?',
       subtitle:
@@ -747,6 +847,7 @@ export default function CloseJourney() {
 
   const current = steps[step]!;
   const isLast = step === steps.length - 1;
+  const problem = failure ?? journeyError;
 
   return (
     <Screen
@@ -780,10 +881,23 @@ export default function CloseJourney() {
 
         <View style={{ flex: 1 }}>{current.content}</View>
 
+        {problem !== null ? (
+          <Notice
+            message={problem}
+            onDismiss={() => {
+              setFailure(null);
+              dismissError();
+            }}
+          />
+        ) : null}
+
         {totals.gross > 0 ? (
           <Card padding="lg">
             <Text variant="caption" color="secondary">
               Parcial: {formatCents(totals.gross)} faturado
+              {saleTotals.units > 0
+                ? `, sendo ${formatCents(saleTotals.gross)} em ${saleTotals.units === 1 ? '1 venda' : `${saleTotals.units} vendas`}`
+                : ''}
               {totals.costs > 0 ? ` · ${formatCents(totals.costs)} em custos` : ''}
               {` · ${formatDuration(workedSeconds)} trabalhados`}
             </Text>

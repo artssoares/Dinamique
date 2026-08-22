@@ -6,8 +6,8 @@ Next.js 15, App Router, Server Components.
 
 | Função | Sujeita ao RLS | Para quê |
 | --- | --- | --- |
-| `getSessionClient()` | sim — age como o admin logado | tudo que o painel lê |
-| `getServiceClient()` | **não — ignora o RLS** | as poucas escritas que legitimamente cruzam usuários |
+| `getSessionClient()` | sim – age como o admin logado | tudo que o painel lê |
+| `getServiceClient()` | **não – ignora o RLS** | as poucas escritas que legitimamente cruzam usuários |
 
 Toda Server Action chama `requireAdmin(papéis)` **antes** de tocar na conexão
 de serviço. Uma Server Action é um endpoint público: esconder o botão na
@@ -53,12 +53,12 @@ acesso** e **só um superadmin cria outro superadmin**.
 
 Uma nota interna nunca chega ao usuário, e três coisas garantem isso:
 
-1. a política de RLS exclui `is_internal_note = true` para o dono do ticket —
+1. a política de RLS exclui `is_internal_note = true` para o dono do ticket –
    uma consulta que esquecer de filtrar ainda assim não vaza;
 2. a nota não move o status nem atualiza `last_message_at`, porque não é
    atividade que o usuário possa ver;
 3. no painel ela aparece em âmbar com borda tracejada e o aviso
-   "🔒 NOTA INTERNA — o usuário não vê isto", para ninguém colar uma nota numa
+   "🔒 NOTA INTERNA – o usuário não vê isto", para ninguém colar uma nota numa
    resposta por engano.
 
 ## Catálogos
@@ -80,5 +80,5 @@ consumo e devolve erro legível por linha em vez de estourar.
 | Output | `.next` (padrão) |
 
 Variáveis: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` e
-`SUPABASE_SERVICE_ROLE_KEY` — esta última marcada como sensível e **não**
+`SUPABASE_SERVICE_ROLE_KEY` – esta última marcada como sensível e **não**
 exposta a deploys de preview de terceiros.

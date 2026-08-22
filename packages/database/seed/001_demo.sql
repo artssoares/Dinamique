@@ -5,7 +5,7 @@
 -- identified and removed; none of it may ever reach production (§122, §131).
 --
 -- Creates:
---   * Arthur — São Paulo, Uber + 99, ~30 days of realistic history
+--   * Arthur – São Paulo, Uber + 99, ~30 days of realistic history
 --   * enough additional users for benchmarks to clear the 20-user minimum
 --   * support tickets, an influencer application, referrals and codes
 --
@@ -92,7 +92,7 @@ begin
   for v_offset in 0..29 loop
     v_day := current_date - v_offset;
 
-    -- Sundays off, Fridays strongest — matches how the insights read.
+    -- Sundays off, Fridays strongest – matches how the insights read.
     continue when extract(dow from v_day) = 0;
 
     v_gross    := 24000 + ((v_offset * 3137) % 16000)

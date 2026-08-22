@@ -1,27 +1,25 @@
 # Brand assets
 
-## `logo.png` — required, not yet supplied
+## `logo.png` and `logo-negativo.png`
 
-The official Dinamique logo (transparent PNG) belongs here as `logo.png`.
+The official Dinamique logo, extracted from the brand mini-manual V1.0. Two
+files because the manual asks for both:
 
-It was not included in the repository, so `<BrandMark>` currently renders a
-dashed placeholder. That is deliberate: the logo is never redrawn, re-typeset
-in a font, or reproportioned, and a wrong mark shipped quietly would be worse
-than a visible gap.
+- `logo.png`, the blue wordmark with the coral dot, for light surfaces
+- `logo-negativo.png`, the white wordmark with the coral dot, for the brand
+  blue, headers and dark surfaces
 
-To activate it:
+`<BrandMark>` (`apps/mobile/src/features/brand/`) renders one or the other by
+its `onDark` prop. The logo is never redrawn, re-typeset in a font, or
+reproportioned; the coral dot is part of the signature and is never removed.
 
-1. save the supplied transparent PNG as `assets/brand/logo.png`
-2. in `apps/mobile/src/features/brand/logo.ts`, replace the `null` export with
-   `require('../../../../assets/brand/logo.png')`
-3. set `LOGO_ASPECT_RATIO` to the file's real width ÷ height
-
-The admin panel reads the same file from `apps/admin/public/logo.png`.
-
-The shared story card does **not** follow this rule, on purpose: it typesets
-`DINAMIQUE` and says nothing. Inside the app a missing asset should be loud,
-so somebody notices before release; on an image a driver is about to post, a
-dashed placeholder would be the one thing everyone sees.
+The shared story card carries `logo-negativo.png` too, but inlined as a data
+URI in `packages/ui/src/story/wordmark.ts` — a generated file, with the command
+to refresh it in its own header. That copy exists because the card is exported
+to a PNG, and on the web that export serialises the SVG and reloads it as an
+image: a bundled asset referenced by URL does not resolve inside the serialised
+copy, so the mark would be missing from the file somebody posts. Regenerate it
+whenever the brand file changes; nothing checks that the two agree.
 
 ## Brand colours
 

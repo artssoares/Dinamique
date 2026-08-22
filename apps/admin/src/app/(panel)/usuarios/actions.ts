@@ -9,7 +9,7 @@ import { getServiceClient } from '@/lib/supabase-server';
 /**
  * Ações sobre a conta de um usuário.
  *
- * Todas exigem papel privilegiado e todas gravam Audit Log — conceder plano,
+ * Todas exigem papel privilegiado e todas gravam Audit Log – conceder plano,
  * bloquear conta e promover admin são exatamente as ações que precisam ser
  * explicáveis depois (§109).
  */
@@ -115,7 +115,7 @@ export async function setAdminRole(formData: FormData) {
   const role = String(formData.get('role') ?? '') as AdminRole | '';
   if (!userId) return;
 
-  // Ninguém pode alterar o próprio acesso administrativo — nem para promover,
+  // Ninguém pode alterar o próprio acesso administrativo – nem para promover,
   // nem para se trancar fora por engano.
   if (userId === admin.userId) return;
 

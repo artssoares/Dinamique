@@ -2,6 +2,7 @@ import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, IconButton, Text, useResponsive, useTheme } from '@dinamique/ui';
+import { BrandMark } from '@/features/brand/BrandMark';
 import { useSession } from '@/hooks/useSession';
 import { useNotificationCounts } from '@/hooks/useNotifications';
 import { avatarUrl } from '@/features/profile/avatar';
@@ -12,17 +13,23 @@ export interface AppHeaderProps {
   greeting?: string;
   title?: string;
   subtitle?: string;
+  /** Opens the notifications sheet. Without it the bell pushes a screen. */
+  onBellPress?: () => void;
 }
 
 /**
  * The header on every tab screen.
  *
- * Layout is fixed and deliberate: a menu control on the left, the bell and the
+ * Layout is fixed and deliberate: the mark on the left, the bell and the
  * user's own face on the right. The photo is the largest, right-most element
  * because "that is me, and this is my account" is the one thing a header has
  * to communicate without a label.
+ *
+ * There is no menu button. There was one, and it opened the same place the
+ * tab bar's third dot already opens; two controls for one destination is one
+ * too many, and the space belongs to the mark.
  */
-export function AppHeader({ greeting, title, subtitle }: AppHeaderProps) {
+export function AppHeader({ greeting, title, subtitle, onBellPress }: AppHeaderProps) {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -32,7 +39,6 @@ export function AppHeader({ greeting, title, subtitle }: AppHeaderProps) {
 
   const bellTarget = useTourTarget('bell');
   const profileTarget = useTourTarget('profile');
-  const menuTarget = useTourTarget('menu');
 
   const name = profile?.preferredName ?? profile?.firstName ?? '';
 
@@ -60,14 +66,7 @@ export function AppHeader({ greeting, title, subtitle }: AppHeaderProps) {
             justifyContent: 'space-between',
           }}
         >
-          <View ref={menuTarget.ref} collapsable={false}>
-            <IconButton
-              icon="menu"
-              label="Abrir o menu"
-              tone="surface"
-              onPress={() => router.push('/(tabs)/more')}
-            />
-          </View>
+          <BrandMark size="md" />
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
             <View ref={bellTarget.ref} collapsable={false}>
@@ -76,7 +75,7 @@ export function AppHeader({ greeting, title, subtitle }: AppHeaderProps) {
                 label={unreadTotal > 0 ? `Notificações, ${unreadTotal} não lidas` : 'Notificações'}
                 tone="surface"
                 badge={unreadTotal}
-                onPress={() => router.push('/notifications')}
+                onPress={onBellPress ?? (() => router.push('/notifications'))}
               />
             </View>
 

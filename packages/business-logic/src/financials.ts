@@ -7,7 +7,7 @@ import { HOUR_SECONDS, KM, roundCents, sumCents } from '@dinamique/utils';
  * Rules that are non-negotiable (PRODUCT_RULES.md §36, §6):
  *  - gross revenue is NEVER called profit;
  *  - a metric whose denominator is missing is `null`, never zero and never
- *    invented — no distance means no R$/km, full stop;
+ *    invented – no distance means no R$/km, full stop;
  *  - all money is integer cents.
  */
 
@@ -54,7 +54,7 @@ export interface PeriodSummary {
   /** null when no time was worked. */
   revenuePerHour: Cents | null;
   profitPerHour: Cents | null;
-  /** null when no distance was recorded — see §6. */
+  /** null when no distance was recorded – see §6. */
   revenuePerKm: Cents | null;
   profitPerKm: Cents | null;
   costPerKm: Cents | null;
@@ -66,7 +66,7 @@ export interface PeriodSummary {
 
 /**
  * Worked time excludes paused intervals. An unfinished journey contributes
- * nothing — we only measure what actually closed.
+ * nothing – we only measure what actually closed.
  */
 export function journeyWorkedSeconds(journey: JourneyInput): Seconds {
   if (!journey.endedAt) return 0;
@@ -108,7 +108,7 @@ export function journeyDistance(journey: JourneyInput): Metres | null {
   return null;
 }
 
-/** Cents per unit, where `units` may legitimately be zero — hence the null. */
+/** Cents per unit, where `units` may legitimately be zero – hence the null. */
 function perUnit(amount: Cents, units: number): Cents | null {
   if (units <= 0) return null;
   return roundCents(amount / units);

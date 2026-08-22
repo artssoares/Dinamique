@@ -5,7 +5,7 @@ import type { PeriodSummary } from './financials';
 /**
  * Insights (§42) are rule-based comparisons, not generated text. Each rule is
  * a pure function of two summaries plus a threshold, so the same inputs always
- * produce the same sentence — testable, explainable, and translatable.
+ * produce the same sentence – testable, explainable, and translatable.
  *
  * Thresholds are admin-configurable (§104); the defaults live here.
  */
@@ -84,7 +84,7 @@ export function generateInsights(context: InsightContext): Insight[] {
     }
   }
 
-  // Trabalhou menos e lucrou mais — o insight mais valioso do produto
+  // Trabalhou menos e lucrou mais – o insight mais valioso do produto
   if (
     current.workedSeconds > 0 &&
     previous.workedSeconds > 0 &&

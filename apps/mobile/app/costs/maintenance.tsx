@@ -194,7 +194,7 @@ export default function Maintenance() {
               placeholder="2026-12-01"
             />
             <Field label="Observação" optional value={note} onChangeText={setNote} />
-            <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: theme.spacing.sm }}>
               <Button label="Salvar" loading={saving} disabled={!typeId || !parseCents(amount)} onPress={save} />
               <Button label="Cancelar" variant="ghost" onPress={() => setAdding(false)} />
             </View>

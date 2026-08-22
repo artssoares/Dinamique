@@ -1,5 +1,5 @@
 -- ============================================================================
--- Dinamique — instalação completa
+-- Dinamique, instalação completa
 --
 -- Cole este arquivo inteiro no SQL Editor do seu projeto Supabase e execute.
 -- Ele cria o schema, as políticas de segurança, as funções e os dados iniciais.
@@ -8,7 +8,7 @@
 -- altere a migration correspondente e rode `pnpm --filter @dinamique/database
 -- run build:setup`.
 --
--- Arquivos incluídos (18):
+-- Arquivos incluídos (22):
 --   20260818000100_extensions_and_enums.sql
 --   20260818000200_identity_and_catalogue.sql
 --   20260818000300_operations.sql
@@ -26,7 +26,11 @@
 --   20260818001400_billing.sql
 --   20260818001500_security_hardening.sql
 --   20260818001600_extensions_schema.sql
---   20260821000100_journey_gps_routes.sql
+--   20260819000100_notification_dismissal.sql
+--   20260819000200_vehicle_catalogue_expansion.sql
+--   20260819000300_platform_brand_colour.sql
+--   20260821000100_products.sql
+--   20260821000200_journey_gps_routes.sql
 -- ============================================================================
 
 
@@ -35,12 +39,12 @@
 -- ==========================================================================
 
 -- ============================================================================
--- Dinamique — extensions, enums and shared helpers
+-- Dinamique – extensions, enums and shared helpers
 --
 -- Conventions used across every migration:
 --   * money is stored as BIGINT cents; there is no NUMERIC currency anywhere
 --   * distance is INTEGER metres, volume is INTEGER millilitres, duration is
---     INTEGER seconds — integers only, so no float drift reaches a driver
+--     INTEGER seconds – integers only, so no float drift reaches a driver
 --   * every user-owned table carries user_id and is protected by RLS
 --   * timestamps are TIMESTAMPTZ; calendar days are DATE (a driver's "day" is
 --     local, not a UTC window)
@@ -287,7 +291,7 @@ create table journeys (
   -- Sum of paused intervals; excluded from worked time.
   paused_seconds    integer not null default 0 check (paused_seconds >= 0),
   paused_at         timestamptz,
-  -- Metres. Both null is normal — distance is optional in V1 (§6).
+  -- Metres. Both null is normal – distance is optional in V1 (§6).
   odometer_start    integer check (odometer_start is null or odometer_start >= 0),
   odometer_end      integer check (odometer_end is null or odometer_end >= 0),
   distance_override integer check (distance_override is null or distance_override > 0),
@@ -390,7 +394,7 @@ create index maintenance_next_due_idx on maintenance_logs (user_id, next_due_dat
   where next_due_date is not null;
 
 -- Stated once, then apportioned across a window (§33). Never a real cash
--- movement — the UI must always label it as an estimate.
+-- movement – the UI must always label it as an estimate.
 create table recurring_costs (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references profiles(id) on delete cascade,
@@ -471,7 +475,7 @@ create index fines_user_status_idx on fines (user_id, status);
 create trigger fines_updated_at before update on fines
   for each row execute function set_updated_at();
 
--- Cached daily score (§45). Recomputed rather than trusted — it exists so the
+-- Cached daily score (§45). Recomputed rather than trusted – it exists so the
 -- Home screen does not re-aggregate a month of rows on every open.
 create table daily_scores (
   user_id      uuid not null references profiles(id) on delete cascade,
@@ -811,7 +815,7 @@ create table saved_reports (
 create trigger saved_reports_updated_at before update on saved_reports
   for each row execute function set_updated_at();
 
--- Every export is recorded — exports of user data are a privacy event (§95).
+-- Every export is recorded – exports of user data are a privacy event (§95).
 create table exports (
   id         uuid primary key default gen_random_uuid(),
   user_id    uuid references profiles(id) on delete set null,
@@ -1090,7 +1094,7 @@ create policy saved_reports_own on saved_reports
 create policy exports_select_own on exports
   for select using (user_id = auth.uid() or is_admin());
 
--- Events are written by the client and read only by admins — a user cannot
+-- Events are written by the client and read only by admins – a user cannot
 -- read the event stream, not even their own.
 create policy analytics_insert_own on analytics_events
   for insert with check (user_id = auth.uid() or user_id is null);
@@ -1164,7 +1168,7 @@ grant insert on support_messages to authenticated;
 
 -- Marcar como lida é a ÚNICA coisa que o usuário faz numa notificação. Um
 -- grant de update na tabela inteira deixaria ele reescrever o próprio título e
--- corpo — inofensivo para os outros, mas é dado nosso e não dele.
+-- corpo – inofensivo para os outros, mas é dado nosso e não dele.
 grant update (read_at) on user_notifications to authenticated;
 
 -- Influencer applications are user-submitted.
@@ -1182,8 +1186,8 @@ grant insert, update, delete on
   plans, campaigns, app_settings, saved_reports
 to authenticated;
 
--- Everything else — subscriptions, promotion_codes, referrals,
--- discount_benefits, user_attribution, admin_users, admin_logs, exports — is
+-- Everything else – subscriptions, promotion_codes, referrals,
+-- discount_benefits, user_attribution, admin_users, admin_logs, exports – is
 -- READ-ONLY to the client on purpose. Value is granted by SECURITY DEFINER
 -- functions or by the service role, never claimed by the app.
 
@@ -1540,7 +1544,7 @@ group by user_id;
 -- ==========================================================================
 
 -- ============================================================================
--- Reference data. This is product configuration, not demo content — it ships
+-- Reference data. This is product configuration, not demo content – it ships
 -- to production and is editable from the admin panel afterwards.
 -- ============================================================================
 
@@ -1668,7 +1672,7 @@ create trigger profiles_seed_notification_prefs after insert on profiles
 --
 -- Modelos mais usados por motoristas de aplicativo e entregadores no Brasil.
 -- O consumo é armazenado em metros por litro (10,8 km/l = 10800) e vem de
--- valores de referência — o consumo real medido do usuário sempre prevalece
+-- valores de referência – o consumo real medido do usuário sempre prevalece
 -- depois que ele aceita a troca (§31).
 --
 -- O Admin pode editar e importar mais modelos por CSV/XLSX.
@@ -1870,7 +1874,7 @@ create policy "anexo upload próprio"
 -- Benchmark anônimo (§44).
 --
 -- Duas regras que não se negociam:
---   1. um grupo com menos que o mínimo de usuários não produz NADA — nem um
+--   1. um grupo com menos que o mínimo de usuários não produz NADA – nem um
 --      número aproximado, nem um aviso com valor. Nada.
 --   2. só saem daqui medianas e o tamanho da amostra. Nenhuma linha de outro
 --      usuário é visível para ninguém.
@@ -1965,9 +1969,9 @@ grant select on benchmark_buckets, benchmark_national to authenticated;
 -- Motor de notificações (§58, §99, §100).
 --
 -- Duas peças:
---   1. `send_notification` — cria notificações para um público segmentado,
+--   1. `send_notification` – cria notificações para um público segmentado,
 --      respeitando a preferência de cada usuário por categoria;
---   2. `process_reminders` — transforma lembretes vencidos (Free Flow, multas,
+--   2. `process_reminders` – transforma lembretes vencidos (Free Flow, multas,
 --      manutenção) em notificações. Roda por agendamento.
 -- ============================================================================
 
@@ -2012,7 +2016,7 @@ as $$
 $$;
 
 /**
- * Cria as notificações. Quem desativou a categoria não recebe — a preferência
+ * Cria as notificações. Quem desativou a categoria não recebe – a preferência
  * do usuário é verificada aqui, não na tela que dispara (§58).
  *
  * Retorna quantas foram efetivamente criadas.
@@ -2495,7 +2499,7 @@ create table billing_customers (
 
 -- ---------------------------------------------------------- assinaturas -----
 -- `subscriptions` já existia para concessões manuais (cortesia, trial). Aqui
--- ela ganha o vínculo com o Stripe, sem virar uma segunda tabela paralela —
+-- ela ganha o vínculo com o Stripe, sem virar uma segunda tabela paralela –
 -- a resolução de plano efetivo continua sendo uma só (§57).
 alter table subscriptions
   add column stripe_subscription_id text unique,
@@ -2546,7 +2550,7 @@ create policy billing_events_read_admin on billing_events
 
 -- O cliente só LÊ preços. Nem sequer existe grant de escrita: o Admin altera
 -- preço pela service role, então dar permissão a `authenticated` seria
--- superfície sem uso — e em tabela que decide cobrança, superfície sem uso é
+-- superfície sem uso – e em tabela que decide cobrança, superfície sem uso é
 -- risco puro.
 grant select on billing_prices, billing_customers to authenticated;
 grant all on billing_prices, billing_customers, billing_events to service_role;
@@ -2557,7 +2561,7 @@ grant all on billing_prices, billing_customers, billing_events to service_role;
  * Aplica o resultado de um evento do Stripe.
  *
  * Concentrar a escrita numa função só evita que cada tipo de evento no webhook
- * invente sua própria forma de atualizar a assinatura — que é como estados
+ * invente sua própria forma de atualizar a assinatura – que é como estados
  * inconsistentes aparecem.
  *
  * Devolve o id da linha de assinatura afetada.
@@ -2618,7 +2622,7 @@ grant execute on function apply_subscription_state(uuid, text, text, billing_int
  * Consome o desconto de indicação numa cobrança (§84).
  *
  * Marca o benefício como usado e registra onde foi aplicado. Só faz efeito uma
- * vez — a condição `status = 'granted'` é a trava, e ela é atômica.
+ * vez – a condição `status = 'granted'` é a trava, e ela é atômica.
  */
 create or replace function consume_discount_benefit(
   p_user_id uuid,
@@ -2689,7 +2693,7 @@ grant execute on function mark_referral_converted(uuid) to service_role;
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
--- FURO 1 — views analíticas ignoravam o Row Level Security
+-- FURO 1 – views analíticas ignoravam o Row Level Security
 --
 -- No Postgres 15+, uma view SEM `security_invoker` roda com as permissões de
 -- quem a criou, e não de quem consulta. Como as views analíticas tinham
@@ -2716,7 +2720,7 @@ alter view analytics_support_categories  set (security_invoker = true);
 
 -- `benchmark_user_metrics` é a exceção deliberada: ela PRECISA enxergar todos
 -- os usuários, porque calcular uma mediana sobre uma única pessoa não é
--- mediana. A proteção aqui não é o RLS — é o fato de ninguém poder lê-la.
+-- mediana. A proteção aqui não é o RLS – é o fato de ninguém poder lê-la.
 -- Só as views agregadas derivadas dela são legíveis, e elas nunca devolvem
 -- linha de usuário, apenas mediana e tamanho de amostra com mínimo de 20 (§44).
 revoke all on benchmark_user_metrics from anon, authenticated;
@@ -2733,14 +2737,14 @@ alter view benchmark_buckets  set (security_invoker = false);
 alter view benchmark_national set (security_invoker = false);
 
 -- ---------------------------------------------------------------------------
--- FURO 2 — funções de servidor eram chamáveis por qualquer um
+-- FURO 2 – funções de servidor eram chamáveis por qualquer um
 --
 -- A Supabase concede EXECUTE em novas funções para `anon` e `authenticated`
 -- por padrão (alter default privileges). O `revoke ... from public` que as
 -- migrations faziam NÃO remove uma concessão feita diretamente a esses papéis.
 --
 -- Resultado: `apply_subscription_state` estava acessível sem login em
--- /rest/v1/rpc/apply_subscription_state — qualquer pessoa na internet podia
+-- /rest/v1/rpc/apply_subscription_state – qualquer pessoa na internet podia
 -- conceder Pro vitalício a si mesma. `consume_discount_benefit` permitia
 -- queimar o desconto de outro usuário, e `send_notification` permitia disparar
 -- notificação para toda a base.
@@ -2750,7 +2754,7 @@ alter view benchmark_national set (security_invoker = false);
 -- E há uma SEGUNDA porta, encontrada pelo teste depois da primeira correção:
 -- o próprio Postgres concede EXECUTE ao pseudo-papel PUBLIC em toda função
 -- nova. `anon` herda de PUBLIC. Ou seja, revogar de `anon` e `authenticated`
--- não bastava — a função continuava chamável sem login pela herança. Por isso
+-- não bastava – a função continuava chamável sem login pela herança. Por isso
 -- todo `revoke` abaixo nomeia `public` junto com os dois papéis.
 -- ---------------------------------------------------------------------------
 
@@ -2775,9 +2779,9 @@ revoke execute on function seed_notification_preferences() from public, anon, au
 revoke execute on function unaccent_simple(text) from public, anon, authenticated;
 
 -- Estas continuam abertas ao usuário logado DE PROPÓSITO, e só a ele:
---   redeem_code      — resgatar um código é ação do próprio usuário; todas as
+--   redeem_code      – resgatar um código é ação do próprio usuário; todas as
 --                      regras antifraude rodam dentro dela
---   mark_ticket_read — marcar o próprio atendimento como lido
+--   mark_ticket_read – marcar o próprio atendimento como lido
 revoke execute on function redeem_code(text) from public, anon;
 revoke execute on function mark_ticket_read(uuid) from public, anon;
 grant execute on function redeem_code(text) to authenticated;
@@ -2800,7 +2804,7 @@ $$;
 -- elas são chamadas de dentro das políticas de RLS e das views. Sem permissão
 -- de execução, toda política que as usa passaria a falhar. Além disso, elas
 -- respondem apenas sobre quem está perguntando ou sobre uma configuração
--- pública — não expõem nada.
+-- pública – não expõem nada.
 
 -- ---------------------------------------------------------------------------
 -- Endurecimento adicional: search_path fixo
@@ -2833,7 +2837,7 @@ alter function benchmark_min_sample()          set search_path = public;
 --
 -- Numa Supabase, `pgcrypto` e `citext` já vêm instaladas no schema
 -- `extensions`, não em `public`. O `create extension if not exists` das nossas
--- migrations, portanto, não faz nada — a extensão já existe, em outro lugar.
+-- migrations, portanto, não faz nada – a extensão já existe, em outro lugar.
 --
 -- Isso sozinho não seria problema: a busca padrão da Supabase inclui
 -- `extensions`. O problema é que toda função nossa fixa `set search_path =
@@ -2844,13 +2848,13 @@ alter function benchmark_min_sample()          set search_path = public;
 -- dentro do gatilho de criação de conta, então a conta inteira falha e o
 -- aplicativo devolve um erro genérico. Ninguém conseguia se cadastrar.
 --
--- O teste local não pegou porque instalava as extensões em `public` — mais uma
+-- O teste local não pegou porque instalava as extensões em `public` – mais uma
 -- diferença entre o ambiente de teste e a Supabase real. O shim foi corrigido
 -- junto com esta migration.
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
--- Parte 1 — o cadastro deixa de depender de extensão nenhuma
+-- Parte 1 – o cadastro deixa de depender de extensão nenhuma
 --
 -- O sufixo do código de indicação são dois caracteres aleatórios. Não precisa
 -- de aleatoriedade criptográfica, e não vale a pena que o caminho mais crítico
@@ -2913,7 +2917,7 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- Parte 2 — toda função passa a enxergar o schema `extensions`
+-- Parte 2 – toda função passa a enxergar o schema `extensions`
 --
 -- `gen_random_bytes` era só o primeiro a estourar. A mesma armadilha existe
 -- para o tipo `citext`, usado em `profiles.email`: o operador de comparação
@@ -2951,7 +2955,272 @@ $$;
 
 
 -- ==========================================================================
--- 20260821000100_journey_gps_routes.sql
+-- 20260819000100_notification_dismissal.sql
+-- ==========================================================================
+
+-- Dismissing a notification.
+--
+-- Reading and dismissing are different acts: a driver who has read a message
+-- still wants it off the list. Until now the only thing a user could do to a
+-- notification was set read_at, so the bell's sheet had nothing to offer
+-- beyond "marcar como lida" and the list only ever grew.
+--
+-- Dismissal is a timestamp rather than a delete. The message stays available
+-- to support and to analytics, which is where "did the reminder land?" gets
+-- answered, and the driver still sees an empty list.
+
+alter table user_notifications
+  add column if not exists dismissed_at timestamptz;
+
+-- The bell counts unread AND undismissed, so the partial index has to match.
+drop index if exists user_notifications_unread_idx;
+create index user_notifications_unread_idx
+  on user_notifications (user_id, created_at desc)
+  where read_at is null and dismissed_at is null;
+
+create index if not exists user_notifications_live_idx
+  on user_notifications (user_id, created_at desc)
+  where dismissed_at is null;
+
+-- Same reasoning as read_at: the user may set this column and no other, so a
+-- grant on the whole table stays out of the question.
+grant update (dismissed_at) on user_notifications to authenticated;
+
+-- A dismissed message must not keep the bell lit.
+create or replace view notification_counts
+with (security_invoker = true) as
+select
+  user_id,
+  count(*)::integer as unread_total,
+  count(*) filter (where category = 'support')::integer as unread_support
+from user_notifications
+where read_at is null and dismissed_at is null
+group by user_id;
+
+
+-- ==========================================================================
+-- 20260819000200_vehicle_catalogue_expansion.sql
+-- ==========================================================================
+
+-- More of the cars and motorcycles people actually drive for a living.
+--
+-- The catalogue shipped with 16 makes and 51 models, which is enough to prove
+-- the picker works and not enough for a driver to find their own vehicle. A
+-- driver who cannot find their bike gives up on the vehicle screen, and every
+-- cost-per-kilometre number downstream depends on that screen.
+--
+-- Everything here is idempotent: the same file can run twice.
+
+insert into vehicle_makes (name) values
+  ('Caoa Chery'), ('Kia'), ('Mitsubishi'), ('Jeep'), ('GWM'), ('Suzuki'),
+  ('Kawasaki'), ('Dafra'), ('Royal Enfield'), ('Mottu')
+on conflict (name) do nothing;
+
+-- Cars ----------------------------------------------------------------------
+insert into vehicle_models (make_id, name, vehicle_type)
+select m.id, v.model, 'car'::vehicle_type
+from (values
+  ('Chevrolet','Onix'), ('Chevrolet','Onix Plus'), ('Chevrolet','Prisma'),
+  ('Chevrolet','Cobalt'), ('Chevrolet','Spin'), ('Chevrolet','Joy'),
+  ('Chevrolet','Celta'), ('Chevrolet','Classic'), ('Chevrolet','Cruze'),
+  ('Chevrolet','Tracker'), ('Chevrolet','Montana'),
+  ('Fiat','Argo'), ('Fiat','Cronos'), ('Fiat','Mobi'), ('Fiat','Uno'),
+  ('Fiat','Palio'), ('Fiat','Siena'), ('Fiat','Grand Siena'), ('Fiat','Strada'),
+  ('Fiat','Toro'), ('Fiat','Punto'), ('Fiat','Idea'),
+  ('Volkswagen','Gol'), ('Volkswagen','Voyage'), ('Volkswagen','Polo'),
+  ('Volkswagen','Virtus'), ('Volkswagen','Fox'), ('Volkswagen','Saveiro'),
+  ('Volkswagen','T-Cross'), ('Volkswagen','Jetta'), ('Volkswagen','Up'),
+  ('Renault','Kwid'), ('Renault','Sandero'), ('Renault','Logan'),
+  ('Renault','Duster'), ('Renault','Stepway'), ('Renault','Captur'),
+  ('Renault','Oroch'),
+  ('Hyundai','HB20'), ('Hyundai','HB20S'), ('Hyundai','Creta'),
+  ('Hyundai','Tucson'), ('Hyundai','i30'),
+  ('Toyota','Etios'), ('Toyota','Etios Sedan'), ('Toyota','Yaris'),
+  ('Toyota','Yaris Sedan'), ('Toyota','Corolla'), ('Toyota','Corolla Cross'),
+  ('Toyota','Hilux'),
+  ('Honda','Fit'), ('Honda','City'), ('Honda','Civic'), ('Honda','HR-V'),
+  ('Honda','WR-V'),
+  ('Nissan','March'), ('Nissan','Versa'), ('Nissan','Kicks'), ('Nissan','Sentra'),
+  ('Ford','Ka'), ('Ford','Ka Sedan'), ('Ford','Fiesta'), ('Ford','EcoSport'),
+  ('Ford','Focus'),
+  ('Peugeot','208'), ('Peugeot','2008'), ('Peugeot','207'),
+  ('Citroën','C3'), ('Citroën','C4 Cactus'), ('Citroën','C3 Aircross'),
+  ('JAC','J3'), ('JAC','T40'), ('JAC','iEV40'),
+  ('BYD','Dolphin'), ('BYD','Dolphin Mini'), ('BYD','Song Plus'),
+  ('BYD','Seal'), ('BYD','Yuan Plus'),
+  ('Caoa Chery','Tiggo 5X'), ('Caoa Chery','Tiggo 7'), ('Caoa Chery','Arrizo 6'),
+  ('Caoa Chery','QQ'),
+  ('Kia','Picanto'), ('Kia','Rio'), ('Kia','Cerato'), ('Kia','Sportage'),
+  ('Mitsubishi','L200'), ('Mitsubishi','ASX'), ('Mitsubishi','Outlander'),
+  ('Jeep','Renegade'), ('Jeep','Compass'),
+  ('GWM','Haval H6'), ('GWM','Ora 03')
+) as v(make, model)
+join vehicle_makes m on m.name = v.make
+on conflict (make_id, name) do nothing;
+
+-- Motorcycles ---------------------------------------------------------------
+insert into vehicle_models (make_id, name, vehicle_type)
+select m.id, v.model, 'motorcycle'::vehicle_type
+from (values
+  ('Honda','CG 160 Fan'), ('Honda','CG 160 Start'), ('Honda','CG 160 Titan'),
+  ('Honda','CG 160 Cargo'), ('Honda','Biz 125'), ('Honda','Biz 110i'),
+  ('Honda','Pop 110i'), ('Honda','Bros 160'), ('Honda','XRE 190'),
+  ('Honda','CB 300F'), ('Honda','PCX 160'), ('Honda','Elite 125'),
+  ('Honda','SH 300i'), ('Honda','NXR 160'),
+  ('Yamaha','Factor 150'), ('Yamaha','Factor 125'), ('Yamaha','Fazer 250'),
+  ('Yamaha','Fazer 150'), ('Yamaha','Crosser 150'), ('Yamaha','YBR 125'),
+  ('Yamaha','NMax 160'), ('Yamaha','Neo 125'), ('Yamaha','Lander 250'),
+  ('Yamaha','MT-03'),
+  ('Suzuki','Burgman 125'), ('Suzuki','Yes 125'), ('Suzuki','Intruder 125'),
+  ('Suzuki','GSX-S150'),
+  ('Haojue','DK 150'), ('Haojue','Chopper Road 150'), ('Haojue','Master Ride 150'),
+  ('Haojue','NK 150'),
+  ('Shineray','XY 50Q'), ('Shineray','Jet 50'), ('Shineray','Phoenix 50'),
+  ('Shineray','Worker 125'),
+  ('Dafra','Apache 150'), ('Dafra','Citycom 300'), ('Dafra','Horizon 150'),
+  ('Dafra','NH 190'),
+  ('Kawasaki','Ninja 400'), ('Kawasaki','Z400'),
+  ('Royal Enfield','Meteor 350'), ('Royal Enfield','Himalayan'),
+  ('Mottu','Sport 110i'), ('Mottu','Pop 110i')
+) as v(make, model)
+join vehicle_makes m on m.name = v.make
+on conflict (make_id, name) do nothing;
+
+
+-- ==========================================================================
+-- 20260819000300_platform_brand_colour.sql
+-- ==========================================================================
+
+-- A platform's brand colour belongs in the catalogue, not in a component.
+--
+-- The picker needs to show iFood as red and 99 as yellow so a driver finds
+-- their app by colour rather than by reading twelve labels. That colour is
+-- data about the platform, exactly like its name and its logo: it changes when
+-- the platform rebrands, and changing it is then a row update rather than a
+-- release. Keeping the table in the app also breaks the design system's rule
+-- that a raw hex in a component is a bug, which CI enforces.
+--
+-- It is deliberately nullable. A platform with no colour renders a neutral
+-- tile, which is correct rather than a guess.
+
+alter table platforms
+  add column if not exists brand_color text
+  check (brand_color is null or brand_color ~ '^#[0-9A-Fa-f]{6}$');
+
+update platforms set brand_color = v.colour
+from (values
+  ('uber',          '#0B0B0B'),
+  ('99',            '#FFD400'),
+  ('indrive',       '#C1F11D'),
+  ('ifood',         '#EA1D2C'),
+  ('rappi',         '#FF441F'),
+  ('lalamove',      '#F16622'),
+  ('loggi',         '#00C2A8'),
+  ('amazon',        '#FF9900'),
+  ('mercado-livre', '#FFE600'),
+  ('shopee',        '#EE4D2D'),
+  ('taxi',          '#F5B700')
+) as v(slug, colour)
+where platforms.slug = v.slug and platforms.brand_color is null;
+
+
+-- ==========================================================================
+-- 20260821000100_products.sql
+-- ==========================================================================
+
+-- ============================================================================
+-- What the driver sells inside the car.
+--
+-- A lot of the money in this job does not come from the platform. Drivers sell
+-- water, sweets, phone chargers and perfume to the passenger sitting behind
+-- them, and until now the app had nowhere to put it: the only shape a ganho
+-- could take was "an amount, from a platform". Someone who sold six perfumes
+-- had to add up the total in their head and lie about which app it came from.
+--
+-- The design choice worth stating: a sale IS a revenue row, not a table of its
+-- own. `revenues` already feeds the daily totals, the goals, the insights, the
+-- history and the exports; giving sales a parallel table would mean teaching
+-- all of that to add two numbers together, and every place that forgot would
+-- quietly under-report. Two nullable columns on `revenues` cost nothing and
+-- every existing calculation keeps working untouched.
+-- ============================================================================
+
+create table if not exists products (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references profiles(id) on delete cascade,
+  name       text not null check (length(btrim(name)) between 1 and 60),
+  -- Integer cents, like every other amount in this schema. Never a float.
+  unit_price bigint not null check (unit_price >= 0),
+  -- What one unit cost the driver to buy. Optional, because plenty of people
+  -- genuinely do not know; when it is known the app can show what actually
+  -- stayed in the pocket instead of only what came in.
+  unit_cost  bigint check (unit_cost is null or unit_cost >= 0),
+  -- Removing a product must not remove the sales that referenced it, so this
+  -- is a flag rather than a delete.
+  is_active  boolean not null default true,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists products_user_idx on products (user_id) where is_active;
+
+-- The same product twice is a mistake, not a choice: two rows named "Água"
+-- split the numbers for no reason. Case and surrounding spaces are folded, so
+-- "  ÁGUA " and "Água" collide as they should. Accents are not folded: doing
+-- that needs `unaccent`, which is not immutable and so cannot go in an index
+-- without a wrapper, and "acai" against "açaí" is not worth that.
+create unique index if not exists products_user_name_idx
+  on products (user_id, lower(btrim(name))) where is_active;
+
+drop trigger if exists products_updated_at on products;
+create trigger products_updated_at before update on products
+  for each row execute function set_updated_at();
+
+-- ------------------------------------------------------------- the sale ----
+alter table revenues
+  add column if not exists product_id uuid references products(id) on delete set null,
+  add column if not exists quantity integer check (quantity is null or quantity > 0);
+
+create index if not exists revenues_product_date_idx on revenues (product_id, date);
+
+-- A revenue row is either a platform's takings or a product sale. Both at once
+-- is not a thing that can happen, and allowing it would double-count the
+-- amount in the per-platform breakdown.
+alter table revenues drop constraint if exists revenue_is_platform_or_product;
+alter table revenues add constraint revenue_is_platform_or_product
+  check (product_id is null or platform_id is null);
+
+-- ------------------------------------------------- who is asked about it ----
+-- Most drivers sell nothing, and an app that keeps offering an empty "Venda"
+-- tab to them is noise. The onboarding asks once; everything about selling
+-- stays out of the way for anyone who said no.
+alter table profiles add column if not exists sells_products boolean not null default false;
+
+-- ------------------------------------------------------------ the costs ----
+-- Not a vehicle cost: a box of perfume does not belong in cost per kilometre.
+insert into expense_categories (slug, name, is_vehicle_cost, sort_order) values
+  ('produtos', 'Produtos para revenda', false, 180)
+on conflict (slug) do nothing;
+
+-- ---------------------------------------------------------------- access ----
+alter table products enable row level security;
+
+create policy products_select_own on products
+  for select using (user_id = auth.uid() or is_admin());
+create policy products_insert_own on products
+  for insert with check (user_id = auth.uid());
+create policy products_update_own on products
+  for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy products_delete_own on products
+  for delete using (user_id = auth.uid());
+
+grant select on products to authenticated;
+grant insert, update, delete on products to authenticated;
+
+
+-- ==========================================================================
+-- 20260821000200_journey_gps_routes.sql
 -- ==========================================================================
 
 -- ============================================================================

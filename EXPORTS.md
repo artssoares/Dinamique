@@ -14,7 +14,7 @@ Uma planilha com sete abas, cobrindo o período escolhido:
 | Abastecimentos | data, combustível, valor, preço por litro, litros, odômetro, posto |
 | Manutenção | data, tipo, valor, odômetro |
 
-Abas sem nenhuma linha são omitidas — só o Resumo sempre aparece.
+Abas sem nenhuma linha são omitidas – só o Resumo sempre aparece.
 
 ## Duas regras que a planilha herda do aplicativo
 
@@ -23,7 +23,7 @@ da exportação. Ninguém quer abrir uma planilha e ver `28470` onde deveria est
 `284,70`.
 
 **Métrica sem denominador fica em branco, não zero.** Sem quilometragem
-registrada, a célula de R$/km fica vazia — igual ao traço que o aplicativo
+registrada, a célula de R$/km fica vazia – igual ao traço que o aplicativo
 mostra. Um zero ali seria uma afirmação falsa sobre os dados.
 
 ## Formatos
@@ -61,7 +61,7 @@ privacidade e precisa ser auditável (§95, §108).
 ## Planos
 
 A exportação é um recurso Pro. Um usuário Free continua podendo pedir uma cópia
-completa dos próprios dados pelo suporte — isso é direito dele, não um recurso
+completa dos próprios dados pelo suporte – isso é direito dele, não um recurso
 comercial (§108).
 
 ## Exportação no Admin

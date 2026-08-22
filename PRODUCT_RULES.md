@@ -6,7 +6,7 @@ check it. Each one lives in `packages/business-logic` and is covered by tests.
 ## Money
 
 Money is an integer number of **cents**. There is no floating-point currency at
-any layer — not in the database, not in the API, not in a component.
+any layer – not in the database, not in the API, not in a component.
 
 Rounding is half away from zero, which is how people expect money to round.
 
@@ -14,7 +14,7 @@ Rounding is half away from zero, which is how people expect money to round.
 
 | Term | Definition |
 | --- | --- |
-| **Faturamento** (gross revenue) | everything the platforms paid, tips included |
+| **Faturamento** (gross revenue) | everything that came in: what the platforms paid, tips included, plus anything sold in the car |
 | **Despesas** (expenses) | every expense recorded in the period |
 | **Lucro estimado** (net profit) | gross revenue − expenses |
 
@@ -23,6 +23,28 @@ product exists.
 
 Net profit is always labelled *estimated*, because recurring costs are
 apportioned rather than observed.
+
+### Selling inside the car
+
+Plenty of drivers sell water, sweets, chargers or perfume to the person in the
+back seat, and that money is theirs exactly like a fare is. Three rules keep it
+honest:
+
+- **A sale is a revenue row**, with `product_id` and `quantity` set and
+  `platform_id` null. The database rejects a row that claims to be both, since
+  it would be counted twice in the per-platform breakdown. Everything that
+  already reads `revenues` – daily totals, goals, insights, history, exports –
+  therefore counts sales without being taught to.
+- **The goods are a cost**, recorded against the `produtos` category as soon as
+  the driver has said what a unit costs them. A perfume bought for twenty and
+  sold for fifty is thirty of profit, not fifty, and the app never shows the
+  flattering number.
+- **`produtos` is not a vehicle cost**, so a box of perfume never reaches cost
+  per kilometre. The car did not get more expensive to drive.
+
+A driver who says they sell nothing is never shown any of it. Sales are never
+counted as trips: three perfumes are three units, not three rides, so ticket
+médio stays a fare average.
 
 ## Metrics that can be null
 
@@ -39,7 +61,7 @@ with a short reason. It never returns zero, and it never invents a figure.
 | Ticket médio | gross ÷ trips | no trip count recorded |
 
 **Worked time** excludes paused intervals. An unfinished journey contributes
-nothing — only what closed is measured.
+nothing – only what closed is measured.
 
 **Distance** resolves in this order: an explicit "how many km did you drive"
 override, then an odometer pair where the end exceeds the start, then a GPS
@@ -133,7 +155,7 @@ Labels: ≥ 8.5 excellent, ≥ 7 good, ≥ 5 average, ≥ 3 below average, else 
 
 Anonymous and aggregate only. Two hard rules:
 
-1. A bucket with fewer than **20 users** produces nothing at all — not a blurred
+1. A bucket with fewer than **20 users** produces nothing at all – not a blurred
    figure, not a caveated one. Nothing.
 2. Only medians and sample sizes leave the aggregation. No individual row of
    another user is ever visible to a user.
@@ -169,14 +191,14 @@ distance.
 ## Plans and trial
 
 Every new account gets **7 days of Pro**, granted in the signup transaction.
-When it expires the account becomes Free — never locked out.
+When it expires the account becomes Free – never locked out.
 
 A user may hold several grants at once. The effective plan is the most generous
 currently-valid one, ranked: subscription > partnership > courtesy > promotion >
 trial. Ties go to the longer grant; open-ended beats dated.
 
 Free keeps the entire core loop: journeys, revenues, expenses, fuel, the daily
-goal, basic history, support and referrals. Pro adds depth — unlimited history,
+goal, basic history, support and referrals. Pro adds depth – unlimited history,
 advanced insights, benchmark, projections, exports, multiple vehicles and
 recurring costs. We restrict depth, not access.
 

@@ -4,7 +4,7 @@ import type { Cents } from '@dinamique/types';
  * Catálogo de preços.
  *
  * Estes valores são o PADRÃO de instalação. A fonte da verdade em execução é a
- * tabela `billing_prices`, editável pelo Admin — mudar preço é decisão
+ * tabela `billing_prices`, editável pelo Admin – mudar preço é decisão
  * comercial e não deve exigir novo build nem aprovação de loja.
  */
 
@@ -36,7 +36,7 @@ export function monthlyEquivalent(annual: Cents): Cents {
 
 /**
  * Economia do anual em relação a pagar 12 meses avulsos.
- * Devolve null quando o anual não é mais barato — nesse caso a tela não deve
+ * Devolve null quando o anual não é mais barato – nesse caso a tela não deve
  * anunciar economia nenhuma.
  */
 export function annualSavings(

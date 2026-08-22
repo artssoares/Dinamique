@@ -1,16 +1,25 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import type { WorkMode } from '@dinamique/types';
+import type {
+  FuelType,
+  RecurringCostPeriod,
+  VehicleOwnership,
+  VehicleType,
+  WorkMode,
+} from '@dinamique/types';
 import { deriveGoalSuggestions } from '@dinamique/business-logic';
 import { formatCents, parseCents } from '@dinamique/utils';
 import {
   AmountInput,
   Button,
   Card,
+  Chip,
   Field,
   Icon,
+  Notice,
   OptionCard,
+  Reveal,
   Screen,
   ScreenHeader,
   Select,
@@ -21,9 +30,27 @@ import {
   type IconName,
 } from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
+import { applyMonthlyGoal } from '@/features/goals/applyGoals';
 import { track } from '@/lib/analytics';
+import { toFriendlyError } from '@/lib/errors';
 import { useSession } from '@/hooks/useSession';
 import { BrandMark } from '@/features/brand/BrandMark';
+import { PlatformMark } from '@/features/platforms/PlatformMark';
+import {
+  FIXED_COST_OPTIONS,
+  ONBOARDING_COST_SLUGS,
+  PERIOD_LABELS,
+  PERIOD_ORDER,
+} from '@/features/onboarding/fixedCosts';
+import {
+  EMPTY_VEHICLE_COSTS,
+  useCostCategories,
+  VehicleCostQuestions,
+  vehicleCostRows,
+  type VehicleCostAnswers,
+} from '@/features/vehicle/VehicleCosts';
+import { useMakes, useModels } from '@/features/vehicle/useVehicleCatalogue';
+import { PRODUCT_SUGGESTIONS } from '@/features/products/suggestions';
 
 const WORK_MODE_OPTIONS: { value: WorkMode; label: string; description: string; icon: IconName }[] = [
   {
@@ -47,6 +74,45 @@ const WORK_MODE_OPTIONS: { value: WorkMode; label: string; description: string; 
   },
 ];
 
+/**
+ * Every vehicle the app supports, not only the car. A motoboy pays an
+ * instalment exactly like a driver does, and asking only about cars is how a
+ * bike courier ends up with no costs and an imaginary profit.
+ */
+const VEHICLE_TYPES: {
+  value: VehicleType;
+  label: string;
+  description: string;
+  icon: IconName;
+  /** A bicycle has no engine and no catalogue: those questions are skipped. */
+  motorised: boolean;
+}[] = [
+  { value: 'car', label: 'Carro', description: 'Passageiros, entregas ou fretes', icon: 'car', motorised: true },
+  { value: 'motorcycle', label: 'Moto', description: 'Entregas e mototáxi', icon: 'route', motorised: true },
+  { value: 'electric', label: 'Elétrico', description: 'Carro ou moto elétrica', icon: 'trendUp', motorised: true },
+  { value: 'bicycle', label: 'Bicicleta', description: 'Com ou sem motor elétrico', icon: 'compass', motorised: false },
+];
+
+/** Só os valores que existem no banco. Um a mais e o cadastro falha calado. */
+const FUEL_OPTIONS: { value: FuelType; label: string }[] = [
+  { value: 'gasoline', label: 'Gasolina' },
+  { value: 'ethanol', label: 'Etanol' },
+  { value: 'diesel', label: 'Diesel' },
+  { value: 'cng', label: 'GNV' },
+  { value: 'electric', label: 'Elétrico' },
+];
+
+const OWNERSHIP_OPTIONS: {
+  value: VehicleOwnership;
+  label: string;
+  description: string;
+  icon: IconName;
+}[] = [
+  { value: 'owned', label: 'Meu, já quitado', description: 'Não pago parcela nem aluguel', icon: 'check' },
+  { value: 'financed', label: 'Meu, financiado', description: 'Pago parcela todo mês', icon: 'receipt' },
+  { value: 'rented', label: 'Alugado', description: 'Pago aluguel para rodar', icon: 'wallet' },
+];
+
 const STATES = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
   'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
@@ -61,6 +127,19 @@ interface StepDefinition {
   canAdvance: boolean;
   /** Optional questions can be passed over without answering. */
   skippable?: boolean;
+  /** Wording of the skip control. Costs say "deixar para depois". */
+  skipLabel?: string;
+}
+
+interface CostEntry {
+  amount: string;
+  period: RecurringCostPeriod;
+}
+
+/** A product the driver is registering while still setting the app up. */
+interface ProductDraft {
+  name: string;
+  price: string;
 }
 
 /**
@@ -68,12 +147,17 @@ interface StepDefinition {
  *
  * One question per screen, in the plainest Portuguese we can write: "Como você
  * trabalha?" rather than "modalidade de operação". Splitting it into more, but
- * smaller, steps is what makes it feel shorter — three dense screens read as
+ * smaller, steps is what makes it feel shorter – three dense screens read as
  * a form, seven one-question screens read as a conversation, and the count is
  * stated out loud so nobody wonders how much is left.
  *
- * Only the two questions the app cannot work without — how you work and how
- * much you want to earn — are required. Everything else says "pular".
+ * Only the two questions the app cannot work without – how you work and how
+ * much you want to earn – are required. Everything else can be left for later,
+ * and says so on the screen rather than hiding the way out in a corner.
+ *
+ * Money questions follow the answer that makes them relevant, in the same
+ * step: saying the vehicle is financed and being asked nothing about the
+ * instalment is how the app ends up knowing there is a debt and not how much.
  */
 export default function Onboarding() {
   const theme = useTheme();
@@ -84,18 +168,53 @@ export default function Onboarding() {
   const [step, setStep] = useState(0);
   const [workModes, setWorkModes] = useState<WorkMode[]>([]);
   const [platformIds, setPlatformIds] = useState<string[]>([]);
-  const [platforms, setPlatforms] = useState<{ id: string; name: string; work_modes: string[] }[]>([]);
+  const [platforms, setPlatforms] = useState<
+    {
+      id: string;
+      slug: string;
+      name: string;
+      logo_path: string | null;
+      brand_color: string | null;
+      work_modes: string[];
+    }[]
+  >([]);
   const [preferredName, setPreferredName] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState<string | null>(null);
+  const [phone, setPhone] = useState('');
   const [monthlyGoal, setMonthlyGoal] = useState('');
   const [basis, setBasis] = useState<'gross' | 'net'>('gross');
   const [saving, setSaving] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+
+  // Vehicle. Optional, but the cost per kilometre on every later screen comes
+  // from it, so it is worth one screen here rather than a nudge later.
+  const [vehicleType, setVehicleType] = useState<VehicleType | null>(null);
+  const [makeId, setMakeId] = useState<string | null>(null);
+  const [modelId, setModelId] = useState<string | null>(null);
+  const [fuelType, setFuelType] = useState<FuelType | null>(null);
+  const [ownership, setOwnership] = useState<VehicleOwnership | null>(null);
+
+  // What the vehicle costs, asked in the same breath as how it is owned.
+  const [vehicleCosts, setVehicleCosts] = useState<VehicleCostAnswers>(EMPTY_VEHICLE_COSTS);
+
+  // Everything else that goes out whether the vehicle moves or not.
+  const [fixedCosts, setFixedCosts] = useState<Record<string, CostEntry>>({});
+  const costCategories = useCostCategories(ONBOARDING_COST_SLUGS);
+
+  // Money that does not come from the platform: what gets sold to the person
+  // sitting in the back seat.
+  const [sellsProducts, setSellsProducts] = useState<boolean | null>(null);
+  const [productDrafts, setProductDrafts] = useState<ProductDraft[]>([]);
+  const [customProduct, setCustomProduct] = useState('');
+
+  const makes = useMakes(vehicleType);
+  const models = useModels(makeId, vehicleType);
 
   useEffect(() => {
     void supabase
       .from('platforms')
-      .select('id, name, work_modes')
+      .select('id, slug, name, logo_path, brand_color, work_modes')
       .eq('is_active', true)
       .order('sort_order')
       .then(({ data }) => setPlatforms((data as typeof platforms | null) ?? []));
@@ -105,6 +224,13 @@ export default function Onboarding() {
     if (profile?.preferredName) setPreferredName(profile.preferredName);
     else if (profile?.firstName) setPreferredName(profile.firstName);
   }, [profile?.firstName, profile?.preferredName]);
+
+  // An electric vehicle has exactly one fuel; asking is a question with one
+  // answer, which is a question not worth asking.
+  useEffect(() => {
+    if (vehicleType === 'electric') setFuelType('electric');
+    if (vehicleType === 'bicycle') setFuelType(null);
+  }, [vehicleType]);
 
   const monthlyCents = parseCents(monthlyGoal);
   const suggestions = monthlyCents ? deriveGoalSuggestions(monthlyCents) : null;
@@ -124,49 +250,169 @@ export default function Onboarding() {
     return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
   }
 
+  function toggleFixedCost(slug: string, period: RecurringCostPeriod) {
+    setFixedCosts((current) => {
+      const next = { ...current };
+      if (next[slug]) delete next[slug];
+      else next[slug] = { amount: '', period };
+      return next;
+    });
+  }
+
+  function addProduct(name: string) {
+    const trimmed = name.trim();
+    if (trimmed === '') return;
+    setProductDrafts((current) =>
+      current.some((draft) => draft.name.toLowerCase() === trimmed.toLowerCase())
+        ? current
+        : [...current, { name: trimmed, price: '' }],
+    );
+  }
+
+  function setFixedCost(slug: string, patch: Partial<CostEntry>) {
+    setFixedCosts((current) => ({
+      ...current,
+      [slug]: { amount: '', period: 'monthly', ...current[slug], ...patch },
+    }));
+  }
+
+  /** The recurring rows this onboarding has enough information to write. */
+  function recurringRows(userId: string, vehicleId: string | null): Record<string, unknown>[] {
+    const rows: Record<string, unknown>[] = vehicleCostRows({
+      userId,
+      vehicleId,
+      ownership,
+      answers: vehicleCosts,
+      categoryIdBySlug: costCategories,
+    });
+
+    for (const option of FIXED_COST_OPTIONS) {
+      const entry = fixedCosts[option.slug];
+      if (!entry) continue;
+      const amount = parseCents(entry.amount);
+      if (!amount || amount <= 0) continue;
+      rows.push({
+        user_id: userId,
+        vehicle_id: vehicleId,
+        category_id: costCategories[option.slug],
+        label: option.label,
+        amount,
+        period: entry.period,
+      });
+    }
+
+    // A row with no category would be rejected by the database; dropping it
+    // here loses one cost instead of the whole batch.
+    return rows.filter((row) => typeof row.category_id === 'string');
+  }
+
   async function finish() {
     if (!session?.user) return;
+    const userId = session.user.id;
     setSaving(true);
+    setFailure(null);
 
     const trimmedName = preferredName.trim();
     const trimmedCity = city.trim();
+    const trimmedPhone = phone.trim();
 
-    await supabase
+    const { error: profileError } = await supabase
       .from('profiles')
       .update({
         work_modes: workModes,
         preferred_name: trimmedName === '' ? null : trimmedName,
+        phone: trimmedPhone === '' ? null : trimmedPhone,
         city: trimmedCity === '' ? null : trimmedCity,
         state: state ?? null,
+        sells_products: sellsProducts === true,
         onboarding_completed_at: new Date().toISOString(),
       })
-      .eq('id', session.user.id);
+      .eq('id', userId);
+
+    // Without this row the router sends the person straight back here, so a
+    // silent failure was an endless onboarding. Now it says what happened.
+    if (profileError) {
+      setFailure(toFriendlyError(profileError).message);
+      setSaving(false);
+      return;
+    }
+
+    // Products, before the vehicle, because a failure here should not leave a
+    // vehicle behind without its costs.
+    const products = productDrafts
+      .map((draft) => ({
+        user_id: userId,
+        name: draft.name.trim(),
+        unit_price: parseCents(draft.price) ?? 0,
+      }))
+      .filter((row) => row.name !== '' && row.unit_price > 0);
+
+    if (products.length > 0) {
+      await supabase.from('products').insert(products);
+    }
+
+    let vehicleId: string | null = null;
+
+    if (vehicleType) {
+      const { count } = await supabase
+        .from('user_vehicles')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .is('archived_at', null);
+
+      const { data: vehicle } = await supabase
+        .from('user_vehicles')
+        .insert({
+          user_id: userId,
+          vehicle_type: vehicleType,
+          version_id: null,
+          custom_label: models.find((model) => model.id === modelId)?.name ?? null,
+          fuel_type: fuelType,
+          ownership: ownership ?? 'owned',
+          is_primary: (count ?? 0) === 0,
+        })
+        .select('id')
+        .maybeSingle();
+
+      vehicleId = vehicle ? String(vehicle.id) : null;
+    }
+
+    const costs = recurringRows(userId, vehicleId);
+    if (costs.length > 0) {
+      await supabase.from('recurring_costs').insert(costs);
+    }
 
     if (platformIds.length > 0) {
       await supabase
         .from('user_platforms')
-        .insert(platformIds.map((id) => ({ user_id: session.user!.id, platform_id: id })));
+        .insert(platformIds.map((id) => ({ user_id: userId, platform_id: id })));
     }
 
-    if (monthlyCents && suggestions) {
-      await supabase.from('goals').insert([
-        { user_id: session.user.id, period: 'monthly', basis, target: suggestions.monthly },
-        { user_id: session.user.id, period: 'daily', basis, target: suggestions.daily },
-      ]);
-      void track('goal_created', { period: 'monthly' });
+    // All four periods, not just the two the driver can picture: they all
+    // follow from the one number, so they are all written from it.
+    if (monthlyCents) {
+      await applyMonthlyGoal({ userId, monthly: monthlyCents, basis });
     }
 
-    void track('onboarding_completed', { work_modes: workModes });
+    void track('onboarding_completed', {
+      work_modes: workModes,
+      vehicle: vehicleType,
+      ownership,
+      fixed_costs: costs.length,
+      products: products.length,
+    });
     await refresh();
     setSaving(false);
     router.replace('/(tabs)');
   }
 
+  const selectedType = VEHICLE_TYPES.find((option) => option.value === vehicleType) ?? null;
+
   const steps: StepDefinition[] = [
     {
       key: 'welcome',
       title: 'Bem-vindo ao Dinamique',
-      subtitle: 'Vamos fazer 5 perguntas rápidas. Leva menos de um minuto.',
+      subtitle: 'São perguntas rápidas, e o que você não souber agora pode ficar para depois.',
       canAdvance: true,
       content: (
         <Card padding="xl" style={{ gap: theme.spacing.lg }}>
@@ -182,7 +428,7 @@ export default function Onboarding() {
               text: 'Você diz quanto quer no mês, a gente divide por dia.',
             },
             {
-              icon: 'sparkle' as IconName,
+              icon: 'compass' as IconName,
               title: 'Explicado em português claro',
               text: 'Nada de gráfico difícil. Frases curtas dizendo o que mudou.',
             },
@@ -256,6 +502,14 @@ export default function Onboarding() {
                 key={platform.id}
                 label={platform.name}
                 multiple
+                leading={
+                  <PlatformMark
+                    slug={platform.slug}
+                    name={platform.name}
+                    logoPath={platform.logo_path}
+                    brandColor={platform.brand_color}
+                  />
+                }
                 selected={platformIds.includes(platform.id)}
                 onPress={() => setPlatformIds(toggle(platformIds, platform.id))}
               />
@@ -277,6 +531,24 @@ export default function Onboarding() {
           value={preferredName}
           onChangeText={setPreferredName}
           hint="Só você vê esse nome."
+        />
+      ),
+    },
+    {
+      key: 'phone',
+      title: 'Um telefone para contato',
+      subtitle: 'Só usamos se você abrir um chamado no suporte. Nada de ligação de venda.',
+      canAdvance: true,
+      skippable: phone.trim() === '',
+      content: (
+        <Field
+          label="Telefone"
+          iconName="phone"
+          optional
+          placeholder="(11) 90000-0000"
+          keyboardType="phone-pad"
+          value={phone}
+          onChangeText={setPhone}
         />
       ),
     },
@@ -307,10 +579,319 @@ export default function Onboarding() {
           <Card padding="lg" tone="secondary" style={{ flexDirection: 'row', gap: theme.spacing.md }}>
             <Icon name="shield" size={18} color={theme.colors.textSecondary} />
             <Text variant="caption" color="secondary" style={{ flex: 1 }}>
-              A comparação é anônima. Ninguém vê os seus números, e você não vê os de ninguém — só
+              A comparação é anônima. Ninguém vê os seus números, e você não vê os de ninguém – só
               a média da região.
             </Text>
           </Card>
+        </View>
+      ),
+    },
+    {
+      key: 'vehicle',
+      title: 'Com o que você roda?',
+      subtitle: 'É daqui que sai o seu custo por quilômetro. Dá para preencher depois.',
+      canAdvance: true,
+      skippable: vehicleType === null,
+      skipLabel: 'Não tenho veículo fixo',
+      content: (
+        <View style={{ gap: theme.spacing.lg }}>
+          <View style={{ gap: theme.spacing.sm }}>
+            {VEHICLE_TYPES.map((option) => (
+              <OptionCard
+                key={option.value}
+                label={option.label}
+                description={option.description}
+                icon={option.icon}
+                selected={vehicleType === option.value}
+                onPress={() => {
+                  setVehicleType(option.value);
+                  setMakeId(null);
+                  setModelId(null);
+                }}
+              />
+            ))}
+          </View>
+
+          {selectedType?.motorised ? (
+            <Reveal>
+              <View style={{ gap: theme.spacing.lg }}>
+                <Select
+                  label="Marca"
+                  optional
+                  value={makeId}
+                  options={makes.map((make) => ({ value: make.id, label: make.name }))}
+                  onChange={(value) => {
+                    setMakeId(value);
+                    setModelId(null);
+                  }}
+                  placeholder="Escolha a marca"
+                  emptyLabel="Ainda não temos marcas para esse tipo"
+                />
+                <Select
+                  label="Modelo"
+                  optional
+                  value={modelId}
+                  options={models.map((model) => ({ value: model.id, label: model.name }))}
+                  onChange={setModelId}
+                  placeholder={makeId ? 'Escolha o modelo' : 'Escolha a marca primeiro'}
+                  emptyLabel="Escolha a marca primeiro"
+                />
+                {vehicleType === 'electric' ? null : (
+                  <View style={{ gap: theme.spacing.sm }}>
+                    <Text variant="captionStrong" color="secondary">
+                      COMBUSTÍVEL
+                    </Text>
+                    <View
+                      style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}
+                    >
+                      {FUEL_OPTIONS.map((fuel) => (
+                        <Chip
+                          key={fuel.value}
+                          label={fuel.label}
+                          selected={fuelType === fuel.value}
+                          onPress={() =>
+                            setFuelType(fuelType === fuel.value ? null : fuel.value)
+                          }
+                        />
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </View>
+            </Reveal>
+          ) : null}
+        </View>
+      ),
+    },
+    {
+      key: 'vehicle-cost',
+      title: 'Esse veículo é seu?',
+      subtitle: 'Se você paga parcela ou aluguel, é o maior custo do seu mês. Vamos incluir.',
+      canAdvance: true,
+      skippable: true,
+      skipLabel: 'Deixar para depois',
+      content: (
+        <View style={{ gap: theme.spacing.lg }}>
+          <View style={{ gap: theme.spacing.sm }}>
+            {OWNERSHIP_OPTIONS.map((option) => (
+              <OptionCard
+                key={option.value}
+                label={option.label}
+                description={option.description}
+                icon={option.icon}
+                selected={ownership === option.value}
+                onPress={() => setOwnership(option.value)}
+              />
+            ))}
+          </View>
+
+          {/* The money question follows the answer that makes it relevant, on
+              the same screen. Sending someone to another screen for it is how
+              it never gets answered. */}
+          <VehicleCostQuestions
+            ownership={ownership}
+            answers={vehicleCosts}
+            onChange={(patch) => setVehicleCosts((current) => ({ ...current, ...patch }))}
+            ownedHint="Sem parcela nem aluguel. Na próxima tela dá para incluir seguro, IPVA e o resto."
+          />
+        </View>
+      ),
+    },
+    {
+      key: 'fixed-costs',
+      title: 'O que mais você paga todo mês?',
+      subtitle: 'Toque no que se aplica e informe o valor. O que faltar entra depois.',
+      canAdvance: true,
+      skippable: true,
+      skipLabel: 'Deixar para depois',
+      content: (
+        <View style={{ gap: theme.spacing.lg }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+            {FIXED_COST_OPTIONS.map((option) => (
+              <Chip
+                key={option.slug}
+                label={option.label}
+                multiple
+                iconName={option.icon}
+                selected={fixedCosts[option.slug] !== undefined}
+                onPress={() => toggleFixedCost(option.slug, option.period)}
+              />
+            ))}
+          </View>
+
+          {FIXED_COST_OPTIONS.filter((option) => fixedCosts[option.slug] !== undefined).map(
+            (option) => {
+              const entry = fixedCosts[option.slug]!;
+              return (
+                <Reveal key={option.slug}>
+                  <Card padding="lg" style={{ gap: theme.spacing.md }}>
+                    <View
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}
+                    >
+                      <Icon name={option.icon} size={18} color={theme.colors.brandPrimary} />
+                      <Text variant="bodyStrong">{option.label}</Text>
+                      <View style={{ flex: 1 }} />
+                      <Text variant="caption" color="muted">
+                        {option.hint}
+                      </Text>
+                    </View>
+
+                    <Field
+                      label="Valor"
+                      value={entry.amount}
+                      onChangeText={(value) => setFixedCost(option.slug, { amount: value })}
+                      keyboardType="decimal-pad"
+                      placeholder="R$ 0,00"
+                    />
+
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+                      {PERIOD_ORDER.map((period) => (
+                        <Chip
+                          key={period}
+                          label={PERIOD_LABELS[period]}
+                          selected={entry.period === period}
+                          onPress={() => setFixedCost(option.slug, { period })}
+                        />
+                      ))}
+                    </View>
+                  </Card>
+                </Reveal>
+              );
+            },
+          )}
+
+          <Text variant="caption" color="muted">
+            Marcar sem informar o valor não atrapalha: a categoria fica esperando você em Custos
+            fixos, dentro do aplicativo.
+          </Text>
+        </View>
+      ),
+    },
+    {
+      key: 'products',
+      title: 'Você vende alguma coisa dentro do carro?',
+      subtitle: 'Água, bala, perfume, carregador. Muita gente vende, e isso é ganho seu também.',
+      canAdvance: true,
+      skippable: sellsProducts === null,
+      skipLabel: 'Deixar para depois',
+      content: (
+        <View style={{ gap: theme.spacing.lg }}>
+          <View style={{ gap: theme.spacing.sm }}>
+            <OptionCard
+              label="Sim, vendo"
+              description="Vou cadastrar o que vendo e o preço"
+              icon="box"
+              selected={sellsProducts === true}
+              onPress={() => setSellsProducts(true)}
+            />
+            <OptionCard
+              label="Não vendo nada"
+              description="Só corridas e entregas mesmo"
+              icon="car"
+              selected={sellsProducts === false}
+              onPress={() => {
+                setSellsProducts(false);
+                setProductDrafts([]);
+              }}
+            />
+          </View>
+
+          {sellsProducts ? (
+            <Reveal>
+              <View style={{ gap: theme.spacing.lg }}>
+                <View style={{ gap: theme.spacing.sm }}>
+                  <Text variant="captionStrong" color="secondary">
+                    O QUE VOCÊ VENDE?
+                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
+                    {PRODUCT_SUGGESTIONS.filter(
+                      (suggestion) =>
+                        !productDrafts.some(
+                          (draft) => draft.name.toLowerCase() === suggestion.name.toLowerCase(),
+                        ),
+                    ).map((suggestion) => (
+                      <Chip
+                        key={suggestion.name}
+                        label={suggestion.name}
+                        iconName="plus"
+                        onPress={() => addProduct(suggestion.name)}
+                      />
+                    ))}
+                  </View>
+                </View>
+
+                {/* Nada de preço sugerido: o que uma garrafinha custa muda de
+                    cidade para cidade, e um valor pré-preenchido é um número
+                    que o aplicativo inventou. */}
+                {productDrafts.map((draft, position) => (
+                  <Card key={draft.name} padding="lg" style={{ gap: theme.spacing.md }}>
+                    <View
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}
+                    >
+                      <Icon name="box" size={18} color={theme.colors.brandPrimary} />
+                      <Text variant="bodyStrong" style={{ flex: 1 }}>
+                        {draft.name}
+                      </Text>
+                      <Button
+                        label="Tirar"
+                        variant="ghost"
+                        size="sm"
+                        onPress={() =>
+                          setProductDrafts((current) =>
+                            current.filter((_, index) => index !== position),
+                          )
+                        }
+                      />
+                    </View>
+                    <Field
+                      label="Você vende por quanto"
+                      value={draft.price}
+                      onChangeText={(value) =>
+                        setProductDrafts((current) =>
+                          current.map((item, index) =>
+                            index === position ? { ...item, price: value } : item,
+                          ),
+                        )
+                      }
+                      keyboardType="decimal-pad"
+                      placeholder="R$ 0,00"
+                    />
+                  </Card>
+                ))}
+
+                <View style={{ gap: theme.spacing.sm }}>
+                  <Field
+                    label="Vende outra coisa?"
+                    optional
+                    iconName="plus"
+                    placeholder="Escreva o nome e toque em adicionar"
+                    value={customProduct}
+                    onChangeText={setCustomProduct}
+                    onSubmitEditing={() => {
+                      addProduct(customProduct);
+                      setCustomProduct('');
+                    }}
+                  />
+                  <Button
+                    label="Adicionar à lista"
+                    variant="ghost"
+                    size="sm"
+                    iconName="plus"
+                    disabled={customProduct.trim() === ''}
+                    onPress={() => {
+                      addProduct(customProduct);
+                      setCustomProduct('');
+                    }}
+                  />
+                </View>
+
+                <Text variant="caption" color="muted">
+                  Depois, na hora de registrar, é só contar quantas unidades saíram. Dá para
+                  cadastrar mais produtos quando quiser, em Mais, Meus produtos.
+                </Text>
+              </View>
+            </Reveal>
+          ) : null}
         </View>
       ),
     },
@@ -378,7 +959,7 @@ export default function Onboarding() {
             label="Você trabalha com"
             value={
               workModes.length === 0
-                ? '—'
+                ? '–'
                 : workModes
                     .map((mode) => WORK_MODE_OPTIONS.find((option) => option.value === mode)?.label)
                     .filter(Boolean)
@@ -397,6 +978,30 @@ export default function Onboarding() {
             }
           />
           <Summary
+            label="Veículo"
+            value={
+              selectedType
+                ? [
+                    selectedType.label,
+                    OWNERSHIP_OPTIONS.find((option) => option.value === ownership)?.label,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
+                : 'Fica para depois'
+            }
+          />
+          <Summary label="Custos fixos" value={fixedCostSummary()} />
+          <Summary
+            label="Vende no carro"
+            value={
+              sellsProducts !== true
+                ? 'Não'
+                : productDrafts.length === 0
+                  ? 'Sim, cadastro depois'
+                  : productDrafts.map((draft) => draft.name).join(', ')
+            }
+          />
+          <Summary
             label="Meta do mês"
             value={monthlyCents ? formatCents(monthlyCents) : 'Sem meta ainda'}
           />
@@ -408,22 +1013,30 @@ export default function Onboarding() {
     },
   ];
 
-  const current = steps[step]!;
-  const isLast = step === steps.length - 1;
-  const isFirst = step === 0;
+  function fixedCostSummary(): string {
+    const named: string[] = [];
+    if (ownership === 'financed' && (parseCents(vehicleCosts.instalment) ?? 0) > 0)
+      named.push('Parcela');
+    if (ownership === 'rented' && (parseCents(vehicleCosts.rent) ?? 0) > 0) named.push('Aluguel');
+    for (const option of FIXED_COST_OPTIONS) {
+      const entry = fixedCosts[option.slug];
+      if (entry && (parseCents(entry.amount) ?? 0) > 0) named.push(option.label);
+    }
+    return named.length === 0 ? 'Nenhum informado ainda' : named.join(', ');
+  }
+
+  // The vehicle cost question only exists once there is a vehicle to ask
+  // about, so the index is clamped rather than left pointing past the end.
+  const visible = steps.filter((item) => item.key !== 'vehicle-cost' || vehicleType !== null);
+  const index = Math.min(step, visible.length - 1);
+  const current = visible[index]!;
+  const isLast = index === visible.length - 1;
+  const isFirst = index === 0;
 
   return (
     <Screen
       header={
-        <ScreenHeader
-          onBack={isFirst ? undefined : () => setStep(step - 1)}
-          transparent
-          actions={
-            current.skippable ? (
-              <Button label="Pular" variant="ghost" size="sm" onPress={() => setStep(step + 1)} />
-            ) : null
-          }
-        >
+        <ScreenHeader onBack={isFirst ? undefined : () => setStep(index - 1)} transparent>
           <View style={{ flex: 1, alignItems: isFirst ? 'flex-start' : 'center' }}>
             <BrandMark size="sm" />
           </View>
@@ -432,21 +1045,34 @@ export default function Onboarding() {
       gap="xl"
       grow
       footer={
-        <Button
-          label={isLast ? 'Começar a usar' : 'Continuar'}
-          size="lg"
-          fullWidth
-          loading={saving}
-          disabled={!current.canAdvance}
-          iconName={isLast ? 'check' : 'chevronRight'}
-          iconPosition="trailing"
-          onPress={() => (isLast ? void finish() : setStep(step + 1))}
-        />
+        <View style={{ gap: theme.spacing.sm }}>
+          <Button
+            label={isLast ? 'Começar a usar' : 'Continuar'}
+            size="lg"
+            fullWidth
+            loading={saving}
+            disabled={!current.canAdvance}
+            iconName={isLast ? 'check' : 'chevronRight'}
+            iconPosition="trailing"
+            onPress={() => (isLast ? void finish() : setStep(index + 1))}
+          />
+          {/* Skipping used to live in the top-right corner, the furthest point
+              on the screen from the thumb that is about to press Continuar.
+              It belongs under the primary action, where the choice is made. */}
+          {current.skippable && !isLast ? (
+            <Button
+              label={current.skipLabel ?? 'Pular esta pergunta'}
+              variant="ghost"
+              size="sm"
+              onPress={() => setStep(index + 1)}
+            />
+          ) : null}
+        </View>
       }
     >
       <StepProgress
-        current={step}
-        total={steps.length}
+        current={index}
+        total={visible.length}
         countLabel={(a, b) => `Passo ${a} de ${b}`}
       />
 
@@ -463,6 +1089,8 @@ export default function Onboarding() {
       </View>
 
       {current.content}
+
+      {failure ? <Notice message={failure} onDismiss={() => setFailure(null)} /> : null}
     </Screen>
   );
 }

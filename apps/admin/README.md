@@ -13,8 +13,8 @@ pnpm --filter @dinamique/admin dev
 
 | Helper | Subject to RLS | Use for |
 | --- | --- | --- |
-| `getSessionClient()` | yes — acts as the signed-in admin | everything the panel reads |
-| `getServiceClient()` | **no — bypasses RLS entirely** | the few writes that legitimately cross users |
+| `getSessionClient()` | yes – acts as the signed-in admin | everything the panel reads |
+| `getServiceClient()` | **no – bypasses RLS entirely** | the few writes that legitimately cross users |
 
 Every Server Action calls `requireAdmin(roles)` *before* touching the service
 client, because a Server Action is a public endpoint and hiding a button in the
@@ -27,14 +27,14 @@ the browser bundle.
 
 | Route | State |
 | --- | --- |
-| `/` | built — user, activity, plan, ticket and referral counts |
-| `/suporte` | built — inbox with status filters and sorting |
-| `/suporte/[id]` | built — conversation, reply, internal notes, assign, status/priority/category |
-| `/usuarios` | built — search, activity filters, last-access sorting |
-| `/influencers` | built — applications with approve / reject / suspend and code issuing |
-| `/indicacoes` | built — referral list with discount totals |
-| `/codigos` | built — create, activate and deactivate campaign codes |
-| `/logs` | built — audit log |
+| `/` | built – user, activity, plan, ticket and referral counts |
+| `/suporte` | built – inbox with status filters and sorting |
+| `/suporte/[id]` | built – conversation, reply, internal notes, assign, status/priority/category |
+| `/usuarios` | built – search, activity filters, last-access sorting |
+| `/influencers` | built – applications with approve / reject / suspend and code issuing |
+| `/indicacoes` | built – referral list with discount totals |
+| `/codigos` | built – create, activate and deactivate campaign codes |
+| `/logs` | built – audit log |
 
 ## Not built yet
 

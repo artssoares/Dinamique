@@ -65,7 +65,7 @@ function buildSummarySheet(data: ExportData): Sheet {
     })),
   });
 
-  // Métricas sem denominador aparecem em branco, não como zero — a planilha
+  // Métricas sem denominador aparecem em branco, não como zero – a planilha
   // segue a mesma regra do aplicativo (§6).
   const rows: Record<string, string | number | null>[] = [
     { item: 'Período', valor: `${data.period.start} a ${data.period.end}` },
@@ -165,7 +165,7 @@ function buildJourneysSheet(data: ExportData): Sheet {
 function buildRevenuesSheet(data: ExportData): Sheet {
   const rows = data.revenues.map((revenue) => ({
     data: revenue.date,
-    plataforma: revenue.platform ?? '—',
+    plataforma: revenue.platform ?? '–',
     valor: toReais(revenue.amount),
     gorjeta: revenue.tips > 0 ? toReais(revenue.tips) : null,
     corridas: revenue.tripCount,
@@ -176,7 +176,9 @@ function buildRevenuesSheet(data: ExportData): Sheet {
     name: 'Receitas',
     columns: [
       { key: 'data', header: 'Data', format: 'date', width: 12 },
-      { key: 'plataforma', header: 'Plataforma', format: 'text', width: 16 },
+      // "Origem" rather than "Plataforma": a row can also be something sold
+      // inside the car, which has no platform behind it.
+      { key: 'plataforma', header: 'Origem', format: 'text', width: 20 },
       { key: 'valor', header: 'Valor', format: 'currency', width: 14 },
       { key: 'gorjeta', header: 'Gorjeta', format: 'currency', width: 12 },
       { key: 'corridas', header: 'Corridas', format: 'number', width: 10 },

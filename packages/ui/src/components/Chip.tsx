@@ -1,5 +1,6 @@
-import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
+import { usePressMotion } from '../hooks/usePressMotion';
 import { Icon, type IconName } from '../icons/Icon';
 import { MIN_TOUCH_TARGET } from '../tokens/index';
 import { Text } from './Text';
@@ -15,7 +16,9 @@ export interface ChipProps {
   style?: StyleProp<ViewStyle>;
 }
 
-/** Pill-shaped quick selection — the fastest way to answer a question (§52). */
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+/** Pill-shaped quick selection – the fastest way to answer a question (§52). */
 export function Chip({
   label,
   selected = false,
@@ -27,15 +30,17 @@ export function Chip({
 }: ChipProps) {
   const theme = useTheme();
   const content = selected ? theme.colors.textOnBrand : theme.colors.textPrimary;
+  const press = usePressMotion({ scale: 0.94, opacity: 0.88, disabled });
 
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole={multiple ? 'checkbox' : 'button'}
       accessibilityState={multiple ? { checked: selected, disabled } : { selected, disabled }}
       accessibilityLabel={label}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [
+      {...press.handlers}
+      style={[
         {
           minHeight: MIN_TOUCH_TARGET,
           paddingHorizontal: theme.spacing.lg,
@@ -43,8 +48,9 @@ export function Chip({
           backgroundColor: selected ? theme.colors.brandPrimary : theme.colors.surfacePrimary,
           borderWidth: 1,
           borderColor: selected ? theme.colors.brandPrimary : theme.colors.borderPrimary,
-          opacity: disabled ? 0.5 : pressed ? 0.85 : 1,
         },
+        press.style,
+        disabled ? { opacity: 0.5 } : null,
         style,
       ]}
     >
@@ -53,6 +59,7 @@ export function Chip({
           flex: 1,
           flexDirection: 'row',
           alignItems: 'center',
+          justifyContent: 'center',
           gap: theme.spacing.xs,
         }}
       >
@@ -62,6 +69,6 @@ export function Chip({
         </Text>
         {multiple && selected ? <Icon name="check" size={14} color={content} /> : null}
       </View>
-    </Pressable>
+    </AnimatedPressable>
   );
 }

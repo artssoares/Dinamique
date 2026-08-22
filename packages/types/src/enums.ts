@@ -1,6 +1,6 @@
 /**
  * Domain enums. Every value here has a matching Postgres enum or a
- * `check` constraint in packages/database/migrations — keep them in sync.
+ * `check` constraint in packages/database/migrations – keep them in sync.
  */
 
 export const WORK_MODES = ['rideshare', 'delivery', 'taxi', 'private'] as const;
@@ -18,7 +18,7 @@ export type FuelType = (typeof FUEL_TYPES)[number];
 export const JOURNEY_STATUSES = ['active', 'paused', 'completed', 'discarded'] as const;
 export type JourneyStatus = (typeof JOURNEY_STATUSES)[number];
 
-/** What a goal measures. Never conflate the two — see PRODUCT_RULES.md §36. */
+/** What a goal measures. Never conflate the two – see PRODUCT_RULES.md §36. */
 export const GOAL_BASIS = ['gross', 'net'] as const;
 export type GoalBasis = (typeof GOAL_BASIS)[number];
 

@@ -10,7 +10,7 @@ import { getServiceClient } from '@/lib/supabase-server';
 /**
  * Support Server Actions.
  *
- * Each one re-checks the caller's role before touching anything — a Server
+ * Each one re-checks the caller's role before touching anything – a Server
  * Action is a public endpoint, and hiding a button is not authorisation (§118).
  */
 

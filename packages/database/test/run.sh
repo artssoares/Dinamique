@@ -40,8 +40,8 @@ for migration in "$here/../migrations/"*.sql; do
   psql -q -d "$DB" -v ON_ERROR_STOP=1 -f "$migration"
 done
 
-# `set -o pipefail` plus ON_ERROR_STOP means a failed assertion — which raises
-# in plpgsql — exits non-zero rather than merely printing.
+# `set -o pipefail` plus ON_ERROR_STOP means a failed assertion, which raises
+# in plpgsql, exits non-zero rather than merely printing.
 psql -d "$DB" -v ON_ERROR_STOP=1 -f "$here/rls_test.sql" 2>&1 \
   | sed 's/^psql[^ ]* NOTICE:  //' \
   | grep -E 'PASS|FAIL|ERROR|ALL DATABASE'

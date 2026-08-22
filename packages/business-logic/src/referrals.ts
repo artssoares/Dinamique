@@ -5,7 +5,7 @@ import { applyDiscount } from '@dinamique/utils';
  * Referral benefit rules (§83, §84).
  *
  * V1 commercial rule: the REFERRED user receives R$ 10 off their first
- * eligible Pro charge. The referrer receives nothing automatically — that is a
+ * eligible Pro charge. The referrer receives nothing automatically – that is a
  * commercial decision, not an engineering one, and the schema is ready for it.
  */
 
@@ -82,7 +82,7 @@ export type ReferralRejection =
   | 'referrer_blocked';
 
 /**
- * Antifraude V1 (§70, §85) — deliberately simple and deterministic. Anything
+ * Antifraude V1 (§70, §85) – deliberately simple and deterministic. Anything
  * heavier belongs in a later version backed by real abuse data.
  */
 export function evaluateReferralEligibility(input: {

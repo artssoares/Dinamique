@@ -30,7 +30,7 @@ export function daysBetween(from: DateOnly, to: DateOnly): number {
   return Math.round((b - a) / 86_400_000);
 }
 
-/** Weeks start on Monday — the working week drivers actually plan around. */
+/** Weeks start on Monday – the working week drivers actually plan around. */
 export function startOfWeek(value: DateOnly): DateOnly {
   const date = fromDateOnly(value);
   const dow = (date.getDay() + 6) % 7;
@@ -78,7 +78,7 @@ export function periodRange(kind: PeriodKind, reference: DateOnly): DateRange {
   }
 }
 
-/** Inclusive day count of a range — the denominator for pace maths. */
+/** Inclusive day count of a range – the denominator for pace maths. */
 export function rangeLengthDays(range: DateRange): number {
   return daysBetween(range.start, range.end) + 1;
 }

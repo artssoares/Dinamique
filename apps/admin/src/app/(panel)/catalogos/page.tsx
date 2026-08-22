@@ -119,7 +119,7 @@ export default async function Catalogues() {
         <p className="small muted" style={{ margin: '0 0 12px' }}>
           {vehicleCount.count ?? 0} versões no catálogo. Cole linhas no formato{' '}
           <code>marca;modelo;tipo;versão;ano;motor;combustível;consumo urbano;consumo rodoviário</code>.
-          O consumo vai em km/l — a conversão para a unidade interna é feita aqui.
+          O consumo vai em km/l. A conversão para a unidade interna é feita aqui.
         </p>
         <form action={importVehicles} className="card" style={{ display: 'grid', gap: 12 }}>
           <textarea
