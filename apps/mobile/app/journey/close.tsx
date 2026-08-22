@@ -34,6 +34,7 @@ import { resolveDistanceSource } from '@/features/journey/distanceSource';
 import { useJourneyTracking } from '@/features/tracking/useJourneyTracking';
 import { useRoutePreferences } from '@/features/tracking/preferences';
 import { RouteReplay } from '@/features/route/RouteReplay';
+import { StoryShareButton } from '@/features/route/StoryShareButton';
 
 interface Platform {
   id: string;
@@ -600,6 +601,15 @@ export default function CloseJourney() {
             <RouteReplay
               points={measured.points}
               distance={summary.distance > 0 ? summary.distance : null}
+            />
+
+            <StoryShareButton
+              points={measured.points}
+              date={toDateOnly(new Date())}
+              distance={summary.distance > 0 ? summary.distance : null}
+              workedSeconds={summary.workedSeconds}
+              revenuePerKm={summary.revenuePerKm}
+              grossRevenue={summary.grossRevenue}
             />
           </Card>
         ) : null}

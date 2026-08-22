@@ -6,6 +6,7 @@ import { formatCents, formatDistanceKm, formatDuration } from '@dinamique/utils'
 import { Button, Card, EmptyState, Screen, ScreenHeader, Skeleton, Text, useTheme } from '@dinamique/ui';
 import { track } from '@/lib/analytics';
 import { RouteReplay } from '@/features/route/RouteReplay';
+import { StoryShareButton } from '@/features/route/StoryShareButton';
 import { longDateLabel } from '@/features/route/routeDates';
 import { useDayJourney, useJourneyRoute } from '@/features/route/useJourneyRoute';
 import { useDaySummary } from '@/features/route/useJourneySummary';
@@ -74,6 +75,17 @@ export default function JourneyReplay() {
                 }
               />
             </Card>
+          ) : null}
+
+          {summary && day ? (
+            <StoryShareButton
+              points={route.points}
+              date={day}
+              distance={summary.distance}
+              workedSeconds={summary.workedSeconds}
+              revenuePerKm={summary.revenuePerKm}
+              grossRevenue={summary.grossRevenue}
+            />
           ) : null}
         </>
       ) : (
