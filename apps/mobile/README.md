@@ -29,10 +29,26 @@ Security. The service role key must never appear in this app.
 | `referrals` | built — code, native share, "minhas indicações" |
 | `influencer` | built — application form and status |
 | `settings/appearance` | built — light / dark / system |
+| `settings/route` | built — Trajeto e privacidade: GPS, cortar as pontas, retenção, apagar tudo |
+| `journey/close` | built — três passos, resumo, replay e compartilhar |
+| `journey/replay` | built — o trajeto de um dia, vindo do histórico |
 | `profile`, `vehicle`, `goals`, `plan`, `export` | **not built** — each renders `<ComingSoon>` naming its phase |
 
 Routes marked *not built* say so on screen. A button that looks finished but
 does nothing is worse than an honest empty state (§131).
+
+## Platform extensions
+
+Three modules exist twice: `locationService`, `backgroundTask` and
+`RouteReplay`. The bare `.ts`/`.tsx` is the **web** implementation and the one
+TypeScript resolves; Metro prefers the `.native` sibling on a device.
+
+That direction is the whole point. TypeScript knows nothing about platform
+extensions, so a pair of `.web` and `.native` files would not compile at all.
+With the bare file as the web one, the compiler, the web bundler and the
+native bundler all agree — and MapLibre and `expo-task-manager`, imported only
+from `.native` files, cannot enter the web dependency graph. CI greps the
+exported bundle to prove it.
 
 ## Where logic lives
 
@@ -49,3 +65,8 @@ type come from `@dinamique/ui` tokens. A hex code in a screen is a bug.
   Supabase; `client_id` columns exist so idempotent sync can be added without a
   migration.
 - **Push notifications** are not wired. In-app notifications work end to end.
+- **No native build has ever been produced.** Background location, the Android
+  foreground service, the MapLibre replay and the PNG export are written and
+  typechecked but have never run on a device. Config plugins do nothing in
+  Expo Go — they need `expo prebuild`, which needs the app icons that are also
+  missing.

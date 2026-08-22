@@ -143,16 +143,43 @@ mockup. Nothing listed as not built is stubbed with a button that does nothing.
 | Varredura de segurança no CI | **built** |
 | Documentação | **built** — 12 arquivos |
 
+## Phase 15 — trajeto por GPS, replay e compartilhamento
+
+| Item | State |
+| --- | --- |
+| Filtro, simplificação e resumo de trajeto | **built** — `packages/business-logic/src/tracking.ts` |
+| Polyline codificada (precisão 5) | **built** — `packages/utils/src/polyline.ts` |
+| Schema: `journey_routes`, `distance_gps`, preferências, poda agendada | **built** |
+| Ordem da distância: digitado → odômetro → GPS | **built** — e o SQL e o TypeScript concordam |
+| Captura em segundo plano (iOS e Android) | **built** — inverificável sem build nativo |
+| Permissão em duas etapas, com folha em pt-BR antes do diálogo do sistema | **built** |
+| Tela "Trajeto e privacidade" | **built** — ligar/desligar, cortar pontas, retenção, apagar tudo |
+| Campo de km pré-preenchido no fechamento | **built** — semeado uma vez, nunca por cima do que foi digitado |
+| Replay animado (mapa Esri no aparelho, traço na web) | **built** |
+| Glifo de trajeto no histórico | **built** — só nos dias que têm um |
+| Card 1080×1920 e compartilhamento | **built** — PNG, sem tile de mapa |
+| `eas.json` e config plugins | **built** — nunca rodados: veja os buracos abaixo |
+
 ## Verified end to end
 
-- both apps build: the admin prerenders, the mobile app exports 1,059 modules
-- 131 unit tests, 29 database assertions, 6/6 packages typecheck
+- both apps build: the admin prerenders, the mobile app exports for web
+- 328 unit tests, 100 database assertions, 9/9 projects typecheck
+- the exported web bundle contains no MapLibre and no `expo-task-manager`,
+  asserted by a CI grep rather than inferred from the build passing
 - CI runs all of the above plus both builds on every push
 - demo seed produces realistic figures (R$ 1,71–3,06/km, R$ 19–41 profit/hour)
   and demonstrates the benchmark minimum correctly withholding city-level data
 
 ## Known gaps outside the phase plan
 
+- **No native build has ever been produced from this repository.** Everything
+  in Phase 15 that needs one — background location, the foreground service,
+  the MapLibre replay, `toDataURL` at story size — is written and typechecked
+  but has not run on a device. The first EAS build is expected to fail on the
+  missing icons below.
+- **The app icons are not in the repository.** `app.json` names
+  `assets/icon.png`, `splash.png`, `adaptive-icon.png` and `favicon.png`;
+  `expo export --platform web` tolerates that and `expo prebuild` does not.
 - **The logo is not in the repository.** `<BrandMark>` renders a visible
   placeholder. See `assets/brand/README.md`.
 - **Tab icons** are placeholder glyphs, not a finished icon set.

@@ -18,6 +18,11 @@ To activate it:
 
 The admin panel reads the same file from `apps/admin/public/logo.png`.
 
+The shared story card does **not** follow this rule, on purpose: it typesets
+`DINAMIQUE` and says nothing. Inside the app a missing asset should be loud,
+so somebody notices before release; on an image a driver is about to post, a
+dashed placeholder would be the one thing everyone sees.
+
 ## Brand colours
 
 Taken from the logo and encoded in `packages/ui/src/tokens/palette.ts`:
