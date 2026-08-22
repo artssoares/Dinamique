@@ -107,6 +107,12 @@ export default function More() {
           href: '/settings/appearance',
           icon: 'moon',
         },
+        {
+          label: 'Trajeto e privacidade',
+          description: 'GPS, compartilhamento e o que guardamos',
+          href: '/settings/route',
+          icon: 'route',
+        },
         { label: 'Exportar meus dados', href: '/export', icon: 'download' },
       ],
     },
