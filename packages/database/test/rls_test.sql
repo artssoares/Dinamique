@@ -726,3 +726,138 @@ begin
   raise notice 'TESTES DE EXTENSÕES PASSARAM';
 end;
 $$;
+
+-- ============================================================================
+-- Trajetos de GPS.
+--
+-- Uma rota diz onde alguém esteve, hora a hora — é o dado mais sensível do
+-- schema. E `daily_totals` passou a conhecer o GPS, o que dá duas garantias
+-- para testar dos dois lados: ele preenche quando não digitaram nada, e some
+-- quando digitaram.
+-- ============================================================================
+do $$
+declare
+  v_ana    uuid := gen_random_uuid();
+  v_bruno  uuid := gen_random_uuid();
+  v_j      uuid;
+  v_count  integer;
+  v_dist   bigint;
+begin
+  insert into auth.users (id, email, raw_user_meta_data)
+  values (v_ana,   'ana.rota@example.com',   '{"full_name": "Ana Rocha"}'::jsonb),
+         (v_bruno, 'bruno.rota@example.com', '{"full_name": "Bruno Dias"}'::jsonb);
+
+  -- --------------------------------------------------------- propriedade ---
+  insert into journeys (user_id, started_at, ended_at, status, distance_gps, route_point_count)
+  values (v_ana, now() - interval '8 hours', now(), 'completed', 34200, 180)
+  returning id into v_j;
+
+  perform login_as(v_ana);
+  insert into journey_routes (journey_id, user_id, polyline, point_count)
+  values (v_j, v_ana, '_p~iF~ps|U_ulLnnqC', 2);
+  select count(*) into v_count from journey_routes;
+  reset role;
+  perform assert(v_count = 1, 'um motorista guarda o próprio trajeto');
+
+  perform login_as(v_bruno);
+  select count(*) into v_count from journey_routes;
+  reset role;
+  perform assert(v_count = 0, 'um motorista não enxerga o trajeto de outro (§9)');
+
+  -- Anexar uma rota à jornada alheia seria descobrir por onde ela andou.
+  perform login_as(v_bruno);
+  begin
+    insert into journey_routes (journey_id, user_id, polyline, point_count)
+    values (v_j, v_ana, 'abc', 1);
+    reset role;
+    perform assert(false, 'cross-user route insert should be blocked');
+  exception when insufficient_privilege then
+    reset role;
+    perform assert(true, 'ninguém anexa um trajeto à jornada de outro (RLS)');
+  end;
+
+  -- E nem ocupando a linha em nome próprio: `journey_id` é a chave primária,
+  -- então isso bloquearia para sempre o upsert do dono da jornada.
+  perform login_as(v_bruno);
+  begin
+    insert into journey_routes (journey_id, user_id, polyline, point_count)
+    values (v_j, v_bruno, 'abc', 1);
+    reset role;
+    perform assert(false, 'squatting another driver''s journey row should be blocked');
+  exception when insufficient_privilege then
+    reset role;
+    perform assert(true, 'ninguém ocupa a linha de trajeto da jornada de outro');
+  end;
+
+  -- ------------------------------------------------------------- cascata ---
+  perform login_as(v_ana);
+  delete from journeys where id = v_j;
+  reset role;
+  perform assert(
+    (select count(*) from journey_routes where journey_id = v_j) = 0,
+    'apagar a jornada apaga o trajeto junto');
+
+  -- ------------------------------------------------- daily_totals e o GPS ---
+  -- Sem nada digitado, o GPS preenche.
+  insert into journeys (user_id, started_at, ended_at, status, distance_gps)
+  values (v_ana, current_date + interval '9 hours', current_date + interval '17 hours',
+          'completed', 34200);
+
+  select distance into v_dist from daily_totals
+  where user_id = v_ana and date = current_date;
+  perform assert(v_dist = 34200,
+    'daily_totals usa o GPS quando ninguém digitou km, valor: ' || coalesce(v_dist::text, 'null'));
+
+  -- Com km digitado, o número da pessoa vence e o GPS é ignorado.
+  insert into journeys (user_id, started_at, ended_at, status,
+                        distance_gps, distance_override)
+  values (v_bruno, current_date + interval '9 hours', current_date + interval '17 hours',
+          'completed', 34200, 41000);
+
+  select distance into v_dist from daily_totals
+  where user_id = v_bruno and date = current_date;
+  perform assert(v_dist = 41000,
+    'o km digitado vence o GPS em daily_totals (§6), valor: ' || coalesce(v_dist::text, 'null'));
+
+  -- E o par de odômetro continua vencendo o GPS.
+  insert into journeys (user_id, started_at, ended_at, status,
+                        odometer_start, odometer_end, distance_gps)
+  values (v_bruno, current_date - interval '15 hours', current_date - interval '9 hours',
+          'completed', 100000, 152000, 34200);
+
+  select distance into v_dist from daily_totals
+  where user_id = v_bruno and date = (current_date - interval '15 hours')::date;
+  perform assert(v_dist = 52000,
+    'o par de odômetro vence o GPS em daily_totals, valor: ' || coalesce(v_dist::text, 'null'));
+
+  -- --------------------------------------------------------- preferências ---
+  perform assert(
+    (select route_capture_enabled from user_preferences where user_id = v_ana) = false,
+    'a captura de trajeto nasce desligada — opt-in, nunca opt-out');
+  perform assert(
+    (select route_trim_shared from user_preferences where user_id = v_ana) = true,
+    'esconder as pontas do trajeto ao compartilhar já vem ligado');
+  perform assert(
+    (select route_capture_prompted from user_preferences where user_id = v_ana) = false,
+    'ninguém foi perguntado ainda sobre a captura de trajeto');
+  perform assert(
+    (select route_retention_days from user_preferences where user_id = v_ana) = 90,
+    'o trajeto expira por padrão, sem ninguém precisar escolher');
+
+  -- "Sempre" é uma escolha legítima, e tem de caber na coluna.
+  perform login_as(v_ana);
+  update user_preferences set route_retention_days = null where user_id = v_ana;
+  reset role;
+  perform assert(
+    (select route_retention_days from user_preferences where user_id = v_ana) is null,
+    'guardar para sempre é alcançável por escolha explícita');
+
+  -- ------------------------------------------------------------ retenção ---
+  perform assert(
+    has_function_privilege('authenticated', 'prune_expired_routes()', 'execute') = false,
+    'a poda de trajetos não é chamável pelo aplicativo');
+
+  raise notice '';
+  raise notice 'TESTES DE TRAJETO PASSARAM';
+end;
+$$;
