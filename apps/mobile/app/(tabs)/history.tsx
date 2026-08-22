@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList, Pressable, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { formatCents, formatDistanceKm, formatDuration, periodRange, toDateOnly, weekdayLabel } from '@dinamique/utils';
 import {
   Card,
   EmptyState,
+  Icon,
   Screen,
   SegmentedControl,
   Skeleton,
@@ -14,6 +16,7 @@ import {
 import { AppHeader } from '@/features/shell/AppHeader';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/useSession';
+import { useRouteDays } from '@/features/route/useJourneyRoute';
 
 type Period = 'weekly' | 'monthly' | 'yearly';
 
@@ -29,6 +32,7 @@ interface DayRow {
 /** Day-by-day history over a chosen period (§53). */
 export default function History() {
   const theme = useTheme();
+  const router = useRouter();
   const { session } = useSession();
   const [period, setPeriod] = useState<Period>('weekly');
   const [rows, setRows] = useState<DayRow[]>([]);
@@ -54,6 +58,12 @@ export default function History() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Which days have a drawing, in one query for the whole period. The glyph
+  // only appears where tapping actually leads somewhere — an icon that opens
+  // an empty screen is worse than no icon.
+  const range = periodRange(period, toDateOnly(new Date()));
+  const routeDays = useRouteDays(range.start, range.end);
 
   const totals = rows.reduce(
     (acc, row) => ({
@@ -134,30 +144,56 @@ export default function History() {
           />
         )
       }
-      renderItem={({ item }) => (
-        <Card padding="lg" style={{ gap: theme.spacing.sm }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <View>
-              <Text variant="bodyStrong">
-                {new Date(`${item.date}T00:00:00`).toLocaleDateString('pt-BR', {
-                  day: '2-digit',
-                  month: 'short',
-                })}
-              </Text>
-              <Text variant="caption" color="secondary">
-                {weekdayLabel(item.date)}
+      renderItem={({ item }) => {
+        const hasRoute = routeDays.has(item.date);
+
+        const card = (
+          <Card padding="lg" style={{ gap: theme.spacing.sm }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+                <View>
+                  <Text variant="bodyStrong">
+                    {new Date(`${item.date}T00:00:00`).toLocaleDateString('pt-BR', {
+                      day: '2-digit',
+                      month: 'short',
+                    })}
+                  </Text>
+                  <Text variant="caption" color="secondary">
+                    {weekdayLabel(item.date)}
+                  </Text>
+                </View>
+                {/* Um glifo, e só nos dias que têm trajeto. Sem selo, sem
+                    banner, sem convencer ninguém a ligar o GPS. */}
+                {hasRoute ? (
+                  <Icon name="route" size={16} color={theme.colors.brandPrimary} />
+                ) : null}
+              </View>
+              <Text variant="moneyMedium" color={item.net_profit >= 0 ? 'success' : 'danger'}>
+                {formatCents(item.net_profit)}
               </Text>
             </View>
-            <Text variant="moneyMedium" color={item.net_profit >= 0 ? 'success' : 'danger'}>
-              {formatCents(item.net_profit)}
+            <Text variant="caption" color="secondary">
+              {formatCents(item.gross_revenue)} faturado · {formatCents(item.total_expenses)} em custos
+              {item.worked_seconds > 0 ? ` · ${formatDuration(item.worked_seconds)}` : ''}
             </Text>
-          </View>
-          <Text variant="caption" color="secondary">
-            {formatCents(item.gross_revenue)} faturado · {formatCents(item.total_expenses)} em custos
-            {item.worked_seconds > 0 ? ` · ${formatDuration(item.worked_seconds)}` : ''}
-          </Text>
-        </Card>
-      )}
+          </Card>
+        );
+
+        // Só os dias com trajeto viram botão. Um dia sem desenho continua
+        // exatamente a linha que sempre foi — nada aqui muda para quem
+        // nunca ligou a contagem por GPS.
+        if (!hasRoute) return card;
+
+        return (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Ver o trajeto de ${weekdayLabel(item.date)}`}
+            onPress={() => router.push({ pathname: '/journey/replay', params: { date: item.date } })}
+          >
+            {card}
+          </Pressable>
+        );
+      }}
     />
     </Screen>
   );

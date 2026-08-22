@@ -33,6 +33,7 @@ import { closeRowClientId } from '@/features/journey/closeClientIds';
 import { resolveDistanceSource } from '@/features/journey/distanceSource';
 import { useJourneyTracking } from '@/features/tracking/useJourneyTracking';
 import { useRoutePreferences } from '@/features/tracking/preferences';
+import { RouteReplay } from '@/features/route/RouteReplay';
 
 interface Platform {
   id: string;
@@ -588,6 +589,20 @@ export default function CloseJourney() {
               )}
             </View>
           </Card>
+
+        {routeOutcome === 'kept' && measured && measured.points.length >= 2 ? (
+          <Card padding="lg" style={{ gap: theme.spacing.md }}>
+            <Text variant="caption" color="secondary">
+              SEU TRAJETO DE HOJE
+            </Text>
+            {/* Depois do dinheiro, nunca antes. O número é o motivo de o
+                motorista abrir esta tela; o desenho é o presente. */}
+            <RouteReplay
+              points={measured.points}
+              distance={summary.distance > 0 ? summary.distance : null}
+            />
+          </Card>
+        ) : null}
 
         {routeOutcome === 'lost' ? (
           <Card padding="lg">
