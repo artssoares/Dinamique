@@ -52,9 +52,13 @@ export function summariseRows(rows: DayRow[]): PeriodSummary {
         Date.parse(`${row.date}T00:00:00.000Z`) + row.worked_seconds * 1000,
       ).toISOString(),
       pausedSeconds: 0,
+      // `daily_totals` already resolved override, odometer and GPS into one
+      // figure, so the highest-priority slot is where it belongs — resolving
+      // it a second time here would be the divergence §120 forbids.
       odometerStart: null,
       odometerEnd: null,
       distanceOverride: row.distance > 0 ? row.distance : null,
+      distanceGps: null,
     })),
     revenues: rows.map((row) => ({
       date: row.date,

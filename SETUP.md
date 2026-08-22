@@ -43,6 +43,7 @@ No projeto **dinamique-app**, em **Settings → Environment Variables**:
 | `EXPO_PUBLIC_SUPABASE_URL` | a Project URL |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | a chave anon |
 | `EXPO_PUBLIC_BILLING_URL` | a URL do painel (etapa 3) |
+| `EXPO_PUBLIC_ARCGIS_API_KEY` | a chave do mapa (etapa 6) — pode ficar vazia |
 
 Depois, **Deployments → Redeploy**. Sem essas variáveis o aplicativo mostra a
 tela de instalação em vez de quebrar.
@@ -97,6 +98,56 @@ O arquivo ainda não está no repositório. Salve o PNG com fundo transparente e
 Até lá o aplicativo mostra um espaço tracejado no lugar da marca – de
 propósito, para a ausência ficar visível em vez de o nome ser recriado com
 outra fonte.
+
+---
+
+## 6. Mapa do trajeto (Esri) — opcional
+
+O replay do trajeto desenha o caminho do motorista sobre um mapa de rua da
+Esri. **Sem a chave o aplicativo não quebra:** o replay mostra o mesmo traço
+desenhado, com o degradê da marca, e nada mais muda.
+
+1. Crie uma conta gratuita no
+   [ArcGIS Location Platform](https://location.arcgis.com/).
+2. Em **API keys**, crie uma chave nova.
+3. Em **Privileges**, deixe marcado apenas **Basemaps**. Isso importa: a chave
+   vai embutida no aplicativo, como toda variável `EXPO_PUBLIC_`, e uma chave
+   restrita a mapas não serve para mais nada se alguém copiá-la.
+4. Cole o valor em `EXPO_PUBLIC_ARCGIS_API_KEY`, na Vercel e no seu `.env`.
+
+O plano gratuito cobre milhões de carregamentos de mapa por mês — bem acima do
+que um aplicativo em crescimento consome, já que o mapa só aparece quando
+alguém abre um trajeto.
+
+---
+
+## 7. Aplicativo nativo (iOS e Android)
+
+Até aqui tudo roda na web. A contagem por GPS em segundo plano e o mapa do
+replay **só funcionam num build nativo** — não funcionam no Expo Go, porque
+dependem de config plugins que só existem depois do `prebuild`.
+
+```bash
+npm install -g eas-cli
+eas login
+eas build --profile development --platform android   # o mais rápido, e sem conta paga
+```
+
+Os perfis estão em [`apps/mobile/eas.json`](./apps/mobile/eas.json):
+`development` para testar no seu aparelho, `preview` para mandar para outra
+pessoa, `production` para as lojas.
+
+Duas coisas para saber antes do primeiro build:
+
+- **Os ícones do aplicativo ainda não estão no repositório.** O `app.json`
+  aponta para `assets/icon.png`, `splash.png`, `adaptive-icon.png` e
+  `favicon.png`. O `expo export --platform web` tolera a ausência; o
+  `prebuild` não. Gere-os a partir do logo antes de buildar.
+- **A App Store revisa localização em segundo plano com cuidado.** O texto que
+  aparece no diálogo do iPhone está em `app.json` e explica exatamente para que
+  serve. Mande, nas notas da revisão, uma conta de teste e uma gravação de tela
+  mostrando a jornada em andamento — pedir "Sempre" sem isso costuma voltar
+  reprovado.
 
 ---
 

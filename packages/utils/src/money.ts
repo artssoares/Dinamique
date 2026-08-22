@@ -1,4 +1,5 @@
 import type { Cents } from '@dinamique/types';
+import { parseDecimal } from './decimal';
 
 /**
  * Money helpers. Everything is integer cents; the only place a float appears
@@ -19,26 +20,8 @@ export function sumCents(values: readonly Cents[]): Cents {
 
 /** Parse user input like "1.234,56", "1234.56", "R$ 89,90" into cents. */
 export function parseCents(input: string): Cents | null {
-  const cleaned = input.replace(/[^\d,.-]/g, '').trim();
-  if (cleaned === '' || cleaned === '-') return null;
-
-  const lastComma = cleaned.lastIndexOf(',');
-  const lastDot = cleaned.lastIndexOf('.');
-  const decimalSep = lastComma > lastDot ? ',' : lastDot > lastComma ? '.' : null;
-
-  let normalised: string;
-  if (decimalSep === null) {
-    normalised = cleaned.replace(/[.,]/g, '');
-  } else {
-    const idx = decimalSep === ',' ? lastComma : lastDot;
-    const intPart = cleaned.slice(0, idx).replace(/[.,]/g, '');
-    const fracPart = cleaned.slice(idx + 1).replace(/[^\d]/g, '');
-    normalised = `${intPart}.${fracPart}`;
-  }
-
-  const value = Number(normalised);
-  if (!Number.isFinite(value)) return null;
-  return roundCents(value * 100);
+  const value = parseDecimal(input);
+  return value === null ? null : roundCents(value * 100);
 }
 
 export function formatCents(

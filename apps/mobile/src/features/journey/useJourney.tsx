@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { Cents } from '@dinamique/types';
+import type { Cents, DistanceSource, Metres } from '@dinamique/types';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 import { toFriendlyError } from '@/lib/errors';
@@ -180,15 +180,27 @@ function useJourneyState() {
   }, [journey, run]);
 
   const finish = useCallback(
-    async (input: { odometerEnd: number | null; distanceOverride: number | null }) => {
+    async (input: {
+      odometerEnd: Metres | null;
+      distanceOverride: Metres | null;
+      /** The raw GPS measurement, kept as the audit trail behind the replay. */
+      distanceGps?: Metres | null;
+      routePointCount?: number | null;
+      distanceSource?: DistanceSource | null;
+    }): Promise<boolean> => {
       if (!journey) return false;
       const now = new Date();
       const extra = journey.pausedAt
         ? Math.max(0, Math.round((now.getTime() - Date.parse(journey.pausedAt)) / 1000))
         : 0;
 
-      const ok = await run(() =>
-        supabase
+      // `select()` because a PostgREST update that matched nothing reports no
+      // error at all. Trusting that would confirm the driver's day, emit a
+      // completion event and release the GPS buffer on the device over a row
+      // that was never touched — an id that moved, or an RLS policy saying no.
+      let matched = false;
+      const ok = await run(async () => {
+        const result = await supabase
           .from('journeys')
           .update({
             status: 'completed',
@@ -197,11 +209,22 @@ function useJourneyState() {
             paused_seconds: journey.pausedSeconds + extra,
             odometer_end: input.odometerEnd,
             distance_override: input.distanceOverride,
+            distance_gps: input.distanceGps ?? null,
+            route_point_count: input.routePointCount ?? null,
+            distance_source: input.distanceSource ?? null,
           })
-          .eq('id', journey.id),
-      );
-      if (ok) void track('journey_completed', {});
-      return ok;
+          .eq('id', journey.id)
+          .select('id')
+          .maybeSingle();
+        matched = result.data !== null;
+        return result;
+      });
+
+      // `journey_completed` is emitted by the close screen, which knows what
+      // the journey actually contained — the platforms, whether a distance was
+      // recorded, where that distance came from. Firing it here as well would
+      // put two events with different properties under one name.
+      return ok && matched;
     },
     [journey, run],
   );

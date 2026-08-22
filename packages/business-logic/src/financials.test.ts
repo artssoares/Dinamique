@@ -17,6 +17,7 @@ const journey = (over: Partial<JourneyInput> = {}): JourneyInput => ({
   odometerStart: null,
   odometerEnd: null,
   distanceOverride: null,
+  distanceGps: null,
   ...over,
 });
 
@@ -67,6 +68,55 @@ describe('journeyDistance', () => {
 
   it('rejects a decreasing odometer', () => {
     expect(journeyDistance(journey({ odometerStart: 180_000, odometerEnd: 100_000 }))).toBeNull();
+  });
+});
+
+describe('journeyDistance with a GPS track', () => {
+  it('uses the GPS figure when the driver typed nothing', () => {
+    expect(journeyDistance(journey({ distanceGps: 34_200 }))).toBe(34_200);
+  });
+
+  it('lets the typed number beat the GPS figure', () => {
+    // The driver looked at their own dashboard. We did not.
+    expect(journeyDistance(journey({ distanceOverride: 41_000, distanceGps: 34_200 }))).toBe(41_000);
+  });
+
+  it('lets an odometer pair beat the GPS figure', () => {
+    expect(
+      journeyDistance(journey({ odometerStart: 100_000, odometerEnd: 152_000, distanceGps: 34_200 })),
+    ).toBe(52_000);
+  });
+
+  it('falls through to GPS when the odometer pair runs backwards', () => {
+    // This is the case that used to stop at null. The SQL in daily_totals
+    // always fell through here, so stopping would have shown the same day two
+    // different ways depending on which one you asked.
+    expect(
+      journeyDistance(journey({ odometerStart: 180_000, odometerEnd: 100_000, distanceGps: 34_200 })),
+    ).toBe(34_200);
+  });
+
+  it('falls through to GPS when only one odometer reading exists', () => {
+    expect(journeyDistance(journey({ odometerStart: 100_000, distanceGps: 34_200 }))).toBe(34_200);
+  });
+
+  it('ignores a zero or negative GPS figure rather than reporting no distance', () => {
+    expect(journeyDistance(journey({ distanceGps: 0 }))).toBeNull();
+    expect(journeyDistance(journey({ distanceGps: -5 }))).toBeNull();
+  });
+
+  it('still yields null when nothing at all was measured', () => {
+    expect(journeyDistance(journey())).toBeNull();
+  });
+
+  it('feeds R$/km from a GPS-only journey', () => {
+    const summary = summarisePeriod({
+      journeys: [journey({ distanceGps: 100_000 })], // 100 km
+      revenues: [revenue({ amount: 30_000 })],
+      expenses: [],
+    });
+    expect(summary.distance).toBe(100_000);
+    expect(summary.revenuePerKm).toBe(300);
   });
 });
 

@@ -64,8 +64,21 @@ with a short reason. It never returns zero, and it never invents a figure.
 nothing – only what closed is measured.
 
 **Distance** resolves in this order: an explicit "how many km did you drive"
-override, then an odometer pair where the end exceeds the start. A single
-odometer reading is not a distance.
+override, then an odometer pair where the end exceeds the start, then a GPS
+measurement from route capture. A single odometer reading is not a distance.
+
+GPS never overrides a number the driver typed. When route capture is on, the
+close wizard *suggests* the measured figure in the km field and the driver can
+correct it before it is saved — accepting it is their act, not ours. The raw
+measurement is kept alongside regardless, as the audit trail behind the replay.
+
+A GPS track yields `null` rather than a small wrong number when it is built
+from fewer than 10 usable fixes or totals under 200 m. Fixes are only believed
+when they are accurate to 50 m or better, imply a speed under 180 km/h from the
+last accepted fix, and moved at least 15 m — a parked phone drifts, and letting
+that drift accumulate would inflate the denominator of every R$/km. Distance
+also ignores any jump across a gap in capture: the straight line either side of
+a pause is the drive to lunch, not ground covered under this journey's clock.
 
 ## Vehicle costs
 

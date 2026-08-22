@@ -15,21 +15,47 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.dinamique.app"
+      "bundleIdentifier": "com.dinamique.app",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "location"
+        ]
+      }
     },
     "android": {
       "package": "com.dinamique.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
-      }
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
       "output": "static",
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-router"],
-    "experiments": { "typedRoutes": true }
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O Dinamique usa sua localização para medir automaticamente os quilômetros da sua jornada. Sem isso, você precisa anotar o odômetro na mão.",
+          "locationAlwaysAndWhenInUsePermission": "O Dinamique usa sua localização para medir automaticamente os quilômetros da sua jornada. Sem isso, você precisa anotar o odômetro na mão.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      "@maplibre/maplibre-react-native"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }

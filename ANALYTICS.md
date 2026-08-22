@@ -71,6 +71,19 @@ com papel de analista. A lista de eventos é fechada em
 `packages/types/src/analytics.ts`: um evento que não esteja lá não pode ser
 emitido, e é isso que mantém a base consultável.
 
+### Eventos de trajeto
+
+| Evento | Para que serve |
+| --- | --- |
+| `route_capture_enabled` | quantos motoristas ligam a contagem por GPS |
+| `route_capture_denied` | **o que paga a conta** — diz se o texto da folha de permissão está funcionando, e em que etapa a pessoa desistiu |
+| `route_replay_viewed` | se o replay é visto mais de uma vez ou só no dia em que aparece |
+| `route_story_shared` | compartilhamentos, com `trimmed` e `earnings` — nunca o trajeto |
+
+Nenhum deles carrega coordenada, endereço ou nome de lugar. `analytics_events`
+é a base menos protegida do schema (administradores com papel de analista leem
+tudo), e por isso é a última onde a localização de alguém pode aparecer.
+
 ## O que ainda não existe
 
 - relatórios salvos (a tabela `saved_reports` existe; a tela não)

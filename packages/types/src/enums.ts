@@ -114,3 +114,13 @@ export type AdminRole = (typeof ADMIN_ROLES)[number];
 
 export const THEME_PREFERENCES = ['light', 'dark', 'system'] as const;
 export type ThemePreference = (typeof THEME_PREFERENCES)[number];
+
+/**
+ * Which measurement the driver ended up with for a journey's distance.
+ *
+ * Recorded for reporting only. It is never an input to `journeyDistance()` —
+ * the resolution order there is the single source of truth, and branching on
+ * this column would reintroduce the divergence it exists to describe.
+ */
+export const DISTANCE_SOURCES = ['manual', 'odometer', 'gps'] as const;
+export type DistanceSource = (typeof DISTANCE_SOURCES)[number];

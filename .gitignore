@@ -47,3 +47,6 @@ android/
 ios/
 !apps/mobile/android/
 !apps/mobile/ios/
+
+# Saída do `expo export` usada na verificação do CI.
+.web-export/

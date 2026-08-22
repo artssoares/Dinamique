@@ -216,6 +216,38 @@ Several carry product rules rather than only style:
   SVG defs share one document, and a fixed id makes the second card on a screen
   paint with the first card's colours.
 
+## The route trace
+
+The replay and the shared card draw the same shape through the same
+projection (`packages/ui/src/route/geometry.ts`): equirectangular, anchored on
+the track's own middle latitude. One scale for both axes, so the leftover space
+becomes centring rather than stretch — a route squeezed to fill its box is a
+different route, and a straight run up an avenue would come out as a diagonal.
+
+The path length is computed from the segments rather than read from the
+rendered node. For a polyline the sum of the segments *is* the length, and
+computing it removes a ref, a layout-timing dependency and a platform
+difference at once.
+
+The line is revealed with `strokeDasharray`/`strokeDashoffset` driven by an
+`Animated.Value`, the same mechanism as `ProgressRing` — and linear, never
+eased: easing a route makes it look like the driver sped up and slowed down
+where they did not.
+
+## The story card
+
+1080×1920, because that is what a story is. Fixed brand colours rather than the
+theme: the image leaves the phone and should look the same to whoever opens it.
+
+Entirely SVG, with no map tile in it, and exported through
+`react-native-svg`'s own `toDataURL` — the same library every icon in the app
+already goes through, so the share path adds no native module.
+
+Inside the app a missing asset should be loud: `<BrandMark>` draws its dashed
+box precisely so nobody ships without noticing. On the card the wordmark is
+typeset silently. That asymmetry is deliberate — an image somebody is about to
+post is the last place for a placeholder.
+
 ## Navigation
 
 The tab bar is a floating pill that clears the bottom edge, not a strip pinned

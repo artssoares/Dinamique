@@ -30,6 +30,7 @@ No `numeric` currency and no float distances anywhere. `10.8 km/l` is stored as
 | `…000550_grants` | table privileges for `authenticated` and `service_role` |
 | `…000600_functions_and_views` | signup, `redeem_code`, `mark_ticket_read`, read-model views |
 | `…000700_reference_data` | production reference data |
+| `20260821000100_journey_gps_routes` | `journey_routes`, GPS columns on `journeys`, route preferences, retention |
 
 Order matters twice: `is_admin()`/`has_admin_role()` are SQL-language functions
 whose bodies validate at creation, so they must come after `admin_users`; and
@@ -100,6 +101,13 @@ notifications read, after verifying the caller owns the ticket.
 | `my_referrals` | referrer's own referrals, first name only | "Minhas indicações" |
 | `notification_counts` | unread totals per user | bell and support badges |
 
+`daily_totals` resolves a journey's distance as
+`coalesce(distance_override, odometer pair, nullif(distance_gps, 0), 0)`. That
+order must stay byte-for-byte equivalent to `journeyDistance()` in
+`packages/business-logic/src/financials.ts` — the app reads the function and the
+history reads the view, and a divergence shows the same day two ways. A
+database assertion covers all three branches.
+
 All are `security_invoker = true`, so they respect the caller's RLS rather than
 the view owner's.
 
@@ -132,3 +140,32 @@ is a local test fixture and is never applied to a Supabase project.
 - benchmark participation is an opt-in flag on `user_preferences`
 - benchmarks are aggregate-only with a hard 20-user minimum; no user ever sees
   another user's row
+
+### `journey_routes`
+
+The most sensitive table in the schema: a route says where a person was, hour by
+hour. It is treated accordingly.
+
+- **Opt-in.** `user_preferences.route_capture_enabled` defaults to `false`.
+  Nothing is captured until the driver turns it on, and turning it off stops
+  capture immediately.
+- **Deletable on its own.** "Apagar todos os meus trajetos" is one
+  `delete from journey_routes where user_id = ?`, plus a wipe of the device
+  buffer. The km and the money stay in the driver's history — only the drawing
+  of the path goes. This is why the polyline is not a column on `journeys`.
+- **Expires by default.** `route_retention_days` is nullable with `default 90` —
+  the column carries the default, not the app, because leaving it to the client
+  meant every row read as "keep for ever" and the retention promised here never
+  happened for anyone. Null still means "guardar para sempre", but it is
+  reachable only as a deliberate choice in the settings.
+  `prune_expired_routes()` skips null and enforces the rest on a schedule; the
+  migration registers it with `pg_cron` where the extension exists and says so
+  in its output where it does not (SETUP.md §8).
+- **Never aggregated.** Route data does not feed the benchmark, does not appear
+  in exports, and never leaves the owner's own rows.
+- **Trimmed before it is shared.** The app removes up to the first and last
+  500 m — capped at a tenth of the route, and measured by straight-line
+  displacement rather than distance walked, so a lap around the block does not
+  count as hiding anything. The trim fails closed: a route too short or too
+  tangled to trim is not shareable at all, rather than shareable with its
+  endpoints intact.
