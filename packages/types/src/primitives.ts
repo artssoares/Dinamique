@@ -25,3 +25,15 @@ export type Seconds = number;
 export type Millilitres = number;
 
 export type Nullable<T> = T | null;
+
+/**
+ * A WGS-84 coordinate pair in decimal degrees.
+ *
+ * Degrees are the one place floats are unavoidable — the datum is angular.
+ * Everything derived from a pair (distance, tolerance, trimming) converts to
+ * whole `Metres` first, so no float ever reaches storage.
+ */
+export interface LatLng {
+  lat: number;
+  lon: number;
+}

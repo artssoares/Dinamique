@@ -1,4 +1,5 @@
 import type { Metres, Millilitres, Seconds } from '@dinamique/types';
+import { parseDecimal } from './decimal';
 
 export const KM = 1000;
 export const LITRE = 1000;
@@ -54,4 +55,22 @@ export function formatPercent(ratio: number, fractionDigits = 0): string {
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits,
   })}%`;
+}
+
+/**
+ * Reads a distance a driver typed in kilometres, and stores it in metres.
+ *
+ * Goes through `parseDecimal` because the pt-BR keyboard gives a comma: bare
+ * `Number('34,2')` is NaN, so a driver correcting the suggested figure with
+ * the separator their own phone offered would have watched their kilometres
+ * vanish. Returns null for anything that is not a positive distance — a zero
+ * or a negative is not a shorter day, it is a typo.
+ */
+export function parseKmToMetres(input: string): Metres | null {
+  const km = parseDecimal(input);
+  if (km === null || km <= 0) return null;
+  // Rounding can land on zero, which the database's `> 0` check rejects — and
+  // a close that fails on the distance would cost the driver the whole day.
+  const metres = kmToMetres(km);
+  return metres > 0 ? metres : null;
 }
