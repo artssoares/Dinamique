@@ -2,7 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { summarisePeriod } from '@dinamique/business-logic';
-import { formatCents, formatDuration, parseCents, toDateOnly } from '@dinamique/utils';
+import {
+  formatCents,
+  formatDuration,
+  parseCents,
+  parseKmToMetres,
+  toDateOnly,
+} from '@dinamique/utils';
 import {
   Button,
   Card,
@@ -91,6 +97,25 @@ export default function CloseJourney() {
     return { gross, costs, profit: gross - costs };
   }, [amounts, expenses]);
 
+  /**
+   * Parsed once, read twice.
+   *
+   * The summary used to re-parse only the km field and pass `odometerStart`
+   * and `odometerEnd` as null, so a driver who filled in the odometer instead
+   * saw "sem km informado" on a journey whose distance was in the database.
+   *
+   * Through the pt-BR parser, not `Number()`: the phone keyboard offers a
+   * comma, and a driver typing the separator their own phone gave them would
+   * otherwise watch the kilometres vanish.
+   */
+  const parsed = useMemo(
+    () => ({
+      distanceOverride: parseKmToMetres(distance),
+      odometerEnd: parseKmToMetres(odometerEnd),
+    }),
+    [distance, odometerEnd],
+  );
+
   const workedSeconds = journey
     ? Math.max(0, Math.round((Date.now() - Date.parse(journey.startedAt)) / 1000) - journey.pausedSeconds)
     : 0;
@@ -131,17 +156,14 @@ export default function CloseJourney() {
       await supabase.from('expenses').insert(expenseRows);
     }
 
-    const parsedDistance = distance.trim() === '' ? null : Math.round(Number(distance) * 1000);
-    const parsedOdometer = odometerEnd.trim() === '' ? null : Math.round(Number(odometerEnd) * 1000);
-
     await finish({
-      odometerEnd: parsedOdometer,
-      distanceOverride: Number.isFinite(parsedDistance) ? parsedDistance : null,
+      odometerEnd: parsed.odometerEnd,
+      distanceOverride: parsed.distanceOverride,
     });
 
     void track('journey_completed', {
       platforms: revenueRows.length,
-      has_distance: parsedDistance !== null || parsedOdometer !== null,
+      has_distance: parsed.distanceOverride !== null || parsed.odometerEnd !== null,
     });
 
     setSaving(false);
@@ -174,9 +196,10 @@ export default function CloseJourney() {
           startedAt: journey?.startedAt ?? new Date().toISOString(),
           endedAt: new Date().toISOString(),
           pausedSeconds: journey?.pausedSeconds ?? 0,
-          odometerStart: null,
-          odometerEnd: null,
-          distanceOverride: distance.trim() === '' ? null : Math.round(Number(distance) * 1000),
+          odometerStart: journey?.odometerStart ?? null,
+          odometerEnd: parsed.odometerEnd,
+          distanceOverride: parsed.distanceOverride,
+          distanceGps: null,
         },
       ],
       revenues: [{ date: toDateOnly(new Date()), amount: totals.gross, tips: 0, tripCount: null, platformId: null }],

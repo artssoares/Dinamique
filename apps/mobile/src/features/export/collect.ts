@@ -1,5 +1,6 @@
 import type { DateOnly } from '@dinamique/types';
 import type { ExportData } from '@dinamique/exports';
+import { journeyDistance } from '@dinamique/business-logic';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -22,7 +23,9 @@ export async function collectExportData(
       .order('date'),
     supabase
       .from('journeys')
-      .select('started_at, ended_at, paused_seconds, odometer_start, odometer_end, distance_override')
+      .select(
+        'id, started_at, ended_at, paused_seconds, odometer_start, odometer_end, distance_override, distance_gps',
+      )
       .eq('user_id', userId)
       .eq('status', 'completed')
       .gte('started_at', `${period.start}T00:00:00`)
@@ -81,11 +84,19 @@ export async function collectExportData(
               (row.paused_seconds ?? 0),
           )
         : 0,
-      distance:
-        row.distance_override ??
-        (row.odometer_end !== null && row.odometer_start !== null
-          ? row.odometer_end - row.odometer_start
-          : null),
+      // A distance rule has exactly one implementation (§120). This used to
+      // inline the override-then-odometer order, which meant a GPS track would
+      // have been invisible in exports while showing up everywhere else.
+      distance: journeyDistance({
+        id: row.id ?? '',
+        startedAt: row.started_at,
+        endedAt: row.ended_at,
+        pausedSeconds: row.paused_seconds ?? 0,
+        odometerStart: row.odometer_start ?? null,
+        odometerEnd: row.odometer_end ?? null,
+        distanceOverride: row.distance_override ?? null,
+        distanceGps: row.distance_gps ?? null,
+      }),
     })),
     revenues: rows<Record<string, any>>(revenues).map((row) => ({
       date: row.date,

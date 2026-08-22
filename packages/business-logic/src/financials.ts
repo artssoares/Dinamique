@@ -19,6 +19,8 @@ export interface JourneyInput {
   odometerStart: Metres | null;
   odometerEnd: Metres | null;
   distanceOverride: Metres | null;
+  /** Metres measured from a GPS track, when the driver turned capture on. */
+  distanceGps: Metres | null;
 }
 
 export interface RevenueInput {
@@ -76,17 +78,34 @@ export function journeyWorkedSeconds(journey: JourneyInput): Seconds {
 }
 
 /**
- * Distance resolution order: explicit override wins, then an odometer pair.
- * A single odometer reading is not a distance and yields nothing.
+ * Distance resolution order: an explicit override wins, then an odometer pair,
+ * then a GPS measurement. A single odometer reading is not a distance.
+ *
+ * The driver's own number always beats ours. GPS fills a gap the person left;
+ * it never corrects a person who bothered to type. That is why capture writes
+ * `distance_gps` and the close wizard merely *suggests* the figure in the km
+ * field — accepting it is the driver's act, not ours (PRODUCT_RULES.md §6).
+ *
+ * Note the fall-through on a backwards odometer pair. It used to stop here and
+ * return null; with a GPS figure available it has to keep going, which is what
+ * the SQL in `daily_totals` always did. The two now agree.
  */
 export function journeyDistance(journey: JourneyInput): Metres | null {
   if (journey.distanceOverride !== null && journey.distanceOverride > 0) {
     return journey.distanceOverride;
   }
+
   const { odometerStart: start, odometerEnd: end } = journey;
-  if (start === null || end === null) return null;
-  const delta = end - start;
-  return delta > 0 ? delta : null;
+  if (start !== null && end !== null) {
+    const delta = end - start;
+    if (delta > 0) return delta;
+  }
+
+  if (journey.distanceGps !== null && journey.distanceGps > 0) {
+    return journey.distanceGps;
+  }
+
+  return null;
 }
 
 /** Cents per unit, where `units` may legitimately be zero — hence the null. */

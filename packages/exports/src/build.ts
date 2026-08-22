@@ -43,9 +43,13 @@ function buildSummarySheet(data: ExportData): Sheet {
       startedAt: journey.startedAt,
       endedAt: journey.endedAt,
       pausedSeconds: 0,
+      // The collector already ran `journeyDistance()` over the raw row, so the
+      // figure arrives resolved. Handing it to the highest-priority slot is
+      // what keeps that decision from being made a second time here.
       odometerStart: null,
       odometerEnd: null,
       distanceOverride: journey.distance,
+      distanceGps: null,
     })),
     revenues: data.revenues.map((revenue) => ({
       date: revenue.date,
