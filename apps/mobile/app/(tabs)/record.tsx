@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Easing, View } from 'react-native';
+import { Animated, Easing, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import type { Metres } from '@dinamique/types';
 import { formatCents, formatDistanceKm, formatDuration, parseCents, toDateOnly } from '@dinamique/utils';
@@ -24,14 +24,9 @@ import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 import { toFriendlyError } from '@/lib/errors';
 import { useSession } from '@/hooks/useSession';
-import { runningJourneyId } from '@/features/journey/runningJourneyId';
 import { addExpense, addRevenue, useActiveJourney } from '@/features/journey/useJourney';
 import { useOffline } from '@/features/offline/useOfflineSync';
-import { useJourneyTracking } from '@/features/tracking/useJourneyTracking';
-import { useRoutePreferences } from '@/features/tracking/preferences';
-import { BackgroundConsentSheet, RouteConsentSheet } from '@/features/tracking/RouteConsentSheet';
-import { locationService } from '@/features/tracking/locationService';
-import { PERMISSION_COPY } from '@/features/tracking/permission';
+import { useJourneyStart } from '@/features/tracking/useJourneyStart';
 import { useCostCategories } from '@/features/costs/categories';
 import { ProductSalePicker } from '@/features/products/ProductSalePicker';
 import { costRows, revenueRows, totalsFor } from '@/features/products/sales';
@@ -51,137 +46,18 @@ export default function Record() {
   const { save } = useOffline();
   const {
     journey,
-    start,
-    pause,
-    resume,
     refresh,
     busy: journeyBusy,
     error: journeyError,
     dismissError,
   } = useActiveJourney();
-  const { read: readRoutePreferences, update: updateRoutePreferences } = useRoutePreferences();
-  const tracking = useJourneyTracking(journey?.id ?? null);
-  const [askingConsent, setAskingConsent] = useState(false);
-  const [askingBackground, setAskingBackground] = useState(false);
-  // Held in a ref because the consent sheet resolves after `journey` has been
-  // re-read, and the sheet's callbacks close over the render that opened it.
-  const journeyIdRef = useRef<string | null>(null);
-
-  /**
-   * Starting a journey, with capture attached only when it is wanted.
-   *
-   * The journey itself always starts. Everything about the GPS is layered on
-   * after that and can fail at any step without the driver losing their shift —
-   * which is why the sheet is shown after `start()`, not before it.
-   */
-  async function beginJourney() {
-    if (!(await start(null))) return;
-    // Read back rather than trusting the provider's state: `start()` awaits
-    // its own refresh, but this closure was rendered before either happened.
-    const id = await runningJourneyId();
-    if (!id) return;
-    journeyIdRef.current = id;
-
-    // Read from the database, not from state. On a cold start the hook is
-    // still loading, and its defaults say "capture off" — which would show the
-    // consent sheet to someone who opted in months ago, and leave them without
-    // capture if they tapped "agora não".
-    const preferences = await readRoutePreferences();
-    // Could not tell. Starting capture the driver may not have asked for is
-    // the worse mistake, so we do not — but we say so, because neither
-    // recovery path can fix this later: both need an active-route key that
-    // only starting capture creates.
-    if (!preferences) {
-      Alert.alert(
-        'Não conseguimos verificar sua preferência',
-        'Sua jornada começou normalmente, mas os km não estão sendo contados pelo GPS. Ligue de novo em Mais › Trajeto e privacidade.',
-      );
-      return;
-    }
-
-    if (preferences.captureEnabled) {
-      await attachTracking(id);
-      return;
-    }
-    // Asked once. Someone who said no changes their mind in the settings, not
-    // by being asked again at the start of every shift.
-    if (!preferences.prompted) setAskingConsent(true);
-  }
-
-  async function attachTracking(journeyId: string) {
-    const outcome = await tracking.begin(journeyId);
-    if (!outcome.granted) {
-      // The preference was written before the OS dialog, so a refusal has to
-      // take it back — a switch reading "on" while nothing is recorded is a
-      // lie the driver only discovers at the end of the day.
-      //
-      // Except when the phone's location is simply switched off. That is not a
-      // refusal, and clearing the opt-in there would cost a driver the feature
-      // permanently over a toggle in the system settings.
-      if (outcome.deniedAt !== 'services_off') {
-        await updateRoutePreferences({ captureEnabled: false });
-      }
-      Alert.alert(
-        outcome.deniedAt === 'services_off' ? 'Localização desligada' : 'Sem acesso à localização',
-        outcome.deniedAt === 'services_off'
-          ? PERMISSION_COPY.servicesOff
-          : 'Sem essa permissão o Dinamique não consegue contar seus km. Você pode liberar depois em Mais › Trajeto e privacidade.',
-      );
-      return;
-    }
-    // Only now, with the card on screen counting, is "Sempre" a question the
-    // driver can actually evaluate — and the one App Store review expects.
-    // Asked only if we do not already hold it: re-asking someone who said yes
-    // last month is nagging, not consent.
-    if (locationService.supportsBackground && !outcome.background) {
-      setAskingBackground(true);
-    }
-  }
-
-  async function declineCapture() {
-    setAskingConsent(false);
-    await updateRoutePreferences({ prompted: true });
-  }
-
-  async function acceptCapture() {
-    setAskingConsent(false);
-    // Capture only starts if the consent actually reached the server. Starting
-    // anyway would record a whole shift against a preference that still reads
-    // `false` — and at close that same `false` drops the distance, drops the
-    // route, and releases the buffer.
-    const saved = await updateRoutePreferences({ captureEnabled: true, prompted: true });
-    if (!saved) {
-      Alert.alert(
-        'Não conseguimos salvar sua escolha',
-        'Confira sua conexão e ligue a contagem por GPS em Mais › Trajeto e privacidade.',
-      );
-      return;
-    }
-    void track('route_capture_enabled', { source: 'journey_start' });
-    if (journeyIdRef.current) await attachTracking(journeyIdRef.current);
-  }
-
-  /**
-   * Pausing stops the counting as well as the clock.
-   *
-   * Leaving the feed running through a break put the kilometres driven to
-   * lunch into `distance_gps` while the same minutes were excluded from
-   * `paused_seconds` — a denominator inflated and a numerator not, which skews
-   * every per-km figure the product exists to get right.
-   *
-   * Halting first, but never at the cost of the pause itself: if the OS
-   * refuses to stop the feed, the break still has to be banked, because
-   * counting it as worked time is the larger of the two errors.
-   */
-  async function pauseJourney() {
-    await tracking.halt().catch(() => undefined);
-    await pause();
-  }
-
-  async function resumeJourney() {
-    await resume();
-    if (journey) await tracking.resume(journey.id).catch(() => undefined);
-  }
+  const {
+    begin: beginJourney,
+    pause: pauseJourney,
+    resume: resumeJourney,
+    tracking,
+    sheets: consentSheets,
+  } = useJourneyStart();
 
   const [mode, setMode] = useState<Mode>('revenue');
   const [amount, setAmount] = useState('');
@@ -381,20 +257,7 @@ export default function Record() {
         />
       </Reveal>
 
-      <RouteConsentSheet
-        visible={askingConsent}
-        onAccept={() => void acceptCapture()}
-        onDecline={() => void declineCapture()}
-      />
-
-      <BackgroundConsentSheet
-        visible={askingBackground}
-        onAccept={() => {
-          setAskingBackground(false);
-          void tracking.askBackground();
-        }}
-        onDecline={() => setAskingBackground(false)}
-      />
+      {consentSheets}
 
       <SegmentedControl
         label="O que você quer registrar"

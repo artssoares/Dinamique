@@ -38,7 +38,17 @@ export const locationService: LocationService = {
         accuracy: Location.Accuracy.High,
         distanceInterval: GPS_DISTANCE_INTERVAL_M,
         timeInterval: GPS_TIME_INTERVAL_MS,
-      },
+        // `enableHighAccuracy` is the browser's own key, and expo-location's
+        // web shim hands this object straight to `navigator.geolocation`
+        // without translating `accuracy` into it. Left out, the browser
+        // positions by wifi and cell — tens to hundreds of metres of error,
+        // which `MAX_ACCEPTABLE_ACCURACY_M` then rejects as noise. The driver
+        // would grant the permission, drive, and be told they went nowhere.
+        //
+        // Typed as an extra key because the option belongs to the web shim
+        // rather than to expo's cross-platform signature.
+        enableHighAccuracy: true,
+      } as Location.LocationOptions,
       (position) => {
         if (!currentJourneyId) return;
         void appendFixes(currentJourneyId, [toFix(position)]);

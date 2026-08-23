@@ -25,6 +25,7 @@ import {
 import { useSession } from '@/hooks/useSession';
 import { useToday } from '@/hooks/useToday';
 import { useActiveJourney } from '@/features/journey/useJourney';
+import { useJourneyStart } from '@/features/tracking/useJourneyStart';
 import { JourneyPill } from '@/features/journey/JourneyPill';
 import { AppHeader } from '@/features/shell/AppHeader';
 import { NotificationsSheet } from '@/features/notifications/NotificationsSheet';
@@ -44,7 +45,11 @@ export default function Today() {
   const router = useRouter();
   const { profile } = useSession();
   const { data, loading, refresh } = useToday();
-  const { journey, start, busy: journeyBusy, error: journeyError, dismissError } = useActiveJourney();
+  const { journey, busy: journeyBusy, error: journeyError, dismissError } = useActiveJourney();
+  // `recover: false` — Registrar owns the running journey and its live figure.
+  // Two screens re-registering a dropped task would race each other over the
+  // same buffer; Home only needs to be able to start one properly.
+  const { begin: beginJourney, sheets: consentSheets } = useJourneyStart({ recover: false });
   const { isCompact } = useResponsive();
   const [refreshing, setRefreshing] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
@@ -132,7 +137,7 @@ export default function Today() {
                 starting={journeyBusy}
                 error={journeyError}
                 onDismissError={dismissError}
-                onStart={() => void start(null)}
+                onStart={() => void beginJourney()}
                 startRef={startTarget.ref}
               />
             </Reveal>
@@ -270,6 +275,7 @@ export default function Today() {
       </Screen>
 
       <NotificationsSheet visible={bellOpen} onClose={() => setBellOpen(false)} />
+      {consentSheets}
     </>
   );
 }
