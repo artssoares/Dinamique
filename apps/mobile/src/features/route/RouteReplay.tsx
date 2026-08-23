@@ -27,27 +27,49 @@ import 'maplibre-gl/dist/maplibre-gl.css';
  * save, same as their native ones. CI's grep for stray native modules matches
  * `maplibre-react-native` specifically, not the bare word, precisely so this
  * file is allowed to use the library the native one is built on.
+ *
+ * The version is pinned to the 5.x line, and that is not conservatism. From
+ * 6.0 the library stopped inlining its web worker and started loading it as a
+ * sibling file resolved from `import.meta.url`, alongside a second shared
+ * chunk. Metro emits neither: `import.meta.url` is not an http URL in a
+ * bundle, so the worker URL comes out empty, `new Worker('')` fails, and the
+ * map renders an empty canvas with no error anywhere — which is exactly what
+ * shipped. 5.x carries the worker inside the bundle as a blob, which is what
+ * every JS bundler has always been able to serve. Do not bump this to 6
+ * without a plan for emitting those two files and setting
+ * `maplibregl.config.WORKER_URL`.
  */
 export function RouteReplay(props: RouteReplayProps) {
   const styleUrl = basemapStyleUrl();
 
-  if (!HAS_BASEMAP || !styleUrl) {
-    return (
-      <RouteReplayShared
-        {...props}
-        attribution={null}
-        renderTrack={(progress) => (
-          <RouteReplayTrace
-            points={props.points}
-            progress={progress}
-            height={props.height ?? 260}
-          />
-        )}
-      />
-    );
-  }
+  if (!HAS_BASEMAP || !styleUrl) return <DrawnReplay {...props} />;
 
   return <WebMapReplay {...props} styleUrl={styleUrl} />;
+}
+
+/**
+ * The replay with no map under it: the traced line on the brand gradient.
+ *
+ * Reached two ways, and deliberately the same component for both. A checkout
+ * with no key has never had a map, and a browser where the basemap failed to
+ * load has just lost one — but the driver's day is the same day either way,
+ * and a drawn route reads as the design rather than as breakage. A blank grey
+ * panel is the one outcome that is never acceptable.
+ */
+function DrawnReplay(props: RouteReplayProps) {
+  return (
+    <RouteReplayShared
+      {...props}
+      attribution={null}
+      renderTrack={(progress) => (
+        <RouteReplayTrace
+          points={props.points}
+          progress={progress}
+          height={props.height ?? REPLAY_HEIGHT}
+        />
+      )}
+    />
+  );
 }
 
 function lineString(points: readonly LatLng[]) {
@@ -57,6 +79,15 @@ function lineString(points: readonly LatLng[]) {
     geometry: { type: 'LineString' as const, coordinates: points.map((p) => [p.lon, p.lat]) },
   };
 }
+
+/**
+ * How long a basemap gets to appear before the replay stops waiting for it.
+ *
+ * Generous on purpose: this is a driver on mobile data, and a slow map is
+ * still the map they want. But it is finite, because a refused key never
+ * resolves at all and silence is the one thing the screen must not show.
+ */
+const MAP_LOAD_TIMEOUT_MS = 8_000;
 
 const WHOLE_SOURCE = 'route-whole';
 const COVERED_SOURCE = 'route-covered';
@@ -73,45 +104,96 @@ function WebMapReplay(props: RouteReplayProps & { styleUrl: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<import('maplibre-gl').Map | null>(null);
   const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
   const camera = useMemo(() => cameraFor(props.points), [props.points]);
 
   // Mount once. Re-creating the map on every prop change would refetch every
   // tile for a route the driver is already watching.
   useEffect(() => {
-    if (!containerRef.current) return undefined;
+    if (failed || !containerRef.current) return undefined;
 
     let disposed = false;
+    let settled = false;
+    // The basemap is a request to somebody else's server with a key on it, so
+    // it can be refused: a key restricted to the wrong referrer, a privilege
+    // never granted, a device with no WebGL. Every one of those used to end
+    // as a grey rectangle with no explanation and no way back. A deadline
+    // turns all of them into one outcome the driver can actually use.
+    const deadline = setTimeout(() => {
+      if (!settled && !disposed) {
+        settled = true;
+        setFailed(true);
+      }
+    }, MAP_LOAD_TIMEOUT_MS);
+
+    function giveUp() {
+      if (settled || disposed) return;
+      settled = true;
+      clearTimeout(deadline);
+      setFailed(true);
+    }
+
     // Loaded lazily, and only from this component: the whole point of keeping
     // it out of `RouteReplayShared` is that nothing outside a checkout with a
     // real key ever runs `new maplibregl.Map(...)`.
-    void import('maplibre-gl').then((maplibregl) => {
-      if (disposed || !containerRef.current) return;
-      const map = new maplibregl.Map({
-        container: containerRef.current,
-        style: props.styleUrl,
-        // A day's route is something to watch, not to explore. The same
-        // reasoning as the native replay disabling pan/zoom/rotate/pitch —
-        // here it is one flag instead of four.
-        interactive: false,
-        attributionControl: false,
-      });
-      mapRef.current = map;
-      map.on('load', () => {
-        if (disposed) return;
-        setReady(true);
-      });
-    });
+    void import('maplibre-gl')
+      .then((maplibregl) => {
+        if (disposed || !containerRef.current) return;
+        const map = new maplibregl.Map({
+          container: containerRef.current,
+          style: props.styleUrl,
+          // A day's route is something to watch, not to explore. The same
+          // reasoning as the native replay disabling pan/zoom/rotate/pitch —
+          // here it is one flag instead of four.
+          interactive: false,
+          attributionControl: false,
+        });
+        mapRef.current = map;
+
+        // Only before the style has loaded. After that a failed request is one
+        // tile in one corner, and tearing the whole map down over it would be
+        // a worse map than the one with a gap in it.
+        map.on('error', () => {
+          if (!settled) giveUp();
+        });
+
+        map.on('load', () => {
+          if (disposed) return;
+          settled = true;
+          clearTimeout(deadline);
+          // The canvas is sized from the container at construction. On the web
+          // that container is laid out by flexbox and can settle a frame later
+          // — a rotation, a keyboard, a scrollbar appearing — and a canvas
+          // that missed it stays whatever size it was born at.
+          map.resize();
+          setReady(true);
+        });
+      })
+      .catch(giveUp);
 
     return () => {
       disposed = true;
+      clearTimeout(deadline);
       mapRef.current?.remove();
       mapRef.current = null;
       setReady(false);
     };
-    // Deliberately only on mount/unmount — `styleUrl` is derived from a build
-    // env var and never changes while the app is running.
+    // Deliberately not on `styleUrl` — it is derived from a build env var and
+    // never changes while the app is running. `failed` is one-way, so this
+    // only ever runs again to tear the map down.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [failed]);
+
+  // Keeps the canvas honest about its box for the life of the replay, not just
+  // at load: the card sits in a scroll view that reflows.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !ready || typeof ResizeObserver === 'undefined') return undefined;
+
+    const observer = new ResizeObserver(() => mapRef.current?.resize());
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [ready]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -151,6 +233,10 @@ function WebMapReplay(props: RouteReplayProps & { styleUrl: string }) {
       map.jumpTo({ center: camera.centre, zoom: camera.zoom });
     }
   }, [camera, props.points, ready, theme.colors.borderStrong, theme.colors.brandPrimary]);
+
+  // Not a hook-order problem: the effects above all no-op once `failed` is
+  // set, and the map they owned has already been removed by their cleanup.
+  if (failed) return <DrawnReplay {...props} />;
 
   return (
     <RouteReplayShared

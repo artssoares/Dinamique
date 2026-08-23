@@ -18,9 +18,17 @@ describe('bounds', () => {
 });
 
 describe('traceTo', () => {
-  it('has nothing to draw for fewer than two points', () => {
-    expect(traceTo([{ lat: -23.55, lon: -46.63 }], 100, 100)).toBeNull();
+  it('has nothing to draw without a single point', () => {
     expect(traceTo([], 100, 100)).toBeNull();
+  });
+
+  it('centres a standstill rather than refusing to draw it', () => {
+    // One point is a place, not an error. The caller draws a marker on it,
+    // and returning null here would leave a blank panel where the driver
+    // expects to see where they were.
+    const trace = traceTo([{ lat: -23.55, lon: -46.63 }], 100, 100)!;
+    expect(trace.points).toEqual([{ x: 50, y: 50 }]);
+    expect(trace.length).toBe(0);
   });
 
   it('stays inside the box', () => {
