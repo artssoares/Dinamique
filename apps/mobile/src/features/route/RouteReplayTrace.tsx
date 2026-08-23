@@ -51,7 +51,10 @@ export function RouteReplayTrace({ points, progress, height, radius }: RouteRepl
     : 0;
 
   const start = trace?.points[0];
-  const end = trace?.points[trace.points.length - 1];
+  // A standstill has one point and therefore no end distinct from its start.
+  // Drawing both would stack a solid marker on top of the hollow one and lose
+  // the "you were here" reading entirely.
+  const end = points.length > 1 ? trace?.points[trace.points.length - 1] : undefined;
 
   return (
     <View

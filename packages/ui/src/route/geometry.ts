@@ -112,10 +112,19 @@ export function traceTo(
   height: number,
   padding = 0,
 ): TracePath | null {
-  if (points.length < 2 || width <= 0 || height <= 0) return null;
+  if (points.length < 1 || width <= 0 || height <= 0) return null;
 
   const box = bounds(points);
   if (!box) return null;
+
+  // A standstill is one point and no line. Centred rather than projected,
+  // because a box with no extent has no meaningful scale — and the caller
+  // draws a marker for it, so returning null would be a blank panel where
+  // the driver expects to see where they were.
+  if (points.length === 1) {
+    const centre = { x: width / 2, y: height / 2 };
+    return { d: `M${round(centre.x)} ${round(centre.y)}`, length: 0, points: [centre], lengths: [0] };
+  }
 
   const [east, north] = box.ne;
   const [west, south] = box.sw;
