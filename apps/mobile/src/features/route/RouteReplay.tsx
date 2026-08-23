@@ -2,7 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import type { LatLng } from '@dinamique/types';
 import { cameraFor, useTheme } from '@dinamique/ui';
-import { BASEMAP_ATTRIBUTION, HAS_BASEMAP, basemapStyleUrl } from './basemap';
+import {
+  BASEMAP_ATTRIBUTION,
+  HAS_BASEMAP,
+  TERRAIN_ATTRIBUTION,
+  TERRAIN_EXAGGERATION,
+  TERRAIN_MAX_ZOOM,
+  TERRAIN_TILES,
+  basemapStyleUrl,
+} from './basemap';
 import { RouteReplayShared, REPLAY_HEIGHT, type RouteReplayProps } from './RouteReplayShared';
 import { RouteReplayTrace } from './RouteReplayTrace';
 // The library's own stylesheet — controls, the (disabled) attribution box,
@@ -72,6 +80,30 @@ function DrawnReplay(props: RouteReplayProps) {
   );
 }
 
+/**
+ * Gives the ground height, after the map is already up.
+ *
+ * Never before: the relief is the one part of this that is decoration, and a
+ * driver waiting on an elevation server to see where they drove today would be
+ * waiting for nothing. Any failure here leaves a map with perspective and no
+ * relief, which is the map we shipped yesterday.
+ */
+function addTerrain(map: import('maplibre-gl').Map) {
+  try {
+    if (map.getSource(TERRAIN_SOURCE)) return;
+    map.addSource(TERRAIN_SOURCE, {
+      type: 'raster-dem',
+      tiles: [TERRAIN_TILES],
+      tileSize: 256,
+      maxzoom: TERRAIN_MAX_ZOOM,
+      encoding: 'terrarium',
+    } as never);
+    map.setTerrain({ source: TERRAIN_SOURCE, exaggeration: TERRAIN_EXAGGERATION });
+  } catch {
+    // Flat, and nothing else changes.
+  }
+}
+
 function lineString(points: readonly LatLng[]) {
   return {
     type: 'Feature' as const,
@@ -89,6 +121,22 @@ function lineString(points: readonly LatLng[]) {
  */
 const MAP_LOAD_TIMEOUT_MS = 8_000;
 
+/**
+ * How far the camera leans over the route, in degrees.
+ *
+ * Flat on, a day's driving is a diagram. Leaning the camera over is what turns
+ * it into a place: the streets converge towards the horizon, the buildings the
+ * basemap draws get a face, and the line the driver covered reads as ground
+ * rather than as ink. It is the difference people mean when they call one map
+ * three-dimensional and another one flat.
+ *
+ * Not steeper: past about sixty the far end of a long route falls apart into
+ * the horizon and the shape stops being readable, which is the whole point of
+ * the replay.
+ */
+const MAP_PITCH = 52;
+
+const TERRAIN_SOURCE = 'terrain-dem';
 const WHOLE_SOURCE = 'route-whole';
 const COVERED_SOURCE = 'route-covered';
 
@@ -146,6 +194,9 @@ function WebMapReplay(props: RouteReplayProps & { styleUrl: string }) {
           // reasoning as the native replay disabling pan/zoom/rotate/pitch —
           // here it is one flag instead of four.
           interactive: false,
+          // Set here rather than per camera move, so it survives every
+          // `fitBounds` and `jumpTo` below without either of them restating it.
+          pitch: MAP_PITCH,
           attributionControl: false,
         });
         mapRef.current = map;
@@ -161,6 +212,7 @@ function WebMapReplay(props: RouteReplayProps & { styleUrl: string }) {
           if (disposed) return;
           settled = true;
           clearTimeout(deadline);
+          addTerrain(map);
           // The canvas is sized from the container at construction. On the web
           // that container is laid out by flexbox and can settle a frame later
           // — a rotation, a keyboard, a scrollbar appearing — and a canvas
@@ -241,7 +293,7 @@ function WebMapReplay(props: RouteReplayProps & { styleUrl: string }) {
   return (
     <RouteReplayShared
       {...props}
-      attribution={BASEMAP_ATTRIBUTION}
+      attribution={`${BASEMAP_ATTRIBUTION} · ${TERRAIN_ATTRIBUTION}`}
       renderTrack={(_progress, index) => (
         <View
           style={{

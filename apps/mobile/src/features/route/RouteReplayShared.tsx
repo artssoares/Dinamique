@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
-import { Animated, View } from 'react-native';
+import { Animated, Pressable, View } from 'react-native';
 import type { LatLng, Metres } from '@dinamique/types';
 import { haversineMetres } from '@dinamique/business-logic';
 import { formatDistanceKm } from '@dinamique/utils';
@@ -22,6 +22,17 @@ export interface RouteReplayProps {
   height?: number;
   /** Starts drawing as soon as it appears; off for a card the driver scrolls past. */
   autoPlay?: boolean;
+  /**
+   * What tapping the drawing does.
+   *
+   * The map itself does not pan, zoom or rotate — see the two replays — so the
+   * whole picture is dead space to a finger. Handing that space to sharing is
+   * what makes the trajectory something a driver can do something with,
+   * instead of something they look at.
+   */
+  onPress?: () => void;
+  /** What that tap does, for a screen reader. */
+  pressLabel?: string;
 }
 
 interface SharedProps extends RouteReplayProps {
@@ -44,6 +55,8 @@ export function RouteReplayShared({
   distance,
   height = REPLAY_HEIGHT,
   autoPlay = true,
+  onPress,
+  pressLabel,
   renderTrack,
   attribution,
 }: SharedProps) {
@@ -75,7 +88,22 @@ export function RouteReplayShared({
 
   return (
     <View style={{ gap: theme.spacing.sm }}>
-      <View style={{ height, justifyContent: 'center' }}>{renderTrack(progress, index)}</View>
+      {onPress ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={pressLabel ?? 'Compartilhar meu trajeto'}
+          onPress={onPress}
+          style={({ pressed }) => ({
+            height,
+            justifyContent: 'center',
+            opacity: pressed ? 0.9 : 1,
+          })}
+        >
+          {renderTrack(progress, index)}
+        </Pressable>
+      ) : (
+        <View style={{ height, justifyContent: 'center' }}>{renderTrack(progress, index)}</View>
+      )}
 
       <View
         style={{

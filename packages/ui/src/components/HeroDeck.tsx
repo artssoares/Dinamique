@@ -120,10 +120,15 @@ export function HeroDeck({ cards, style }: HeroDeckProps) {
     );
   }, []);
 
-  // The tallest card decides the height, so the deck does not resize when a
-  // shorter card comes forward. Measured rather than assumed: the figure is a
-  // currency amount whose width, and therefore whose wrapping, depends on how
-  // much the driver made.
+  // Every card is as tall as the tallest, and that is load-bearing rather
+  // than tidy. Cards behind sit higher by one PEEK each, so with equal
+  // heights their bottoms finish above the front card's and disappear behind
+  // it. Left to their natural heights, a taller card at the back hangs out
+  // below the front one — which is exactly what the goal card did the moment
+  // its third detail wrapped onto a second line.
+  //
+  // Measured rather than assumed: the figure is a currency amount whose width,
+  // and therefore whose wrapping, depends on how much the driver made.
   const [cardHeight, setCardHeight] = useState(0);
   const onCardLayout = useCallback((height: number) => {
     setCardHeight((current) => (height > current ? height : current));
@@ -142,6 +147,7 @@ export function HeroDeck({ cards, style }: HeroDeckProps) {
           total={total}
           reduced={reduced}
           theme={theme}
+          height={cardHeight}
           onCardLayout={onCardLayout}
           onBringToFront={() => bringToFront(card.key)}
         />
@@ -156,6 +162,7 @@ function DeckCard({
   total,
   reduced,
   theme,
+  height,
   onCardLayout,
   onBringToFront,
 }: {
@@ -164,6 +171,8 @@ function DeckCard({
   total: number;
   reduced: boolean;
   theme: Theme;
+  /** The tallest card's height so far, applied as a floor to every card. */
+  height: number;
   onCardLayout: (height: number) => void;
   onBringToFront: () => void;
 }) {
@@ -235,6 +244,10 @@ function DeckCard({
             radius={theme.radius['3xl']}
             style={[
               theme.elevation.lg,
+              // A floor, never a fixed height: a card taller than the current
+              // maximum has to be free to report it, or the measurement can
+              // never grow to fit it.
+              { minHeight: height || undefined },
               // Presses say so, per the motion rules. Not a transform: the card
               // is already carrying an animated position and stacking a second
               // one makes the two fight on the same frame.

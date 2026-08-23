@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { DateOnly } from '@dinamique/types';
-import { formatCents, formatDistanceKm, formatDuration } from '@dinamique/utils';
+import { formatCents, formatDistanceKm, formatDuration, toDateOnly } from '@dinamique/utils';
 import {
   Button,
   Card,
@@ -16,7 +16,7 @@ import {
 } from '@dinamique/ui';
 import { track } from '@/lib/analytics';
 import { RouteReplay } from '@/features/route/RouteReplay';
-import { StoryShareButton } from '@/features/route/StoryShareButton';
+import { useStoryShare } from '@/features/route/useStoryShare';
 import { longDateLabel } from '@/features/route/routeDates';
 import { useDayJourney, useJourneyRoute } from '@/features/route/useJourneyRoute';
 import { useDaySummary } from '@/features/route/useJourneySummary';
@@ -53,6 +53,17 @@ export default function JourneyDay() {
   }, [route]);
 
   const hasRoute = Boolean(route && route.points.length >= 1);
+
+  // Built whether or not there is a route: hooks cannot be conditional, and
+  // `canShare` already answers the only question the screen asks of it.
+  const story = useStoryShare({
+    points: route?.points ?? [],
+    date: day ?? toDateOnly(new Date()),
+    distance: summary?.distance ?? route?.distance ?? null,
+    workedSeconds: summary?.workedSeconds ?? 0,
+    revenuePerKm: summary?.revenuePerKm ?? null,
+    grossRevenue: summary?.grossRevenue ?? 0,
+  });
   // O trajeto pode continuar carregando depois que o resumo chegou. Só o
   // resumo segura a tela: o dinheiro é o que a pessoa veio ver.
   const loadingRoutePanel = findingJourney || loadingRoute;
@@ -120,19 +131,22 @@ export default function JourneyDay() {
             <Text variant="caption" color="secondary">
               SEU TRAJETO
             </Text>
-            <RouteReplay points={route.points} distance={summary?.distance ?? route.distance} />
-          </Card>
-
-          {summary && day ? (
-            <StoryShareButton
+            <RouteReplay
               points={route.points}
-              date={day}
-              distance={summary.distance}
-              workedSeconds={summary.workedSeconds}
-              revenuePerKm={summary.revenuePerKm}
-              grossRevenue={summary.grossRevenue}
+              distance={summary?.distance ?? route.distance}
+              onPress={story.canShare ? story.open : undefined}
             />
-          ) : null}
+            {story.canShare ? (
+              <Button
+                label="Compartilhar meu trajeto"
+                size="lg"
+                fullWidth
+                iconName="arrowUpRight"
+                onPress={story.open}
+              />
+            ) : null}
+          </Card>
+          {story.sheet}
         </>
       ) : summary ? (
         // Uma linha, não uma tela vazia: o dia tem conteúdo, só não tem
