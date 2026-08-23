@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bounds, traceTo } from './geometry';
+import { STANDSTILL_ZOOM, bounds, cameraFor, traceTo } from './geometry';
 
 const SQUARE = [
   { lat: -23.55, lon: -46.64 },
@@ -95,5 +95,34 @@ describe('traceTo', () => {
 
   it('starts the path with a move and continues with lines', () => {
     expect(traceTo(SQUARE, 100, 100)!.d).toMatch(/^M[\d.-]+ [\d.-]+ L/);
+  });
+});
+
+describe('cameraFor', () => {
+  it('has nothing to point at without points', () => {
+    expect(cameraFor([])).toBeNull();
+  });
+
+  it('fits a route that goes somewhere', () => {
+    const camera = cameraFor([
+      { lat: -23.55, lon: -46.63 },
+      { lat: -23.52, lon: -46.6 },
+    ]);
+    expect(camera).toEqual({ kind: 'bounds', bounds: { ne: [-46.6, -23.52], sw: [-46.63, -23.55] } });
+  });
+
+  it('centres on a standstill instead of fitting a box with no area', () => {
+    // Fitting this box asks the map for infinite zoom, and every library
+    // answers it with a blurry rooftop.
+    const camera = cameraFor([{ lat: -23.55, lon: -46.63 }]);
+    expect(camera).toEqual({ kind: 'centre', centre: [-46.63, -23.55], zoom: STANDSTILL_ZOOM });
+  });
+
+  it('treats a few metres of parked drift as a standstill', () => {
+    const camera = cameraFor([
+      { lat: -23.55, lon: -46.63 },
+      { lat: -23.550_02, lon: -46.630_03 },
+    ]);
+    expect(camera?.kind).toBe('centre');
   });
 });

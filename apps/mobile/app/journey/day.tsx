@@ -52,7 +52,7 @@ export default function JourneyDay() {
     void track('route_replay_viewed', { points: route.points.length });
   }, [route]);
 
-  const hasRoute = Boolean(route && route.points.length >= 2);
+  const hasRoute = Boolean(route && route.points.length >= 1);
   // O trajeto pode continuar carregando depois que o resumo chegou. Só o
   // resumo segura a tela: o dinheiro é o que a pessoa veio ver.
   const loadingRoutePanel = findingJourney || loadingRoute;
