@@ -8,6 +8,7 @@ export * from './benchmark';
 export * from './insights';
 export * from './codes';
 export * from './referrals';
+export * from './periods';
 export * from './plans';
 export * from './support';
 export * from './tracking';

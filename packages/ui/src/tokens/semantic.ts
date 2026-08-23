@@ -60,6 +60,12 @@ export interface ThemeTokens {
   heroBackTo: string;
   /** Type on the back card. Dark, because the orange is too bright for white. */
   textOnHeroBack: string;
+  /**
+   * Third card in the stack. A deep money green from the same family as
+   * `success`, dark enough to take white type at the normal contrast floor.
+   */
+  heroDeepFrom: string;
+  heroDeepTo: string;
 
   /* semantic – meaning only, never decoration (§13).
      `success`/`danger`/`warning` are FILL colours (bars, dots, badges).
@@ -131,6 +137,8 @@ export const lightTokens: ThemeTokens = {
   heroBackFrom: '#FF8A2B',
   heroBackTo: '#FF5F3D',
   textOnHeroBack: neutral[950],
+  heroDeepFrom: green[900],
+  heroDeepTo: green[600],
 
   success: green[500],
   successSubtle: green[50],
@@ -193,6 +201,8 @@ export const darkTokens: ThemeTokens = {
   heroBackFrom: '#FF8A2B',
   heroBackTo: '#FF5F3D',
   textOnHeroBack: neutral[950],
+  heroDeepFrom: green[900],
+  heroDeepTo: green[600],
 
   success: green[400],
   successSubtle: 'rgba(52, 199, 123, 0.16)',

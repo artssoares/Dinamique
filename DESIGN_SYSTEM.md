@@ -54,7 +54,8 @@ textPrimary         textSecondary        textMuted         textInverse   textOnB
 borderPrimary       borderSubtle         borderStrong
 brandPrimary        brandPrimaryHover    brandPrimarySubtle
 brandSecondary      brandSecondaryHover  brandSecondarySubtle
-heroFrom  heroTo    heroBackFrom  heroBackTo
+heroFrom  heroTo    heroBackFrom  heroBackTo    heroDeepFrom  heroDeepTo
+textOnHeroBack
 success  successSubtle  successText
 danger   dangerSubtle   dangerText
 warning  warningSubtle  warningText
@@ -75,10 +76,15 @@ a white bar glowing at the bottom of a dark screen is glare in a car at night �
 which is precisely when the app is open. `navSurfaceActive` is the light pill on
 it, and the token test asserts both pairs clear AA.
 
-`heroFrom`/`heroTo` and `heroBackFrom`/`heroBackTo` are the two gradients of the
-Home card stack. Both stops are asserted against white type, which is why the
-back card uses Coral 700→600 rather than the lighter steps – Coral 400 measures
-2.4:1 against white and cannot carry a label.
+`heroFrom`/`heroTo`, `heroBackFrom`/`heroBackTo` and `heroDeepFrom`/`heroDeepTo`
+are the three gradients of the Home card deck, addressed by `HeroDeck` as the
+tones `brand`, `warm` and `deep` rather than by colour. Every stop is asserted
+against the type it actually carries: white on `brand` and `deep`, and
+`textOnHeroBack` – near-black – on `warm`, which is the only reason `warm` gets
+to be that vivid an orange. White measures 2.4:1 there and cannot carry a label.
+
+A fourth tone means a fourth token pair and a fourth contrast assertion. There
+is no generic "hero gradient" to reach for.
 
 ## Contrast, and what changed
 
@@ -171,7 +177,7 @@ biggest reason the interface looked homemade. Icons take their colour from the
 
 **Layout** – `Screen` · `ScreenHeader` · `SectionHeader` · `Divider` · `Sheet`
 
-**Content** – `Text` · `Card` · `HeroCard` · `Gradient` · `Money` · `Metric` /
+**Content** – `Text` · `Card` · `HeroDeck` · `Gradient` · `Money` · `Metric` /
 `CurrencyMetric` · `StatTile` · `GoalProgress` · `ProgressRing` · `EmptyState` ·
 `InsightCard` · `ListRow` · `Notice` · `Skeleton` · `Avatar` · `Badge` /
 `CountBadge` · `Reveal`
