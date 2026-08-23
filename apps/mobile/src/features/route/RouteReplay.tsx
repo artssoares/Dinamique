@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import type { LatLng } from '@dinamique/types';
-import { bounds, useTheme } from '@dinamique/ui';
+import { cameraFor, useTheme } from '@dinamique/ui';
 import { BASEMAP_ATTRIBUTION, HAS_BASEMAP, basemapStyleUrl } from './basemap';
 import { RouteReplayShared, REPLAY_HEIGHT, type RouteReplayProps } from './RouteReplayShared';
 import { RouteReplayTrace } from './RouteReplayTrace';
@@ -73,7 +73,7 @@ function WebMapReplay(props: RouteReplayProps & { styleUrl: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<import('maplibre-gl').Map | null>(null);
   const [ready, setReady] = useState(false);
-  const box = useMemo(() => bounds(props.points), [props.points]);
+  const camera = useMemo(() => cameraFor(props.points), [props.points]);
 
   // Mount once. Re-creating the map on every prop change would refetch every
   // tile for a route the driver is already watching.
@@ -142,10 +142,15 @@ function WebMapReplay(props: RouteReplayProps & { styleUrl: string }) {
       });
     }
 
-    if (box) {
-      map.fitBounds([box.sw, box.ne], { padding: 48, duration: 0 });
+    // A standstill has no box to fit — see `cameraFor`. Centring on the spot
+    // at a fixed zoom is what shows the driver the street they were parked on
+    // instead of a maximum-zoom blur.
+    if (camera?.kind === 'bounds') {
+      map.fitBounds([camera.bounds.sw, camera.bounds.ne], { padding: 48, duration: 0 });
+    } else if (camera?.kind === 'centre') {
+      map.jumpTo({ center: camera.centre, zoom: camera.zoom });
     }
-  }, [box, props.points, ready, theme.colors.borderStrong, theme.colors.brandPrimary]);
+  }, [camera, props.points, ready, theme.colors.borderStrong, theme.colors.brandPrimary]);
 
   return (
     <RouteReplayShared

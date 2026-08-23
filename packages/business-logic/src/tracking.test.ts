@@ -363,6 +363,27 @@ describe('summariseTrack', () => {
     });
   });
 
+  it('still draws where the driver was, below the fix minimum', () => {
+    // The drawing and the km figure are different promises. A driver who
+    // opened and closed a journey without leaving the block gets a map of
+    // where they stood; what they do not get is a distance nobody would
+    // recognise standing in for their R$/km.
+    const summary = summariseTrack(straightRun(4));
+    expect(summary.distance).toBeNull();
+    expect(summary.points.length).toBeGreaterThan(0);
+  });
+
+  it('draws a standstill as the single point it is', () => {
+    // Twenty minutes of parked drift: only the first fix clears the
+    // stationary threshold, and one point is still a place.
+    const parked = Array.from({ length: 40 }, (_, i) =>
+      fix(i * 30_000, -23.55 + (i % 2) * 0.00002, -46.63 - (i % 3) * 0.00002),
+    );
+    const summary = summariseTrack(parked);
+    expect(summary.distance).toBeNull();
+    expect(summary.points).toEqual([{ lat: parked[0]!.lat, lon: parked[0]!.lon }]);
+  });
+
   it('counts the fixes it refused to believe', () => {
     expect(summariseTrack([...straightRun(30), fix(500_000, -23.55, -46.63, 900)]).droppedFixes)
       .toBe(1);

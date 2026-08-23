@@ -383,7 +383,9 @@ export function trimRouteEnds(
  *
  * Returns `distance: null` — never zero — when the track is too thin or too
  * short to be a day's driving, so the caller falls through to whatever the
- * driver typed instead of publishing a number nobody would recognise.
+ * driver typed instead of publishing a number nobody would recognise. `points`
+ * is not held to that bar: it is a picture of where the phone was, not a
+ * denominator, and it is returned whenever a single fix was believable.
  */
 export function summariseTrack(
   fixes: readonly Fix[],
@@ -392,11 +394,19 @@ export function summariseTrack(
   const accepted = filterFixes(fixes);
   const droppedFixes = fixes.length - accepted.length;
 
-  if (accepted.length < MIN_FIXES_FOR_GPS_DISTANCE) {
+  if (accepted.length === 0) {
     return { distance: null, points: [], pointCount: 0, droppedFixes, movingSeconds: 0 };
   }
 
-  const distance = trackDistanceExcludingGaps(accepted, breaks);
+  // The drawing and the figure are two different promises, and only one of them
+  // is financial. `distance` feeds R$/km, so it stays behind both minimums: a
+  // handful of fixes is not a shift, and a number nobody would recognise is
+  // worse than no number at all. The shape is just where the phone was, and a
+  // driver who opened a journey outside their building and closed it there
+  // should still see that spot on a map instead of a blank panel. So the points
+  // survive on any accepted fix, including exactly one.
+  const belowMinimumFixes = accepted.length < MIN_FIXES_FOR_GPS_DISTANCE;
+  const distance = belowMinimumFixes ? 0 : trackDistanceExcludingGaps(accepted, breaks);
 
   let movingSeconds = 0;
   for (let i = 1; i < accepted.length; i += 1) {
@@ -418,7 +428,7 @@ export function summariseTrack(
   const points = fitToPointBudget(simplifyTrack(shape));
 
   return {
-    distance: distance < MIN_GPS_DISTANCE_M ? null : distance,
+    distance: belowMinimumFixes || distance < MIN_GPS_DISTANCE_M ? null : distance,
     points,
     pointCount: points.length,
     droppedFixes,

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { View } from 'react-native';
 import { Camera, LineLayer, MapView, ShapeSource } from '@maplibre/maplibre-react-native';
 import type { LatLng } from '@dinamique/types';
-import { bounds, useTheme } from '@dinamique/ui';
+import { cameraFor, useTheme } from '@dinamique/ui';
 import { BASEMAP_ATTRIBUTION, HAS_BASEMAP, basemapStyleUrl } from './basemap';
 import { RouteReplayShared, REPLAY_HEIGHT, type RouteReplayProps } from './RouteReplayShared';
 import { RouteReplayTrace } from './RouteReplayTrace';
@@ -40,7 +40,7 @@ export function RouteReplay(props: RouteReplayProps) {
   const styleUrl = basemapStyleUrl();
 
   const whole = useMemo(() => lineString(props.points), [props.points]);
-  const box = useMemo(() => bounds(props.points), [props.points]);
+  const camera = useMemo(() => cameraFor(props.points), [props.points]);
 
   if (!HAS_BASEMAP || !styleUrl) {
     return (
@@ -82,15 +82,24 @@ export function RouteReplay(props: RouteReplayProps) {
             attributionEnabled={false}
             logoEnabled={false}
           >
-            {box ? (
+            {/* A standstill has no box to fit — see `cameraFor`. Centring on
+                the spot shows the street the driver was parked on; fitting a
+                zero-area box shows a maximum-zoom blur. */}
+            {camera?.kind === 'bounds' ? (
               <Camera
-                bounds={{ ne: box.ne, sw: box.sw }}
+                bounds={{ ne: camera.bounds.ne, sw: camera.bounds.sw }}
                 padding={{
                   paddingTop: CAMERA_PADDING,
                   paddingBottom: CAMERA_PADDING,
                   paddingLeft: CAMERA_PADDING,
                   paddingRight: CAMERA_PADDING,
                 }}
+                animationDuration={0}
+              />
+            ) : camera?.kind === 'centre' ? (
+              <Camera
+                centerCoordinate={camera.centre}
+                zoomLevel={camera.zoom}
                 animationDuration={0}
               />
             ) : null}

@@ -554,7 +554,10 @@ export default function CloseJourney() {
     // the summary is on screen and it cannot take the summary down with it —
     // the driver's money is filed either way.
     try {
-      const hasRoute = Boolean(measured && measured.points.length >= 2) && keepRoute;
+      // One point is a route. A driver who opened and closed a journey
+      // without leaving the block still gets to see where they were — the
+      // drawing is not the km figure, and only the km figure has a minimum.
+      const hasRoute = Boolean(measured && measured.points.length >= 1) && keepRoute;
       if (!hasRoute) setRouteOutcome('none');
       let routeSettled = !hasRoute;
 
@@ -673,7 +676,7 @@ export default function CloseJourney() {
             </View>
           </Card>
 
-        {routeOutcome === 'kept' && measured && measured.points.length >= 2 ? (
+        {routeOutcome === 'kept' && measured && measured.points.length >= 1 ? (
           <Card padding="lg" style={{ gap: theme.spacing.md }}>
             <Text variant="caption" color="secondary">
               SEU TRAJETO DE HOJE
