@@ -147,50 +147,49 @@ export default function History() {
       renderItem={({ item }) => {
         const hasRoute = routeDays.has(item.date);
 
-        const card = (
-          <Card padding="lg" style={{ gap: theme.spacing.sm }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-                <View>
-                  <Text variant="bodyStrong">
-                    {new Date(`${item.date}T00:00:00`).toLocaleDateString('pt-BR', {
-                      day: '2-digit',
-                      month: 'short',
-                    })}
-                  </Text>
-                  <Text variant="caption" color="secondary">
-                    {weekdayLabel(item.date)}
-                  </Text>
-                </View>
-                {/* Um glifo, e só nos dias que têm trajeto. Sem selo, sem
-                    banner, sem convencer ninguém a ligar o GPS. */}
-                {hasRoute ? (
-                  <Icon name="route" size={16} color={theme.colors.brandPrimary} />
-                ) : null}
-              </View>
-              <Text variant="moneyMedium" color={item.net_profit >= 0 ? 'success' : 'danger'}>
-                {formatCents(item.net_profit)}
-              </Text>
-            </View>
-            <Text variant="caption" color="secondary">
-              {formatCents(item.gross_revenue)} faturado · {formatCents(item.total_expenses)} em custos
-              {item.worked_seconds > 0 ? ` · ${formatDuration(item.worked_seconds)}` : ''}
-            </Text>
-          </Card>
-        );
-
-        // Só os dias com trajeto viram botão. Um dia sem desenho continua
-        // exatamente a linha que sempre foi — nada aqui muda para quem
-        // nunca ligou a contagem por GPS.
-        if (!hasRoute) return card;
-
         return (
+          // Todo dia abre. O resumo de um dia comum — quanto entrou, quanto
+          // saiu, quantas horas — é conteúdo por si só; abrir só os dias com
+          // desenho deixava a maior parte do histórico sem destino nenhum.
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Ver o trajeto de ${weekdayLabel(item.date)}`}
-            onPress={() => router.push({ pathname: '/journey/replay', params: { date: item.date } })}
+            accessibilityLabel={`Ver ${weekdayLabel(item.date)}, ${formatCents(item.net_profit)} de lucro`}
+            onPress={() => router.push({ pathname: '/journey/day', params: { date: item.date } })}
           >
-            {card}
+            <Card padding="lg" style={{ gap: theme.spacing.sm }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+                  <View>
+                    <Text variant="bodyStrong">
+                      {new Date(`${item.date}T00:00:00`).toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: 'short',
+                      })}
+                    </Text>
+                    <Text variant="caption" color="secondary">
+                      {weekdayLabel(item.date)}
+                    </Text>
+                  </View>
+                  {/* Um glifo, e só nos dias que têm trajeto. Sem selo, sem
+                      banner, sem convencer ninguém a ligar o GPS. */}
+                  {hasRoute ? (
+                    <Icon name="route" size={16} color={theme.colors.brandPrimary} />
+                  ) : null}
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs }}>
+                  <Text variant="moneyMedium" color={item.net_profit >= 0 ? 'success' : 'danger'}>
+                    {formatCents(item.net_profit)}
+                  </Text>
+                  {/* A seta é o que diz que a linha abre. Sem ela, um card que
+                      responde ao toque é uma descoberta por acidente. */}
+                  <Icon name="chevronRight" size={16} color={theme.colors.textMuted} />
+                </View>
+              </View>
+              <Text variant="caption" color="secondary">
+                {formatCents(item.gross_revenue)} faturado · {formatCents(item.total_expenses)} em custos
+                {item.worked_seconds > 0 ? ` · ${formatDuration(item.worked_seconds)}` : ''}
+              </Text>
+            </Card>
           </Pressable>
         );
       }}

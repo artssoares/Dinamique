@@ -31,7 +31,7 @@ Security. The service role key must never appear in this app.
 | `settings/appearance` | built – light / dark / system |
 | `settings/route` | built – Trajeto e privacidade: GPS, cortar as pontas, retenção, apagar tudo |
 | `journey/close` | built – três passos, resumo, replay e compartilhar |
-| `journey/replay` | built – o trajeto de um dia, vindo do histórico |
+| `journey/day` | built – um dia do histórico: resumo sempre, trajeto quando houver |
 | `profile`, `vehicle`, `goals`, `plan`, `export` | **not built** – each renders `<ComingSoon>` naming its phase |
 
 Routes marked *not built* say so on screen. A button that looks finished but

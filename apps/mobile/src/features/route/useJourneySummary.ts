@@ -6,6 +6,7 @@ import { useSession } from '@/hooks/useSession';
 export interface DaySummary {
   date: DateOnly;
   grossRevenue: Cents;
+  totalExpenses: Cents;
   netProfit: Cents;
   workedSeconds: Seconds;
   /** Null when the day has no distance at all — never zero (§6). */
@@ -39,7 +40,7 @@ export function useDaySummary(date: DateOnly | null) {
     void (async () => {
       const { data, error } = await supabase
         .from('daily_totals')
-        .select('date, gross_revenue, net_profit, worked_seconds, distance')
+        .select('date, gross_revenue, total_expenses, net_profit, worked_seconds, distance')
         .eq('user_id', session.user.id)
         .eq('date', date)
         .maybeSingle();
@@ -55,6 +56,7 @@ export function useDaySummary(date: DateOnly | null) {
       const row = data as {
         date: DateOnly;
         gross_revenue: number;
+        total_expenses: number;
         net_profit: number;
         worked_seconds: number;
         distance: number;
@@ -69,6 +71,7 @@ export function useDaySummary(date: DateOnly | null) {
       setSummary({
         date: row.date,
         grossRevenue: row.gross_revenue,
+        totalExpenses: row.total_expenses,
         netProfit: row.net_profit,
         workedSeconds: row.worked_seconds,
         distance,
