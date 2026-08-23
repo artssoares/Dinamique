@@ -256,16 +256,32 @@ function WebMapReplay(props: RouteReplayProps & { styleUrl: string }) {
       (map.getSource(WHOLE_SOURCE) as import('maplibre-gl').GeoJSONSource).setData(whole as never);
     } else {
       map.addSource(WHOLE_SOURCE, { type: 'geojson', data: whole as never });
+      // Over satellite the route is drawn on ground it does not control: a
+      // roof, a river, a forest, a motorway, all in the same frame. Grey at
+      // half opacity vanished on half of them. `textOnBrand` is the token for
+      // "reads against the brand blue" and is white in both themes, which is
+      // exactly what a line over unpredictable imagery needs — used here as a
+      // stroke rather than as type, which is the one liberty taken with it.
       map.addLayer({
         id: `${WHOLE_SOURCE}-line`,
         type: 'line',
         source: WHOLE_SOURCE,
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': theme.colors.borderStrong, 'line-width': 5, 'line-opacity': 0.55 },
+        paint: { 'line-color': theme.colors.textOnBrand, 'line-width': 5, 'line-opacity': 0.5 },
       });
       map.addSource(COVERED_SOURCE, {
         type: 'geojson',
         data: lineString(props.points.slice(0, 1)) as never,
+      });
+      // Two layers on one source: a halo, then the line. The brand blue alone
+      // disappears into water and into shadow, and a route the driver loses
+      // sight of halfway through is not a route they will post.
+      map.addLayer({
+        id: `${COVERED_SOURCE}-halo`,
+        type: 'line',
+        source: COVERED_SOURCE,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': theme.colors.textOnBrand, 'line-width': 11, 'line-opacity': 0.9 },
       });
       map.addLayer({
         id: `${COVERED_SOURCE}-line`,
@@ -284,7 +300,7 @@ function WebMapReplay(props: RouteReplayProps & { styleUrl: string }) {
     } else if (camera?.kind === 'centre') {
       map.jumpTo({ center: camera.centre, zoom: camera.zoom });
     }
-  }, [camera, props.points, ready, theme.colors.borderStrong, theme.colors.brandPrimary]);
+  }, [camera, props.points, ready, theme.colors.textOnBrand, theme.colors.brandPrimary]);
 
   // Not a hook-order problem: the effects above all no-op once `failed` is
   // set, and the map they owned has already been removed by their cleanup.

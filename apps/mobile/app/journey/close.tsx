@@ -720,7 +720,7 @@ export default function CloseJourney() {
             <RouteReplay
               points={measured.points}
               distance={summary.distance > 0 ? summary.distance : null}
-              onPress={story.canShare ? story.open : undefined}
+              onPress={story.open}
             />
 
             {story.canShare ? (
