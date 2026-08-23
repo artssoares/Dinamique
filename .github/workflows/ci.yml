@@ -100,14 +100,21 @@ jobs:
       # da web por extensão de plataforma (`.native.ts`), e um import distraído
       # em arquivo neutro os traria de volta sem quebrar o build — o app só
       # falharia no navegador do usuário. Isto afirma o contrário na marra.
+      #
+      # "maplibre-react-native" e não "maplibre": o replay na web usa de
+      # propósito o `maplibre-gl` (a lib pura em JS/WebGL, sem módulo nativo
+      # nenhum) para desenhar o mesmo mapa de rua que o app mostra no
+      # aparelho. É só a ponte `@maplibre/maplibre-react-native` — importada
+      # apenas por `RouteReplay.native.tsx`, que o Metro nunca resolve na web —
+      # que não pode aparecer aqui.
       - name: Nenhum módulo nativo no pacote web
         run: |
-          echo "MapLibre e o TaskManager não podem existir no navegador."
+          echo "A ponte nativa do MapLibre e o TaskManager não podem existir no navegador."
           # Um `grep` num diretório que não existe sai com 2, e `! grep` leria
           # isso como aprovação — a verificação passaria sem ter olhado nada.
           test -d apps/mobile/dist || { echo "FALHOU: pacote web ausente"; exit 1; }
 
-          for modulo in maplibre expo-task-manager; do
+          for modulo in maplibre-react-native expo-task-manager; do
             if grep -rq "$modulo" apps/mobile/dist; then
               echo "FALHOU: $modulo entrou no pacote web"
               exit 1

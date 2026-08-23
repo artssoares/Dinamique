@@ -9,7 +9,7 @@
     "env": {
       "EXPO_PUBLIC_SUPABASE_URL": "https://rwwfqmytvhqelvricniz.supabase.co",
       "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3d2ZxbXl0dmhxZWx2cmljbml6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY5ODkxNzYsImV4cCI6MjEwMjU2NTE3Nn0.nAhKNSsLo6zaEfqsCVlFpzxrufggE2aolA6RquWGXQM",
-      "EXPO_PUBLIC_ARCGIS_API_KEY": ""
+      "EXPO_PUBLIC_ARCGIS_API_KEY": "AAPTapKEq2IPH1b3AcDinlVqIXQ..e6rO9ZYcs-9unshzOEUxqa7iHDMbemNlcDYf3yEmgSlsDILy3658osGCFab-0fIZc78V_xILhj9UIenvNiAoyc2Qli48ErNdDptUMUez5hiM8SoG_b3ZezY56hibuDw46SNjw89nGoeFES0lACMUxDljLwjwDLVELXrPWgd6UUp8LSoDZ1CCWCf0qH_zamHs6_tAweD7oeDySC4OoOorlbNVDzqWV5tGm9x7jZ-YItxkYBxnZ6g1JNsMAT1_H7vgrMOD"
     }
   }
 }
