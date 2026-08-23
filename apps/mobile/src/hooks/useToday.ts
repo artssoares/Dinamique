@@ -3,9 +3,11 @@ import type { Cents, DateOnly } from '@dinamique/types';
 import {
   computeGoalProgress,
   estimateSecondsToGoal,
+  sumDays,
   type GoalProgress,
+  type PeriodTotals,
 } from '@dinamique/business-logic';
-import { toDateOnly } from '@dinamique/utils';
+import { startOfWeek, toDateOnly } from '@dinamique/utils';
 import { supabase } from '../lib/supabase';
 import { useSession } from './useSession';
 
@@ -31,6 +33,11 @@ export interface TodayData {
   goalBasis: 'gross' | 'net';
   secondsToGoal: number | null;
   hasAnyData: boolean;
+  /**
+   * Monday to today, this week. The second thing a driver checks after the
+   * day, and the reason the hero deck has a third card worth turning over.
+   */
+  week: PeriodTotals;
 }
 
 interface DailyTotalsRow {
@@ -61,13 +68,16 @@ export function useToday(): { data: TodayData | null; loading: boolean; refresh:
 
     const today = toDateOnly(new Date());
 
+    // One query, not two: the week already contains today, so asking for the
+    // range and picking today's row out of it costs one round trip instead of
+    // two and cannot return a day that disagrees with itself.
     const [totalsResult, goalResult] = await Promise.all([
       supabase
         .from('daily_totals')
         .select('date, gross_revenue, total_expenses, net_profit, worked_seconds, distance')
         .eq('user_id', session.user.id)
-        .eq('date', today)
-        .maybeSingle(),
+        .gte('date', startOfWeek(today))
+        .lte('date', today),
       supabase
         .from('goals')
         .select('target, basis')
@@ -77,7 +87,18 @@ export function useToday(): { data: TodayData | null; loading: boolean; refresh:
         .maybeSingle(),
     ]);
 
-    const row = (totalsResult.data as DailyTotalsRow | null) ?? null;
+    const weekRows = (totalsResult.data as DailyTotalsRow[] | null) ?? [];
+    const row = weekRows.find((day) => day.date === today) ?? null;
+
+    const week = sumDays(
+      weekRows.map((day) => ({
+        grossRevenue: day.gross_revenue as Cents,
+        totalExpenses: day.total_expenses as Cents,
+        netProfit: day.net_profit as Cents,
+        workedSeconds: day.worked_seconds,
+        distance: day.distance,
+      })),
+    );
 
     const grossRevenue = row?.gross_revenue ?? 0;
     const totalExpenses = row?.total_expenses ?? 0;
@@ -118,6 +139,7 @@ export function useToday(): { data: TodayData | null; loading: boolean; refresh:
           })
         : null,
       hasAnyData: grossRevenue > 0 || totalExpenses > 0 || workedSeconds > 0,
+      week,
     });
     setLoading(false);
   }, [session?.user?.id]);

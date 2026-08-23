@@ -147,6 +147,14 @@ describe('inverse surfaces', () => {
     }
   });
 
+  it('renders white type legibly on both stops of the deep hero gradient', () => {
+    for (const tokens of [lightTokens, darkTokens]) {
+      for (const stop of [tokens.heroDeepFrom, tokens.heroDeepTo]) {
+        expect(contrastRatio(tokens.textOnBrand, stop)!).toBeGreaterThanOrEqual(WCAG_AA_NORMAL);
+      }
+    }
+  });
+
   // The back card gets to be a vivid orange precisely because it sets its type
   // dark. Held to the normal floor, not the large-text one: it carries a real
   // sentence about the goal, in caption size.

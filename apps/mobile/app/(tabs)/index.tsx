@@ -6,7 +6,7 @@ import {
   Button,
   Card,
   EmptyState,
-  HeroCard,
+  HeroDeck,
   IconButton,
   ListRow,
   Money,
@@ -91,43 +91,114 @@ export default function Today() {
 
             <Reveal>
               <View ref={goalTarget.ref} collapsable={false}>
-                <HeroCard
-                  label={data?.goalBasis === 'net' ? 'Lucro de hoje' : 'Faturamento de hoje'}
-                  tag="Hoje"
-                  tagIcon="wallet"
-                  meta={todayLabel()}
-                  back={
-                    goal
-                      ? {
-                          label: 'Meta de hoje',
-                          value: goal.isReached
-                            ? 'Meta batida'
-                            : `faltam ${formatCents(goal.remaining)}`,
-                          icon: 'target',
-                          progress: goal.ratio,
-                        }
-                      : { label: 'Meta de hoje', value: 'ainda sem meta', icon: 'target' }
-                  }
-                  details={[
+                <HeroDeck
+                  cards={[
                     {
-                      label: 'Tempo',
-                      value:
-                        data && data.workedSeconds > 0 ? formatDuration(data.workedSeconds) : '–',
+                      key: 'today',
+                      tone: 'brand',
+                      title: 'Hoje',
+                      titleIcon: 'wallet',
+                      summary: todayLabel(),
+                      label: data?.goalBasis === 'net' ? 'Lucro de hoje' : 'Faturamento de hoje',
+                      details: [
+                        {
+                          label: 'Tempo',
+                          value:
+                            data && data.workedSeconds > 0
+                              ? formatDuration(data.workedSeconds)
+                              : '–',
+                        },
+                        {
+                          label: 'Distância',
+                          value: data && data.distance > 0 ? formatDistanceKm(data.distance) : '–',
+                        },
+                        { label: 'Despesas', value: formatCents(data?.totalExpenses ?? 0) },
+                      ],
+                      children: (
+                        <Money
+                          value={headline}
+                          variant="moneyHero"
+                          animate
+                          style={{ color: theme.colors.textOnBrand }}
+                        />
+                      ),
                     },
                     {
-                      label: 'Distância',
-                      value: data && data.distance > 0 ? formatDistanceKm(data.distance) : '–',
+                      key: 'goal',
+                      tone: 'warm',
+                      title: 'Meta de hoje',
+                      titleIcon: 'target',
+                      summary: goal
+                        ? goal.isReached
+                          ? 'Meta batida'
+                          : `faltam ${formatCents(goal.remaining)}`
+                        : 'ainda sem meta',
+                      progress: goal?.ratio,
+                      label: goal ? 'Falta para bater a meta' : 'Meta de hoje',
+                      details: goal
+                        ? [
+                            { label: 'Meta', value: formatCents(goal.target) },
+                            { label: 'Já feito', value: formatCents(goal.achieved) },
+                            {
+                              label: 'No seu ritmo',
+                              value:
+                                data?.secondsToGoal != null && data.secondsToGoal > 0
+                                  ? `faltam ${formatDuration(data.secondsToGoal)}`
+                                  : goal.isReached
+                                    ? 'batida'
+                                    : '–',
+                            },
+                          ]
+                        : undefined,
+                      onPress: () => router.push('/goals'),
+                      actionLabel: goal ? 'Ajustar minha meta' : 'Definir minha meta',
+                      // No goal means no figure. R$ 0,00 here would read as
+                      // "nothing left to earn", which is the opposite of the
+                      // truth and exactly the kind of invented number §6 bans.
+                      children: goal ? (
+                        <Money
+                          value={goal.remaining}
+                          variant="moneyHero"
+                          animate
+                          style={{ color: theme.colors.textOnHeroBack }}
+                        />
+                      ) : (
+                        <Text variant="subtitle" style={{ color: theme.colors.textOnHeroBack }}>
+                          Diga quanto quer ganhar por mês e o Dinamique divide em metas por dia.
+                        </Text>
+                      ),
                     },
-                    { label: 'Despesas', value: formatCents(data?.totalExpenses ?? 0) },
+                    {
+                      key: 'week',
+                      tone: 'deep',
+                      title: 'Esta semana',
+                      titleIcon: 'history',
+                      summary: weekSummary(data?.week.daysWorked ?? 0),
+                      label: 'Lucro da semana',
+                      details: [
+                        { label: 'Faturamento', value: formatCents(data?.week.grossRevenue ?? 0) },
+                        { label: 'Custos', value: formatCents(data?.week.totalExpenses ?? 0) },
+                        {
+                          label: 'Tempo',
+                          value:
+                            data && data.week.workedSeconds > 0
+                              ? formatDuration(data.week.workedSeconds)
+                              : '–',
+                        },
+                      ],
+                      onPress: () => router.push('/(tabs)/history'),
+                      actionLabel: 'Ver o histórico da semana',
+                      children: (
+                        <Money
+                          value={data?.week.netProfit ?? 0}
+                          variant="moneyHero"
+                          animate
+                          style={{ color: theme.colors.textOnBrand }}
+                        />
+                      ),
+                    },
                   ]}
-                >
-                  <Money
-                    value={headline}
-                    variant="moneyHero"
-                    animate
-                    style={{ color: theme.colors.textOnBrand }}
-                  />
-                </HeroCard>
+                />
               </View>
             </Reveal>
 
@@ -364,6 +435,18 @@ function greeting(): string {
 
 function todayLabel(): string {
   return new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+}
+
+/**
+ * What the week card says while it is still at the back of the deck.
+ *
+ * Days rodados rather than a figure: the money is already that card's
+ * headline, and repeating it on the strip would spend the one line a driver
+ * reads without turning the card over.
+ */
+function weekSummary(daysWorked: number): string {
+  if (daysWorked === 0) return 'nada rodado ainda';
+  return daysWorked === 1 ? '1 dia rodado' : `${daysWorked} dias rodados`;
 }
 
 function HomeSkeleton() {

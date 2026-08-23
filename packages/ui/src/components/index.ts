@@ -3,7 +3,7 @@ export * from './Button';
 export * from './IconButton';
 export * from './Card';
 export * from './Gradient';
-export * from './HeroCard';
+export * from './HeroDeck';
 export * from './Money';
 export * from './Metric';
 export * from './StatTile';
