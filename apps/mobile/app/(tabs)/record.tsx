@@ -251,6 +251,7 @@ export default function Record() {
           onPause={() => void pauseJourney()}
           onResume={() => void resumeJourney()}
           liveDistance={tracking.tracking ? tracking.liveDistance : null}
+          counting={tracking.tracking}
           foregroundOnly={tracking.tracking && !tracking.background}
           recovered={tracking.recovered}
           onFinish={() => router.push('/journey/close')}
@@ -422,6 +423,7 @@ function JourneyCard({
   onResume,
   onFinish,
   liveDistance,
+  counting,
   foregroundOnly,
   recovered,
 }: {
@@ -435,6 +437,8 @@ function JourneyCard({
   onFinish: () => void;
   /** Metres counted so far, or null when capture is off or still too thin. */
   liveDistance?: Metres | null;
+  /** True while the OS is feeding positions, even before the figure is usable. */
+  counting?: boolean;
   /** True when the driver allowed location only while the app is open. */
   foregroundOnly?: boolean;
   /** True when we had to pick the shift back up after a device restart. */
@@ -497,10 +501,21 @@ function JourneyCard({
 
       {/* One line, and only when there is something true to put in it. A
           driver who declined the permission sees today's card unchanged — no
-          banner, no badge, no second invitation. */}
+          banner, no badge, no second invitation.
+
+          Below the minimum the figure is deliberately null: a distance built
+          from too few positions is not trustworthy enough to divide money by.
+          But saying nothing at all is indistinguishable from capture being
+          off, so the first few hundred metres get a line of their own. The
+          driver knows it started; they just do not get a number yet. */}
       {liveDistance !== null && liveDistance !== undefined ? (
         <Text variant="captionStrong" color="secondary">
           {formatDistanceKm(liveDistance, 1)} contados
+          {foregroundOnly ? ' · só com o app aberto' : ''}
+        </Text>
+      ) : counting ? (
+        <Text variant="captionStrong" color="secondary">
+          Contando seus km
           {foregroundOnly ? ' · só com o app aberto' : ''}
         </Text>
       ) : null}
