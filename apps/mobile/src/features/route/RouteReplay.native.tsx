@@ -10,6 +10,13 @@ import { RouteReplayTrace } from './RouteReplayTrace';
 /** Room around the route so the ends are not welded to the edge of the map. */
 const CAMERA_PADDING = 48;
 
+/**
+ * How far the camera leans over the route, in degrees. Matches the web replay:
+ * flat on, a day's driving is a diagram; leaning over, it is a place.
+ * `pitchEnabled={false}` below stops the driver changing it, not us setting it.
+ */
+const MAP_PITCH = 52;
+
 function lineString(points: readonly LatLng[]) {
   return {
     type: 'Feature' as const,
@@ -94,12 +101,14 @@ export function RouteReplay(props: RouteReplayProps) {
                   paddingLeft: CAMERA_PADDING,
                   paddingRight: CAMERA_PADDING,
                 }}
+                pitch={MAP_PITCH}
                 animationDuration={0}
               />
             ) : camera?.kind === 'centre' ? (
               <Camera
                 centerCoordinate={camera.centre}
                 zoomLevel={camera.zoom}
+                pitch={MAP_PITCH}
                 animationDuration={0}
               />
             ) : null}

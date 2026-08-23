@@ -89,6 +89,21 @@ function lineString(points: readonly LatLng[]) {
  */
 const MAP_LOAD_TIMEOUT_MS = 8_000;
 
+/**
+ * How far the camera leans over the route, in degrees.
+ *
+ * Flat on, a day's driving is a diagram. Leaning the camera over is what turns
+ * it into a place: the streets converge towards the horizon, the buildings the
+ * basemap draws get a face, and the line the driver covered reads as ground
+ * rather than as ink. It is the difference people mean when they call one map
+ * three-dimensional and another one flat.
+ *
+ * Not steeper: past about sixty the far end of a long route falls apart into
+ * the horizon and the shape stops being readable, which is the whole point of
+ * the replay.
+ */
+const MAP_PITCH = 52;
+
 const WHOLE_SOURCE = 'route-whole';
 const COVERED_SOURCE = 'route-covered';
 
@@ -146,6 +161,9 @@ function WebMapReplay(props: RouteReplayProps & { styleUrl: string }) {
           // reasoning as the native replay disabling pan/zoom/rotate/pitch —
           // here it is one flag instead of four.
           interactive: false,
+          // Set here rather than per camera move, so it survives every
+          // `fitBounds` and `jumpTo` below without either of them restating it.
+          pitch: MAP_PITCH,
           attributionControl: false,
         });
         mapRef.current = map;
