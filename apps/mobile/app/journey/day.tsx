@@ -134,7 +134,7 @@ export default function JourneyDay() {
             <RouteReplay
               points={route.points}
               distance={summary?.distance ?? route.distance}
-              onPress={story.canShare ? story.open : undefined}
+              onPress={story.open}
             />
             {story.canShare ? (
               <Button

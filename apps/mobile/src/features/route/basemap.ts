@@ -8,12 +8,19 @@
  * the feature. MapLibre also renders identically on iOS, Android and the web,
  * so there is one replay to design and one to debug.
  *
- * `arcgis/navigation` is the style meant for a vehicle in motion — the road
- * hierarchy stays legible at the size a phone shows a whole day at. Satellite
- * is a one-constant swap here when we have the licence for it.
+ * `arcgis/imagery` is satellite with place labels over it, and it is the style
+ * because of what this map is for. A navigation basemap is built to be read
+ * while deciding which turn to take: quiet, flat, road names first. Nobody
+ * reads this map — they look at a day they already lived. Imagery gives the
+ * ground texture and colour, which is what makes the relief underneath
+ * visible at all: a street map draped over a hill still looks like a street
+ * map, because it has no shading of its own to catch the light.
+ *
+ * `arcgis/navigation` is the swap back, one constant, if the imagery ever
+ * makes the route hard to pick out.
  */
 
-const STYLE = 'arcgis/navigation';
+const STYLE = 'arcgis/imagery';
 
 const key = process.env.EXPO_PUBLIC_ARCGIS_API_KEY?.trim() ?? '';
 
