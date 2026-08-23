@@ -40,7 +40,7 @@ import { resolveDistanceSource } from '@/features/journey/distanceSource';
 import { useJourneyTracking } from '@/features/tracking/useJourneyTracking';
 import { useRoutePreferences } from '@/features/tracking/preferences';
 import { RouteReplay } from '@/features/route/RouteReplay';
-import { StoryShareButton } from '@/features/route/StoryShareButton';
+import { useStoryShare } from '@/features/route/useStoryShare';
 
 interface Platform {
   id: string;
@@ -294,6 +294,65 @@ export default function CloseJourney() {
             : 0),
       )
     : 0;
+
+  /**
+   * The day as the summary screen states it.
+   *
+   * Computed here rather than inside the `done` branch because the share
+   * sheet needs the same figures and a hook cannot live behind a condition.
+   * One calculation, so the image and the screen can never disagree about the
+   * shift they are both describing.
+   */
+  const summary = useMemo(
+    () =>
+      summarisePeriod({
+        journeys: [
+          {
+            id: closed?.id ?? 'x',
+            startedAt: closed?.startedAt ?? new Date().toISOString(),
+            endedAt: new Date(
+              Date.parse(closed?.startedAt ?? new Date().toISOString()) +
+                ((closed?.workedSeconds ?? 0) + (closed?.pausedSeconds ?? 0)) * 1000,
+            ).toISOString(),
+            pausedSeconds: closed?.pausedSeconds ?? 0,
+            odometerStart: closed?.odometerStart ?? null,
+            odometerEnd: parsed.odometerEnd,
+            distanceOverride: parsed.distanceOverride,
+            distanceGps: closed?.gpsDistance ?? null,
+          },
+        ],
+        revenues: [
+          {
+            date: toDateOnly(new Date()),
+            amount: totals.gross,
+            tips: 0,
+            tripCount: null,
+            platformId: null,
+          },
+        ],
+        // Two entries, not one: a box of perfume is a cost of the day but not
+        // a cost of the vehicle, and lumping it in would inflate the cost per
+        // km.
+        expenses: [
+          {
+            date: toDateOnly(new Date()),
+            amount: totals.costs - saleTotals.cost,
+            isVehicleCost: true,
+          },
+          { date: toDateOnly(new Date()), amount: saleTotals.cost, isVehicleCost: false },
+        ],
+      }),
+    [closed, parsed, saleTotals.cost, totals.costs, totals.gross],
+  );
+
+  const story = useStoryShare({
+    points: measured?.points ?? [],
+    date: toDateOnly(new Date()),
+    distance: summary.distance > 0 ? summary.distance : null,
+    workedSeconds: summary.workedSeconds,
+    revenuePerKm: summary.revenuePerKm,
+    grossRevenue: summary.grossRevenue,
+  });
 
   async function save() {
     if (!session?.user || !journey || saving) return;
@@ -620,31 +679,6 @@ export default function CloseJourney() {
 
   // ------------------------------------------------------------- resumo ----
   if (done) {
-    const summary = summarisePeriod({
-      journeys: [
-        {
-          id: closed?.id ?? 'x',
-          startedAt: closed?.startedAt ?? new Date().toISOString(),
-          endedAt: new Date(
-            Date.parse(closed?.startedAt ?? new Date().toISOString()) +
-              ((closed?.workedSeconds ?? 0) + (closed?.pausedSeconds ?? 0)) * 1000,
-          ).toISOString(),
-          pausedSeconds: closed?.pausedSeconds ?? 0,
-          odometerStart: closed?.odometerStart ?? null,
-          odometerEnd: parsed.odometerEnd,
-          distanceOverride: parsed.distanceOverride,
-          distanceGps: closed?.gpsDistance ?? null,
-        },
-      ],
-      revenues: [{ date: toDateOnly(new Date()), amount: totals.gross, tips: 0, tripCount: null, platformId: null }],
-      // Two entries, not one: a box of perfume is a cost of the day but not a
-      // cost of the vehicle, and lumping it in would inflate the cost per km.
-      expenses: [
-        { date: toDateOnly(new Date()), amount: totals.costs - saleTotals.cost, isVehicleCost: true },
-        { date: toDateOnly(new Date()), amount: saleTotals.cost, isVehicleCost: false },
-      ],
-    });
-
     return (
       <Screen
         header={
@@ -686,16 +720,19 @@ export default function CloseJourney() {
             <RouteReplay
               points={measured.points}
               distance={summary.distance > 0 ? summary.distance : null}
+              onPress={story.canShare ? story.open : undefined}
             />
 
-            <StoryShareButton
-              points={measured.points}
-              date={toDateOnly(new Date())}
-              distance={summary.distance > 0 ? summary.distance : null}
-              workedSeconds={summary.workedSeconds}
-              revenuePerKm={summary.revenuePerKm}
-              grossRevenue={summary.grossRevenue}
-            />
+            {story.canShare ? (
+              <Button
+                label="Compartilhar meu trajeto"
+                size="lg"
+                fullWidth
+                iconName="arrowUpRight"
+                onPress={story.open}
+              />
+            ) : null}
+            {story.sheet}
           </Card>
         ) : null}
 

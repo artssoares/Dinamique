@@ -38,3 +38,33 @@ export function basemapStyleUrl(): string | null {
  * a map that is not on screen would be its own kind of wrong.
  */
 export const BASEMAP_ATTRIBUTION = 'Powered by Esri';
+
+/**
+ * Elevation, so the map has relief and not just perspective.
+ *
+ * The Terrain Tiles dataset on AWS Open Data: public, no key, and in the
+ * `terrarium` encoding MapLibre reads directly. Esri publishes elevation too,
+ * but not in a format MapLibre can consume, so this is a second source rather
+ * than a second vendor by choice.
+ *
+ * It is decoration in the strictest sense — the route, the distance and every
+ * figure are identical with or without it — so it is added after the map has
+ * already loaded and a failure to fetch a single tile is allowed to pass
+ * silently. A driver looking at a flatter map is not a driver missing data.
+ */
+export const TERRAIN_TILES = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
+
+/** The dataset stops here; asking for deeper tiles returns nothing. */
+export const TERRAIN_MAX_ZOOM = 15;
+
+/**
+ * How much the relief is overstated.
+ *
+ * Slightly, and on purpose: at true scale a city is visually flat, and the
+ * point of the relief is that the ground reads as ground. Far enough below the
+ * cartoon range that a hill is still the size of a hill.
+ */
+export const TERRAIN_EXAGGERATION = 1.3;
+
+/** Required alongside the basemap credit whenever the relief is drawn. */
+export const TERRAIN_ATTRIBUTION = 'Relevo: Terrain Tiles';
