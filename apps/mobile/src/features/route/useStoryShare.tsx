@@ -27,18 +27,20 @@ export interface StoryShareInput {
 }
 
 export interface StoryShare {
-  /** Opens the sheet. Always works — see `canShare`. */
+  /** Opens the preview. Only meaningful when `canShare`. */
   open: () => void;
-  /**
-   * Whether there is actually an image to post.
-   *
-   * False does not mean the tap does nothing: the sheet opens either way and
-   * says why. It only decides whether the screen also shows a button, since a
-   * button labelled "Compartilhar meu trajeto" that opens an explanation
-   * instead is a small lie.
-   */
+  /** Whether there is actually an image to post. */
   canShare: boolean;
-  /** Render this once, anywhere in the screen. */
+  /**
+   * Why there is not, in one sentence, or null when there is.
+   *
+   * The screen prints this under the map instead of hiding it behind a tap.
+   * An explanation somebody has to go looking for is an explanation most
+   * people never read, and the tap that used to reveal it was a dead end
+   * dressed up as a control.
+   */
+  reason: string | null;
+  /** Render this once, anywhere in the screen. Null when there is no image. */
   sheet: ReactNode;
 }
 
@@ -93,10 +95,13 @@ export function useStoryShare({
 
   // Two different reasons there may be no image, and the driver has to be able
   // to tell them apart. Standing still is not the same problem as a short
-  // shift, and neither of them is the app being broken — which is exactly what
-  // a tap that did nothing used to look like.
-  const nothingDriven = points.length < 2;
+  // shift, and neither of them is the app being broken.
   const canShare = shared.length >= 2;
+  const reason = canShare
+    ? null
+    : points.length < 2
+      ? 'Você ficou no mesmo lugar hoje. A imagem para compartilhar é o desenho do caminho — rode alguns quilômetros com a jornada aberta e ela aparece aqui.'
+      : 'O trajeto de hoje é curto demais para compartilhar. Cortamos as pontas do caminho na imagem para ninguém descobrir onde você mora, e num dia curto não sobra o que mostrar.';
 
   const open = useCallback(() => setVisible(true), []);
 
@@ -133,32 +138,7 @@ export function useStoryShare({
 
   const scale = PREVIEW_WIDTH / STORY_WIDTH;
 
-  const sheet = !canShare ? (
-    <Sheet
-      visible={visible}
-      onClose={() => setVisible(false)}
-      title="Ainda não dá para compartilhar"
-      description={
-        nothingDriven
-          ? 'Hoje o telefone ficou parado no mesmo lugar.'
-          : 'O trajeto de hoje é curto demais.'
-      }
-    >
-      <View style={{ gap: theme.spacing.md }}>
-        <Text variant="body">
-          {nothingDriven
-            ? 'A imagem do story é o desenho do seu caminho, e sem caminho não há o que desenhar. Rode alguns quilômetros com a jornada aberta e ela aparece aqui.'
-            : 'Antes de a imagem sair do seu telefone, cortamos o começo e o fim do caminho para ninguém descobrir onde você mora. Num trajeto curto esse corte não sobra nada para mostrar.'}
-        </Text>
-        {nothingDriven ? null : (
-          <Text variant="caption" color="muted">
-            Dá para desligar esse corte em Trajeto e privacidade, mas aí a imagem mostra onde você
-            começou e terminou o dia.
-          </Text>
-        )}
-      </View>
-    </Sheet>
-  ) : (
+  const sheet = !canShare ? null : (
     <Sheet
       visible={visible}
       onClose={() => setVisible(false)}
@@ -219,5 +199,5 @@ export function useStoryShare({
     </Sheet>
   );
 
-  return { open, canShare, sheet };
+  return { open, canShare, reason, sheet };
 }
