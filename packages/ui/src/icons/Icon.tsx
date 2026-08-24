@@ -62,7 +62,8 @@ export type IconName =
   | 'route'
   | 'megaphone'
   | 'compass'
-  | 'flag';
+  | 'flag'
+  | 'expand';
 
 export interface IconProps {
   name: IconName;
@@ -444,6 +445,18 @@ export function Icon({ name, size = 22, color, strokeWidth = 1.8 }: IconProps) {
         <Svg {...common}>
           <Line x1="5.5" y1="3.75" x2="5.5" y2="20.5" />
           <Path d="M5.5 5h10.75l-1.6 3.5 1.6 3.5H5.5z" />
+        </Svg>
+      );
+    // Four corners opening outwards. The one glyph everybody already reads as
+    // "this gets bigger if you touch it", which is the whole job: the map it
+    // sits on has no other way of saying it is a control.
+    case 'expand':
+      return (
+        <Svg {...common} strokeWidth={strokeWidth + 0.2}>
+          <Polyline points="4.5,9.5 4.5,4.5 9.5,4.5" />
+          <Polyline points="14.5,4.5 19.5,4.5 19.5,9.5" />
+          <Polyline points="19.5,14.5 19.5,19.5 14.5,19.5" />
+          <Polyline points="9.5,19.5 4.5,19.5 4.5,14.5" />
         </Svg>
       );
   }

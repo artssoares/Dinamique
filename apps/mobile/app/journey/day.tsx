@@ -62,7 +62,6 @@ export default function JourneyDay() {
     distance: summary?.distance ?? route?.distance ?? null,
     workedSeconds: summary?.workedSeconds ?? 0,
     revenuePerKm: summary?.revenuePerKm ?? null,
-    grossRevenue: summary?.grossRevenue ?? 0,
   });
   // O trajeto pode continuar carregando depois que o resumo chegou. Só o
   // resumo segura a tela: o dinheiro é o que a pessoa veio ver.

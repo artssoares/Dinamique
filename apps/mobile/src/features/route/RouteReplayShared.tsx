@@ -3,7 +3,7 @@ import { Animated, Pressable, View } from 'react-native';
 import type { LatLng, Metres } from '@dinamique/types';
 import { haversineMetres } from '@dinamique/business-logic';
 import { formatDistanceKm } from '@dinamique/utils';
-import { IconButton, Text, useTheme } from '@dinamique/ui';
+import { Icon, IconButton, Text, useTheme } from '@dinamique/ui';
 import { useRouteAnimation } from './useRouteAnimation';
 
 export const REPLAY_HEIGHT = 260;
@@ -100,6 +100,35 @@ export function RouteReplayShared({
           })}
         >
           {renderTrack(progress, index)}
+
+          {/*
+            The whole picture is the press target, and that was the problem:
+            nothing on it said so. A map is a picture until something tells you
+            otherwise, and drivers were tapping it, getting a sheet, and not
+            connecting the two — or worse, never tapping at all. So the control
+            is drawn. Pinned rather than laid out, because the track underneath
+            is a map canvas whose size we do not control, and `pointerEvents`
+            none so the badge never eats the tap it is advertising.
+          */}
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              right: theme.spacing.md,
+              bottom: theme.spacing.md,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: theme.spacing.xs,
+              paddingVertical: theme.spacing.xs,
+              paddingHorizontal: theme.spacing.sm,
+              borderRadius: theme.radius.pill,
+              backgroundColor: theme.colors.surfacePrimary,
+              ...theme.elevation.md,
+            }}
+          >
+            <Icon name="expand" size={15} color={theme.colors.textPrimary} />
+            <Text variant="captionStrong">Compartilhar</Text>
+          </View>
         </Pressable>
       ) : (
         <View style={{ height, justifyContent: 'center' }}>{renderTrack(progress, index)}</View>
@@ -113,12 +142,17 @@ export function RouteReplayShared({
           gap: theme.spacing.md,
         }}
       >
-        <IconButton
-          icon={finished ? 'play' : playing ? 'pause' : 'play'}
-          label={finished ? 'Ver de novo' : playing ? 'Pausar o trajeto' : 'Ver o trajeto'}
-          tone="surface"
-          onPress={toggle}
-        />
+        {/* Nothing to play on a standstill: one point is a place, not a
+            journey, and a play button that visibly does nothing is worse than
+            no play button. */}
+        {points.length > 1 ? (
+          <IconButton
+            icon={finished ? 'play' : playing ? 'pause' : 'play'}
+            label={finished ? 'Ver de novo' : playing ? 'Pausar o trajeto' : 'Ver o trajeto'}
+            tone="surface"
+            onPress={toggle}
+          />
+        ) : null}
 
         <View style={{ flex: 1 }}>
           {covered !== null ? (

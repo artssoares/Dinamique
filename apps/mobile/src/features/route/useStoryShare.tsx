@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Alert, Switch, View } from 'react-native';
+import { Alert, View } from 'react-native';
 import type Svg from 'react-native-svg';
 import type { Cents, DateOnly, LatLng, Metres, Seconds } from '@dinamique/types';
 import { trimRouteEnds } from '@dinamique/business-logic';
@@ -24,7 +24,6 @@ export interface StoryShareInput {
   distance: Metres | null;
   workedSeconds: Seconds;
   revenuePerKm: Cents | null;
-  grossRevenue: Cents;
 }
 
 export interface StoryShare {
@@ -66,14 +65,12 @@ export function useStoryShare({
   distance,
   workedSeconds,
   revenuePerKm,
-  grossRevenue,
 }: StoryShareInput): StoryShare {
   const theme = useTheme();
   const { preferences } = useRoutePreferences();
   const cardRef = useRef<Svg>(null);
   const [visible, setVisible] = useState(false);
   const [sharing, setSharing] = useState(false);
-  const [showEarnings, setShowEarnings] = useState(false);
 
   /**
    * The route as it leaves the phone, which is not the route on screen.
@@ -90,14 +87,8 @@ export function useStoryShare({
   );
 
   const figures = useMemo(
-    () =>
-      storyFigures({
-        distance,
-        workedSeconds,
-        revenuePerKm,
-        grossRevenue: showEarnings ? grossRevenue : null,
-      }),
-    [distance, workedSeconds, revenuePerKm, grossRevenue, showEarnings],
+    () => storyFigures({ distance, workedSeconds, revenuePerKm }),
+    [distance, workedSeconds, revenuePerKm],
   );
 
   // Two different reasons there may be no image, and the driver has to be able
@@ -128,7 +119,7 @@ export function useStoryShare({
         return;
       }
 
-      void track('route_story_shared', { trimmed: preferences.trimShared, earnings: showEarnings });
+      void track('route_story_shared', { trimmed: preferences.trimShared });
       setVisible(false);
     } catch {
       Alert.alert(
@@ -138,7 +129,7 @@ export function useStoryShare({
     } finally {
       setSharing(false);
     }
-  }, [date, preferences.trimShared, sharing, showEarnings]);
+  }, [date, preferences.trimShared, sharing]);
 
   const scale = PREVIEW_WIDTH / STORY_WIDTH;
 
@@ -214,32 +205,9 @@ export function useStoryShare({
           </View>
         </View>
 
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: theme.spacing.md,
-          }}
-        >
-          <View style={{ flex: 1 }}>
-            <Text variant="body">Mostrar quanto ganhei</Text>
-            {/*
-              Off by default, and it stays a decision rather than a setting we
-              make for them. A story that says how much cash somebody finished
-              the night with, from an account that shows the city they drive
-              in, is not a thing to opt people into.
-            */}
-            <Text variant="caption" color="muted">
-              Desligado, a imagem mostra só os km, o tempo e o valor por km.
-            </Text>
-          </View>
-          <Switch
-            value={showEarnings}
-            onValueChange={setShowEarnings}
-            accessibilityLabel="Mostrar quanto ganhei na imagem"
-          />
-        </View>
+        <Text variant="caption" color="muted">
+          A imagem mostra os km, o tempo e o valor por km. Quanto você ganhou nunca entra.
+        </Text>
 
         {preferences.trimShared ? (
           <Text variant="caption" color="muted">

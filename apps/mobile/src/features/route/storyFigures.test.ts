@@ -5,7 +5,6 @@ const day = {
   distance: 84_000,
   workedSeconds: 26_700,
   revenuePerKm: 210,
-  grossRevenue: null,
 };
 
 describe('storyFigures', () => {
@@ -14,11 +13,14 @@ describe('storyFigures', () => {
     expect(figures.map((f) => f.label)).toEqual(['km rodados', 'tempo', 'por km']);
   });
 
-  it('leaves earnings off the card unless they were asked for', () => {
-    expect(storyFigures(day).some((f) => f.label === 'faturamento')).toBe(false);
-    expect(
-      storyFigures({ ...day, grossRevenue: 32_000 }).some((f) => f.label === 'faturamento'),
-    ).toBe(true);
+  it('never puts what the driver earned on the card', () => {
+    // There is no switch for this any more, and that is the point: a story
+    // saying how much cash somebody finished the night with, from an account
+    // that shows the city they drive in, is not something to make the driver
+    // remember to decline.
+    const labels = storyFigures(day).map((f) => f.label);
+    expect(labels).not.toContain('faturamento');
+    expect(labels.length).toBe(3);
   });
 
   it('carries a missing distance through as null, never as zero', () => {
