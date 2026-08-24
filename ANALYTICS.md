@@ -78,7 +78,7 @@ emitido, e é isso que mantém a base consultável.
 | `route_capture_enabled` | quantos motoristas ligam a contagem por GPS |
 | `route_capture_denied` | **o que paga a conta** — diz se o texto da folha de permissão está funcionando, e em que etapa a pessoa desistiu |
 | `route_replay_viewed` | se o replay é visto mais de uma vez ou só no dia em que aparece |
-| `route_story_shared` | compartilhamentos, com `trimmed` e `earnings` — nunca o trajeto |
+| `route_story_shared` | compartilhamentos, com `trimmed` — nunca o trajeto, nunca ganhos |
 
 Nenhum deles carrega coordenada, endereço ou nome de lugar. `analytics_events`
 é a base menos protegida do schema (administradores com papel de analista leem

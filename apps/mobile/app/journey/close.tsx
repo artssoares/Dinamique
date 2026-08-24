@@ -351,7 +351,6 @@ export default function CloseJourney() {
     distance: summary.distance > 0 ? summary.distance : null,
     workedSeconds: summary.workedSeconds,
     revenuePerKm: summary.revenuePerKm,
-    grossRevenue: summary.grossRevenue,
   });
 
   async function save() {
