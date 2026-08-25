@@ -1,5 +1,6 @@
 import { View } from 'react-native';
-import { Button, Sheet, Text, useTheme } from '@dinamique/ui';
+import { Button, Icon, Sheet, Text, useTheme } from '@dinamique/ui';
+import { locationService } from './locationService';
 import { PERMISSION_COPY } from './permission';
 
 /**
@@ -30,6 +31,27 @@ export function RouteConsentSheet({
         <Text variant="body" color="secondary">
           {PERMISSION_COPY.rationaleBody}
         </Text>
+
+        {/* Antes do botão, não depois do dia. No navegador esta é a diferença
+            entre uma jornada contada e uma jornada perdida, e quem decide é
+            quem está lendo. */}
+        {locationService.supportsBackground ? null : (
+          <View
+            style={{
+              flexDirection: 'row',
+              gap: theme.spacing.sm,
+              padding: theme.spacing.lg,
+              borderRadius: theme.radius['2xl'],
+              backgroundColor: theme.colors.warningSubtle,
+            }}
+          >
+            <Icon name="alert" size={17} color={theme.colors.warningText} />
+            <Text variant="caption" color="warning" style={{ flex: 1 }}>
+              {PERMISSION_COPY.browserOnly}
+            </Text>
+          </View>
+        )}
+
         <Text variant="caption" color="muted">
           {PERMISSION_COPY.rationaleFooter}
         </Text>

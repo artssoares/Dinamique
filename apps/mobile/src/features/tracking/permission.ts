@@ -27,6 +27,17 @@ export const PERMISSION_COPY = {
     'Enquanto a jornada estiver aberta, o aplicativo acompanha o trajeto só para somar a quilometragem.',
   rationaleFooter:
     'Você continua podendo digitar os km na mão, e pode desligar isso quando quiser em Mais › Trajeto e privacidade.',
+  /**
+   * The web's honest caveat, said before the switch rather than after the day.
+   *
+   * A browser reports no position at all once its tab leaves the screen, and
+   * the driver this is built for spends the whole shift with Uber or 99 on
+   * top. Without this line the sheet promises counting that, for that driver,
+   * never happens: they turn it on, work a full day, and close the journey
+   * with no route and no idea why.
+   */
+  browserOnly:
+    'Aqui no navegador a contagem só corre com o Dinamique aberto na tela. Se você usa Uber, 99 ou iFood por cima, instale o aplicativo: nele a contagem continua com o celular no bolso e a tela apagada.',
   backgroundTitle: 'Contar mesmo com o celular no bolso',
   backgroundBody:
     'Para continuar somando com a tela desligada ou em outro aplicativo, o sistema pede a permissão “Sempre”.',
