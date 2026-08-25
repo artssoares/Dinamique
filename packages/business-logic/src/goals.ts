@@ -1,5 +1,5 @@
 import type { Cents, DateOnly, GoalBasis, GoalPeriod } from '@dinamique/types';
-import { elapsedDays, periodRange, rangeLengthDays, roundCents } from '@dinamique/utils';
+import { addDays, elapsedDays, periodRange, rangeLengthDays, roundCents } from '@dinamique/utils';
 import type { PeriodSummary } from './financials';
 
 /**
@@ -93,6 +93,49 @@ export function estimateSecondsToGoal(input: {
   const perSecond = achievedToday / workedSecondsToday;
   if (perSecond <= 0) return null;
   return Math.round(remaining / perSecond);
+}
+
+/**
+ * How many days in a row, counting back, the daily goal was met.
+ *
+ * This is the number behind "você bateu sua meta por N dias seguidos", and
+ * until now the screen passed a hard-coded zero, so that insight could never
+ * fire for anybody. A streak is the one figure in the product that rewards
+ * showing up rather than earning more, which is exactly why it is worth
+ * getting right.
+ *
+ * Today is counted only once it has been met. A morning that has not reached
+ * the target yet is a day still being worked, not a streak that broke, and
+ * resetting the count at midnight every night would make it useless.
+ *
+ * A day with no record at all breaks the streak. That is deliberate: the
+ * claim is "you hit your goal every day", and a day off did not hit it.
+ * Callers pass the days they have, so a day outside the window read here
+ * simply ends the count rather than reaching back for ever.
+ */
+export function goalStreakDays(input: {
+  target: Cents;
+  /** The days available, in any order. Missing days count as nothing earned. */
+  days: readonly { date: DateOnly; achieved: Cents }[];
+  today: DateOnly;
+}): number {
+  const { target, today } = input;
+  if (target <= 0) return 0;
+
+  const achieved = new Map(input.days.map((day) => [day.date, day.achieved]));
+  const met = (date: DateOnly) => (achieved.get(date) ?? 0) >= target;
+
+  let cursor: DateOnly = met(today) ? today : addDays(today, -1);
+  let streak = 0;
+
+  // Bounded by the days actually supplied: the first date with no row reads
+  // as nothing earned and stops the walk.
+  while (met(cursor)) {
+    streak += 1;
+    cursor = addDays(cursor, -1);
+  }
+
+  return streak;
 }
 
 /**

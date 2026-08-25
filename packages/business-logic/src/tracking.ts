@@ -57,21 +57,10 @@ export const SHARED_ROUTE_TRIM_M = 500;
 export const MAX_TRIM_SHARE = 0.1;
 
 /**
- * Below this, a route cannot be trimmed into anything worth publishing, and
- * `trimRouteEnds` returns nothing at all. Failing closed is the point: a short
- * route shared whole is an address, not a shape.
+ * A route needs an interior to survive having both ends removed. Two points
+ * are two ends, so there is nothing left over to draw.
  */
-export const MIN_POINTS_TO_TRIM = 5;
-
-/**
- * The trim has to actually hide a block or two, not a doorstep.
- *
- * The cap is proportional, so on a 300 m route a tenth is thirty metres —
- * which clears every count-based guard and still starts the picture at the
- * driver's address. A route that cannot give up this much from each end is not
- * shareable, and at `MAX_TRIM_SHARE` that means anything under 1.5 km.
- */
-export const MIN_TRIM_M = 150;
+export const MIN_POINTS_TO_TRIM = 3;
 
 /**
  * A gap longer than this between two accepted fixes is a stop, not movement —
@@ -323,24 +312,36 @@ export function fitToPointBudget(
  * The trim is capped at `MAX_TRIM_SHARE` of the total per end: 500 m off each
  * end of a 3 km route would eat a third of it, and a driver sharing a short
  * shift deserves a line that still looks like where they went.
+ *
+ * It used to refuse outright below a minimum trim, which in practice meant
+ * every route under about 1.5 km came back empty and the driver was told their
+ * day was "curto demais para compartilhar". A short shift is still a shift,
+ * and a privacy rule whose visible effect is that the feature does not work is
+ * not protecting anybody, it is just off.
+ *
+ * So the rule is structural rather than metric now. Whatever the budget works
+ * out to, the first and last points never survive into the slice: the picture
+ * never begins where the driver actually set off from. What the cap decides is
+ * how much *more* than that gets taken, which on a long shift is the full
+ * 500 m and on a short one is proportionally less. The only routes that come
+ * back empty are the ones with nothing to draw either way.
  */
 export function trimRouteEnds(
   points: readonly LatLng[],
   trimM: number = SHARED_ROUTE_TRIM_M,
 ): LatLng[] {
   if (trimM <= 0) return [...points];
-  // Too short to hide anything in: returning it whole would publish the exact
-  // spot the driver set off from, which is the one thing this exists to stop.
+  // Two points are two ends. Removing both leaves nothing, and publishing
+  // either is the one thing this exists to stop.
   if (points.length < MIN_POINTS_TO_TRIM) return [];
 
   const last = points.length - 1;
   const total = trackDistance(points);
-  const budget = total > 0 ? Math.min(trimM, total * MAX_TRIM_SHARE) : 0;
+  // A pile of readings in one place is a parked car, not a route. There is no
+  // shape in it to publish, only an address.
+  if (total <= 0) return [];
 
-  // A proportional cap on a short route hides a doorstep, not a
-  // neighbourhood. If it cannot give up a real distance from each end, it is
-  // not shareable.
-  if (budget < MIN_TRIM_M) return [];
+  const budget = Math.min(trimM, total * MAX_TRIM_SHARE);
 
   // Two conditions, and both have to hold. Walking the path alone is not
   // enough: a shift that opens with a loop around the block covers the whole
@@ -368,12 +369,29 @@ export function trimRouteEnds(
     end -= 1;
   }
 
-  // With a budget of at least MIN_TRIM_M and real distance to walk, each loop
-  // takes at least one step — so neither original endpoint can survive into
-  // the slice. The walks can still cross on a route that doubles back tightly.
-  // Nothing left to show is the correct answer: the alternative is publishing
-  // the ends, and the caller refuses to share an empty route.
-  if (start > end || end - start + 1 < 2) return [];
+  // The floor, and it does not depend on the budget having been spendable. On
+  // a route short enough that a tenth of it is thirty metres, this is the
+  // whole of the protection: the picture starts one reading in from wherever
+  // the driver really was.
+  start = Math.max(start, 1);
+  end = Math.min(end, last - 1);
+
+  // The two walks can cross on a route that doubles back on itself. The middle
+  // is the part furthest from both ends, so that is what is kept. The old
+  // answer here was to publish nothing, which cost the driver the picture over
+  // a shape rather than over a risk.
+  if (start > end) {
+    const middle = Math.round(last / 2);
+    start = Math.min(Math.max(1, middle), last - 1);
+    end = start;
+  }
+
+  // One point is a place; two are a line. Widen into the interior when there
+  // is interior left to widen into.
+  while (end - start + 1 < 2 && (end < last - 1 || start > 1)) {
+    if (end < last - 1) end += 1;
+    else start -= 1;
+  }
 
   return points.slice(start, end + 1);
 }

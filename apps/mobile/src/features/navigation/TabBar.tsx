@@ -41,6 +41,27 @@ export interface TabBarProps extends BottomTabBarProps {
   badge?: number;
 }
 
+export interface TabBarSurfaceProps {
+  /** Which destination is showing, or null when none of them is. */
+  activeName: string | null;
+  onSelect: (name: string) => void;
+  /** Unread count shown on "Mais". */
+  badge?: number;
+  /**
+   * Whether this bar is the one the product tour points at.
+   *
+   * Only one may be. The tour keys its anchors by name, so with two bars
+   * mounted at once (the navigator's, and the floating one over a pushed
+   * screen), the second would take `tab-record` off the first, and unmount
+   * on the way back would delete it outright. The coach mark would then
+   * point at nothing.
+   */
+  anchorTour?: boolean;
+}
+
+/** The five destinations, in the order they sit in the bar. */
+export const TAB_NAMES = TABS.map((tab) => tab.name);
+
 /**
  * The floating tab bar.
  *
@@ -65,6 +86,46 @@ export interface TabBarProps extends BottomTabBarProps {
  *      width, the fill and the label's opacity together.
  */
 export function TabBar({ state, navigation, badge = 0 }: TabBarProps) {
+  const activeRoute = state.routes[state.index]?.name ?? null;
+
+  return (
+    <TabBarSurface
+      activeName={activeRoute}
+      badge={badge}
+      onSelect={(name) => {
+        const route = state.routes.find((item) => item.name === name);
+        if (!route) return;
+        const event = navigation.emit({
+          type: 'tabPress',
+          target: route.key,
+          canPreventDefault: true,
+        });
+        if (activeRoute !== name && !event.defaultPrevented) {
+          navigation.navigate(route.name);
+        }
+      }}
+    />
+  );
+}
+
+/**
+ * The bar itself, with no navigator behind it.
+ *
+ * Split out from `TabBar` because the same bar now has to appear on screens
+ * that are *not* inside the tab navigator. A pushed screen (a goal, a
+ * refuelling, a day of the history) used to leave the driver with no
+ * navigation at all until they found their way back, which on the web is
+ * simply an app with no menu on most of its pages.
+ *
+ * Everything about how it looks and moves lives here, so the two callers
+ * cannot drift into being two different bars.
+ */
+export function TabBarSurface({
+  activeName,
+  onSelect,
+  badge = 0,
+  anchorTour = true,
+}: TabBarSurfaceProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { isCompact, contentWidth } = useResponsive();
@@ -72,7 +133,7 @@ export function TabBar({ state, navigation, badge = 0 }: TabBarProps) {
   // spread across 560dp read as five separate buttons, not as one bar.
   const barWidth = Math.min(contentWidth, 420);
 
-  const activeRoute = state.routes[state.index]?.name;
+  const activeRoute = activeName;
 
   return (
     <View
@@ -108,32 +169,17 @@ export function TabBar({ state, navigation, badge = 0 }: TabBarProps) {
           theme.elevation.xl,
         ]}
       >
-        {TABS.map((tab) => {
-          const route = state.routes.find((item) => item.name === tab.name);
-          if (!route) return null;
-
-          const focused = activeRoute === tab.name;
-
-          return (
-            <TabItem
-              key={tab.name}
-              tab={tab}
-              focused={focused}
-              badge={tab.name === 'more' ? badge : 0}
-              compact={isCompact}
-              onPress={() => {
-                const event = navigation.emit({
-                  type: 'tabPress',
-                  target: route.key,
-                  canPreventDefault: true,
-                });
-                if (!focused && !event.defaultPrevented) {
-                  navigation.navigate(route.name);
-                }
-              }}
-            />
-          );
-        })}
+        {TABS.map((tab) => (
+          <TabItem
+            key={tab.name}
+            tab={tab}
+            focused={activeRoute === tab.name}
+            badge={tab.name === 'more' ? badge : 0}
+            compact={isCompact}
+            anchorTour={anchorTour}
+            onPress={() => onSelect(tab.name)}
+          />
+        ))}
       </View>
     </View>
   );
@@ -144,12 +190,14 @@ function TabItem({
   focused,
   badge,
   compact,
+  anchorTour,
   onPress,
 }: {
   tab: TabConfig;
   focused: boolean;
   badge: number;
   compact: boolean;
+  anchorTour: boolean;
   onPress: () => void;
 }) {
   const theme = useTheme();
@@ -223,7 +271,9 @@ function TabItem({
 
   return (
     <Pressable
-      ref={tourTarget.ref}
+      // Attached only on the bar that owns the tour. An unattached ref never
+      // registers, so the other bar cannot take the anchor away from it.
+      ref={anchorTour ? tourTarget.ref : undefined}
       collapsable={false}
       accessibilityRole="tab"
       accessibilityState={{ selected: focused }}

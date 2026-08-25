@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ThemeProvider, useTheme } from '@dinamique/ui';
+import { BottomInsetProvider, ThemeProvider, useTheme } from '@dinamique/ui';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { SetupScreen } from '@/features/setup/SetupScreen';
 import { SessionProvider, useSession } from '@/hooks/useSession';
@@ -13,6 +13,11 @@ import { OfflineBanner } from '@/features/offline/OfflineBanner';
 import { Tour } from '@/features/tour/Tour';
 import { TourProvider } from '@/features/tour/TourProvider';
 import { JourneyProvider } from '@/features/journey/useJourney';
+import {
+  GLOBAL_TAB_BAR_SPACE,
+  GlobalTabBar,
+  useGlobalTabBarVisible,
+} from '@/features/navigation/GlobalTabBar';
 import { markDocumentReady } from '@/features/theme/preference';
 import { useThemeBoot } from '@/features/theme/useThemeBoot';
 // Side-effect import, and it has to stay at module scope. iOS relaunches the
@@ -54,28 +59,39 @@ function RootNavigator() {
     }
   }, [loading, session, profile, segments, router]);
 
+  // The menu that stays put on pushed screens. Reserved and drawn from one
+  // answer, so a screen never holds space for a bar that is not there.
+  const menu = useGlobalTabBarVisible();
+
   return (
     <>
       <OfflineBanner />
       {/* Every pushed screen draws its own <ScreenHeader>, which is what
           guarantees a visible way back – the native header is off. */}
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: theme.colors.backgroundPrimary },
-          animation: 'slide_from_right',
-          // Long enough to read as movement, short enough that nobody waits
-          // for it. The default cut is what made the app feel dry.
-          animationDuration: 300,
-          gestureEnabled: true,
-        }}
-      >
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="onboarding" />
-        <Stack.Screen name="support" options={{ presentation: 'card' }} />
-        <Stack.Screen name="assinatura" options={{ presentation: 'card' }} />
-      </Stack>
+      <BottomInsetProvider value={menu ? GLOBAL_TAB_BAR_SPACE : 0}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: theme.colors.backgroundPrimary },
+            animation: 'slide_from_right',
+            // Long enough to read as movement, short enough that nobody waits
+            // for it. The default cut is what made the app feel dry.
+            animationDuration: 300,
+            gestureEnabled: true,
+          }}
+        >
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="onboarding" />
+          <Stack.Screen name="support" options={{ presentation: 'card' }} />
+          <Stack.Screen name="assinatura" options={{ presentation: 'card' }} />
+        </Stack>
+      </BottomInsetProvider>
+
+      {/* After the stack, so it floats over whichever screen is showing. It
+          renders nothing at all inside the tab group, where the navigator
+          draws its own. */}
+      <GlobalTabBar />
     </>
   );
 }

@@ -36,6 +36,7 @@ import { ProductSalePicker } from '@/features/products/ProductSalePicker';
 import { costRows, revenueRows as saleRevenueRows, totalsFor } from '@/features/products/sales';
 import { useProducts } from '@/features/products/useProducts';
 import { closeRowClientId } from '@/features/journey/closeClientIds';
+import { uniformRows } from '@/features/journey/closeRows';
 import { resolveDistanceSource } from '@/features/journey/distanceSource';
 import { useJourneyTracking } from '@/features/tracking/useJourneyTracking';
 import { useRoutePreferences } from '@/features/tracking/preferences';
@@ -99,10 +100,20 @@ export default function CloseJourney() {
   /**
    * How the drawing ended up. 'pending' until the upload settles, so the
    * "o sinal do GPS falhou" card cannot flash on its way to succeeding.
+   *
+   *  - `kept`  the drawing exists and is filed against the account;
+   *  - `lost`  the drawing exists on this phone but could not be filed;
+   *  - `empty` capture was running and produced nothing to draw;
+   *  - `off`   the driver never asked us to count, so there is nothing to say.
+   *
+   * `kept` and `lost` both put the map on screen. They differ by one line
+   * underneath it, because a driver who just watched their day being counted
+   * should see it whatever the upload did: the points were measured on this
+   * phone and have not left it.
    */
-  const [routeOutcome, setRouteOutcome] = useState<'pending' | 'kept' | 'lost' | 'none'>(
-    'pending',
-  );
+  const [routeOutcome, setRouteOutcome] = useState<
+    'pending' | 'kept' | 'lost' | 'empty' | 'off'
+  >('pending');
   /**
    * Everything the summary needs about the journey, captured before it closes.
    *
@@ -432,6 +443,9 @@ export default function CloseJourney() {
         platform_id: platform.id,
         date,
         amount: parseCents(amounts[platform.id] ?? '') ?? 0,
+        // Named even though it is zero. The close can send fares and sales in
+        // one batch, and `tips` is the column that refuses a null.
+        tips: 0,
         trip_count: trips[platform.id]?.trim() ? Number(trips[platform.id]) : null,
         client_id: closeRowClientId(journey.id, 'revenue', platform.id),
       }))
@@ -615,11 +629,22 @@ export default function CloseJourney() {
       // One point is a route. A driver who opened and closed a journey
       // without leaving the block still gets to see where they were — the
       // drawing is not the km figure, and only the km figure has a minimum.
-      const hasRoute = Boolean(measured && measured.points.length >= 1) && keepRoute;
-      if (!hasRoute) setRouteOutcome('none');
-      let routeSettled = !hasRoute;
+      const drawn = Boolean(measured && measured.points.length >= 1);
+      // Filing needs a yes on record. Showing does not: these points were
+      // measured on this phone and have not left it, and hiding the driver's
+      // own day from them because a preference read timed out is exactly the
+      // failure this screen kept having.
+      const upload = drawn && keepRoute;
+      // Consent we actually read, and it said no: the shift was captured and
+      // then the driver switched counting off. Nothing is filed and nothing
+      // is shown. Every other case with a drawing puts it on screen.
+      const withheld = consentKnown && !keepRoute;
+      if (withheld) setRouteOutcome('off');
+      else if (!drawn) setRouteOutcome('empty');
+      else if (!upload) setRouteOutcome('lost');
+      let routeSettled = !upload;
 
-      if (measured && hasRoute) {
+      if (measured && upload) {
         const row = {
           journey_id: journey.id,
           user_id: userId,
@@ -709,7 +734,9 @@ export default function CloseJourney() {
             </View>
           </Card>
 
-        {routeOutcome === 'kept' && measured && measured.points.length >= 1 ? (
+        {(routeOutcome === 'kept' || routeOutcome === 'lost') &&
+        measured &&
+        measured.points.length >= 1 ? (
           <Card padding="lg" style={{ gap: theme.spacing.md }}>
             <Text variant="caption" color="secondary">
               SEU TRAJETO DE HOJE
@@ -732,14 +759,31 @@ export default function CloseJourney() {
               />
             ) : null}
             {story.sheet}
+
+            {/* O desenho está aqui, no aparelho. O que falhou foi guardá-lo
+                no histórico, e é isso que a linha diz. */}
+            {routeOutcome === 'lost' ? (
+              <Text variant="caption" color="muted">
+                Este desenho não chegou a ser guardado no seu histórico. Ele fica aqui até
+                você sair desta tela. Seus ganhos, o tempo e os km estão salvos normalmente.
+              </Text>
+            ) : null}
           </Card>
         ) : null}
 
-        {routeOutcome === 'lost' ? (
-          <Card padding="lg">
+        {/* Também cobre um `lost` sem nenhum ponto: alguma coisa falhou antes
+            de o trajeto existir, e o motorista merece a mesma explicação. */}
+        {routeOutcome === 'empty' ||
+        (routeOutcome === 'lost' && !(measured && measured.points.length >= 1)) ? (
+          <Card padding="lg" style={{ gap: theme.spacing.xs }}>
+            <Text variant="captionStrong">Hoje ficamos sem o desenho do caminho</Text>
             <Text variant="caption" color="secondary">
-              Não conseguimos desenhar o trajeto de hoje — o sinal do GPS falhou em parte do
-              caminho. Seus ganhos e o tempo estão salvos normalmente.
+              O GPS não conseguiu acompanhar o trajeto desta jornada. Seus ganhos, o tempo e os
+              km estão salvos normalmente.
+            </Text>
+            <Text variant="caption" color="muted">
+              No navegador só dá para contar com o Dinamique aberto na tela. Deixe a tela ligada
+              durante a jornada, ou use o aplicativo instalado, e o caminho aparece inteiro.
             </Text>
           </Card>
         ) : null}
@@ -997,5 +1041,9 @@ async function replaceRows(
 
   if (deleteError) return { error: deleteError };
   if (rows.length === 0) return { error: null };
-  return supabase.from(table).insert(rows);
+  // Normalised, not passed straight through. A close can carry an app fare
+  // and a product sale at once, and those two builders name different
+  // columns; PostgREST inserts a batch by the union of its keys, so the row
+  // that omitted one used to arrive with a null in it.
+  return supabase.from(table).insert(uniformRows(table, rows));
 }

@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Cents, DateOnly, GoalPeriod } from '@dinamique/types';
+import type { Cents, DateOnly, GoalBasis, GoalPeriod } from '@dinamique/types';
 import {
+  achievedForBasis,
   computeDailyScore,
+  computeGoalProgress,
+  goalStreakDays,
   projectPeriodTotal,
   summarisePeriod,
   type DailyScore,
+  type GoalProgress,
   type PeriodSummary,
   type Projection,
 } from '@dinamique/business-logic';
@@ -34,6 +38,23 @@ export interface PeriodReport {
   fuelSpend: Cents;
   daysWithData: number;
   rows: DayRow[];
+  /**
+   * The goal for the period on screen, and how it is going.
+   *
+   * Null when the driver has not set one. Never a zero target: a progress ring
+   * against a goal nobody chose is an invented number (§6).
+   */
+  goal: GoalProgress | null;
+  /** 'gross' or 'net', so the screen can name what is being counted. */
+  goalBasis: GoalBasis;
+  /**
+   * Consecutive days the daily goal was met, counting back from today.
+   *
+   * Fed straight into `generateInsights`, which is where the "N dias seguidos"
+   * sentence comes from. It used to be hard-coded to zero, so that insight
+   * could never appear for anybody.
+   */
+  goalStreak: number;
 }
 
 /**
@@ -113,13 +134,15 @@ export function usePeriodReport(period: GoalPeriod) {
         .eq('user_id', session.user.id)
         .gte('date', current.start)
         .lte('date', current.end),
+      // Every active goal, not only the daily one. The score and the streak
+      // are daily questions; the card on screen asks about the period the
+      // driver is looking at, and two queries for one table is a round trip
+      // nobody needs.
       supabase
         .from('goals')
-        .select('target, basis')
+        .select('period, target, basis')
         .eq('user_id', session.user.id)
-        .eq('period', 'daily')
-        .eq('is_active', true)
-        .maybeSingle(),
+        .eq('is_active', true),
     ]);
 
     const all = (rowsResult.data as DayRow[] | null) ?? [];
@@ -132,8 +155,17 @@ export function usePeriodReport(period: GoalPeriod) {
     const todayRow = all.find((row) => row.date === today);
     const todaySummary = todayRow ? summariseRows([todayRow]) : null;
 
-    const goalTarget = (goalResult.data?.target as Cents | undefined) ?? null;
-    const goalBasis = (goalResult.data?.basis as 'gross' | 'net' | undefined) ?? 'gross';
+    const goals = new Map(
+      ((goalResult.data as { period: GoalPeriod; target: Cents; basis: GoalBasis }[] | null) ?? [])
+        .map((row) => [row.period, row]),
+    );
+    const dailyGoal = goals.get('daily') ?? null;
+    const periodGoal = goals.get(period) ?? null;
+    const goalTarget = dailyGoal?.target ?? null;
+    // The basis is one choice across every period, so whichever goal exists
+    // answers it. Falling back to the period's own goal keeps the label
+    // honest for a driver who only ever set a monthly one.
+    const goalBasis: GoalBasis = dailyGoal?.basis ?? periodGoal?.basis ?? 'gross';
 
     const score = computeDailyScore({
       goalTarget,
@@ -169,6 +201,25 @@ export function usePeriodReport(period: GoalPeriod) {
       score,
       bestDay: bestDay ? { date: bestDay.date, profit: bestDay.net_profit } : null,
       ...weekdayStats(currentRows.concat(previousRows)),
+      goal: periodGoal
+        ? computeGoalProgress({
+            target: periodGoal.target,
+            achieved: achievedForBasis(summary, periodGoal.basis),
+            period,
+            today,
+          })
+        : null,
+      goalBasis,
+      goalStreak: goalTarget
+        ? goalStreakDays({
+            target: goalTarget,
+            today,
+            days: all.map((row) => ({
+              date: row.date as DateOnly,
+              achieved: goalBasis === 'gross' ? row.gross_revenue : row.net_profit,
+            })),
+          })
+        : 0,
       fuelSpend: ((fuelResult.data as { total_amount: number }[] | null) ?? []).reduce(
         (acc, row) => acc + row.total_amount,
         0,

@@ -170,10 +170,29 @@ export default function History() {
                       {weekdayLabel(item.date)}
                     </Text>
                   </View>
-                  {/* Um glifo, e só nos dias que têm trajeto. Sem selo, sem
-                      banner, sem convencer ninguém a ligar o GPS. */}
+                  {/* Só nos dias que têm trajeto. Com a palavra junto do
+                      ícone: sozinho ele era pequeno demais para alguém
+                      entender que ali dentro havia um mapa, e o desenho do
+                      caminho é justamente a parte do produto que ninguém
+                      estava encontrando. Sem selo, sem banner, sem convencer
+                      ninguém a ligar o GPS. */}
                   {hasRoute ? (
-                    <Icon name="route" size={16} color={theme.colors.brandPrimary} />
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: theme.spacing.xs,
+                        paddingVertical: 2,
+                        paddingHorizontal: theme.spacing.sm,
+                        borderRadius: theme.radius.pill,
+                        backgroundColor: theme.colors.brandPrimarySubtle,
+                      }}
+                    >
+                      <Icon name="route" size={14} color={theme.colors.brandPrimary} />
+                      <Text variant="caption" color="brand">
+                        Trajeto
+                      </Text>
+                    </View>
                   ) : null}
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs }}>
