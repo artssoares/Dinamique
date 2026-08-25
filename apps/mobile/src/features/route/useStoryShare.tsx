@@ -141,17 +141,19 @@ export function useStoryShare({
       description={
         nothingDriven
           ? 'Hoje o telefone ficou parado no mesmo lugar.'
-          : 'O caminho de hoje tem poucos pontos.'
+          : 'O trajeto de hoje ficou perto de onde começou.'
       }
     >
       <View style={{ gap: theme.spacing.md }}>
         <Text variant="body">
           {nothingDriven
             ? 'A imagem do story é o desenho do seu caminho, e sem caminho não há o que desenhar. Rode alguns quilômetros com a jornada aberta e ela aparece aqui.'
-            : 'A imagem nunca mostra o ponto exato em que você começou e terminou o dia, para ninguém descobrir onde você mora. Hoje sobraram tão poucos pontos que, tirando as duas pontas, não fica desenho nenhum.'}
+            : 'A imagem nunca mostra onde você começou e terminou o dia, para ninguém descobrir onde você mora. Hoje o caminho inteiro ficou dentro dessa distância, então não dá para mostrar nada sem entregar o lugar.'}
         </Text>
         <Text variant="caption" color="muted">
-          Rode um pouco mais com a jornada aberta e o desenho aparece aqui.
+          {nothingDriven
+            ? 'Rode um pouco mais com a jornada aberta e o desenho aparece aqui.'
+            : 'Um trajeto que se afaste um pouco mais do ponto de partida já aparece aqui.'}
         </Text>
       </View>
     </Sheet>

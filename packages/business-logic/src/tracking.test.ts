@@ -4,6 +4,7 @@ import {
   fitToPointBudget,
   filterFixes,
   haversineMetres,
+  MIN_TRIM_M,
   MAX_STORED_ROUTE_POINTS,
   MIN_GPS_DISTANCE_M,
   simplifyTrack,
@@ -225,30 +226,37 @@ describe('trimRouteEnds', () => {
     ).toEqual([]);
   });
 
-  it('still shares a short trip, one reading in from each end', () => {
-    // ~300 m over thirty points. This used to come back empty and the driver
-    // was told their day was too short to share, which is the feature simply
-    // not working rather than a privacy rule doing its job.
-    const shortTrip = straightRun(30, 10).map((f) => ({ lat: f.lat, lon: f.lon }));
-    expect(trackDistance(shortTrip)).toBeLessThan(1_500);
+  it('shares a short shift the old rule refused outright', () => {
+    // ~1 km. The proportional trim is 100 m, under the minimum, and the old
+    // rule read that as "refuse" — so the driver was told a one kilometre day
+    // was too short to share. The minimum raises the budget instead.
+    const shortShift = straightRun(50, 20).map((f) => ({ lat: f.lat, lon: f.lon }));
+    expect(trackDistance(shortShift)).toBeLessThan(1_500);
 
-    const trimmed = trimRouteEnds(shortTrip);
+    const trimmed = trimRouteEnds(shortShift);
     expect(trimmed.length).toBeGreaterThanOrEqual(2);
-    expect(trimmed[0]).not.toEqual(shortTrip[0]);
-    expect(trimmed.at(-1)).not.toEqual(shortTrip.at(-1));
+    expect(haversineMetres(shortShift[0]!, trimmed[0]!)).toBeGreaterThanOrEqual(MIN_TRIM_M);
+    expect(haversineMetres(shortShift.at(-1)!, trimmed.at(-1)!)).toBeGreaterThanOrEqual(
+      MIN_TRIM_M,
+    );
   });
 
-  it('keeps the middle of a route that doubles back on itself', () => {
-    // The two walks cross here. Publishing nothing was the old answer, which
-    // cost the driver the picture over a shape rather than over a risk.
+  it('never publishes a point inside the minimum radius', () => {
+    // The whole point of the minimum. A 300 m errand cannot give up 150 m from
+    // each end and still leave a line, so it is not published at all — a
+    // picture starting thirty metres from someone's gate is their address.
+    const errand = straightRun(30, 10).map((f) => ({ lat: f.lat, lon: f.lon }));
+    expect(trackDistance(errand)).toBeLessThan(2 * MIN_TRIM_M);
+    expect(trimRouteEnds(errand)).toEqual([]);
+  });
+
+  it('refuses a route that never leaves its own neighbourhood', () => {
+    // Out and straight back: plenty of metres walked, never far from home.
     const outAndBack = [...straightRun(8, 12), ...straightRun(8, 12).reverse()].map((f) => ({
       lat: f.lat,
       lon: f.lon,
     }));
-    const trimmed = trimRouteEnds(outAndBack);
-    expect(trimmed.length).toBeGreaterThanOrEqual(1);
-    expect(trimmed[0]).not.toEqual(outAndBack[0]);
-    expect(trimmed.at(-1)).not.toEqual(outAndBack.at(-1));
+    expect(trimRouteEnds(outAndBack)).toEqual([]);
   });
 
   it('refuses a pile of points in one place', () => {

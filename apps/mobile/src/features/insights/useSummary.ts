@@ -16,6 +16,22 @@ import { addDays, periodRange, toDateOnly, weekdayLabel } from '@dinamique/utils
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/useSession';
 
+/**
+ * How far back the goal streak is allowed to look.
+ *
+ * Its own window, and not the report's, because the report's depends on which
+ * period tab is showing: reading the streak off those rows capped it at
+ * fourteen days on Semana and then reported a different number for the same
+ * driver on Mês. A streak is a fact about the driver, not about the tab they
+ * happen to be on.
+ *
+ * Bounded rather than unbounded because the walk stops at the first missed day
+ * anyway, so anything beyond this is a driver who has hit their goal every
+ * single day for six months, and capping that is a happier problem than an
+ * unbounded query on every visit to the tab.
+ */
+const GOAL_STREAK_WINDOW_DAYS = 180;
+
 export interface DayRow {
   date: string;
   gross_revenue: number;
@@ -121,7 +137,7 @@ export function usePeriodReport(period: GoalPeriod) {
       end: addDays(current.end, -length),
     };
 
-    const [rowsResult, fuelResult, goalResult] = await Promise.all([
+    const [rowsResult, fuelResult, goalResult, streakResult] = await Promise.all([
       supabase
         .from('daily_totals')
         .select('date, gross_revenue, total_expenses, vehicle_expenses, net_profit, worked_seconds, distance, trip_count')
@@ -143,6 +159,15 @@ export function usePeriodReport(period: GoalPeriod) {
         .select('period, target, basis')
         .eq('user_id', session.user.id)
         .eq('is_active', true),
+      // A separate read on a fixed window, so the streak is the same number
+      // whichever period tab is open. Two columns and a date: the rest of the
+      // report's shape is not needed to answer "did they hit the goal".
+      supabase
+        .from('daily_totals')
+        .select('date, gross_revenue, net_profit')
+        .eq('user_id', session.user.id)
+        .gte('date', addDays(today, -GOAL_STREAK_WINDOW_DAYS))
+        .lte('date', today),
     ]);
 
     const all = (rowsResult.data as DayRow[] | null) ?? [];
@@ -214,7 +239,11 @@ export function usePeriodReport(period: GoalPeriod) {
         ? goalStreakDays({
             target: goalTarget,
             today,
-            days: all.map((row) => ({
+            days: (
+              (streakResult.data as
+                | { date: string; gross_revenue: number; net_profit: number }[]
+                | null) ?? []
+            ).map((row) => ({
               date: row.date as DateOnly,
               achieved: goalBasis === 'gross' ? row.gross_revenue : row.net_profit,
             })),
