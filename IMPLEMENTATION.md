@@ -37,6 +37,7 @@ mockup. Nothing listed as not built is stubbed with a button that does nothing.
 | Home: goal, profit, R$/h, R$/km, time-to-goal | **built** |
 | Fuel entry screen | **built** – informe dois valores, o terceiro é calculado |
 | Guided journey close (revenue per platform, km, quick expense chips) | **built** – três passos e um resumo |
+| Uber Passe como categoria de gasto | **built** — catálogo e atalho no fechamento da jornada |
 | Goal management screen | **built** – create, edit and remove per period |
 
 ## Phase 5 – history and insights
@@ -158,6 +159,7 @@ mockup. Nothing listed as not built is stubbed with a button that does nothing.
 | Replay animado (mapa Esri no aparelho, traço na web) | **built** |
 | Glifo de trajeto no histórico | **built** — só nos dias que têm um |
 | Card 1080×1920 e compartilhamento | **built** — PNG, sem tile de mapa, com o logotipo de verdade |
+| Exportação na web fiel ao preview | **built** — o SVG é serializado e pintado num canvas 1080×1920 pelo próprio app; o `toDataURL` da biblioteca media o nó já reduzido pelo transform e devolvia o canto superior esquerdo ampliado |
 | `eas.json` e config plugins | **built** — nunca rodados: veja os buracos abaixo |
 
 ## Verified end to end

@@ -1,4 +1,5 @@
 import { forwardRef, Fragment } from 'react';
+import { Platform } from 'react-native';
 import Svg, {
   Circle,
   Defs,
@@ -15,6 +16,7 @@ import { traceTo } from '../route/geometry';
 import { WORDMARK_ASPECT_RATIO, WORDMARK_NEGATIVE_DATA_URI } from './wordmark';
 import {
   FIGURE_ROW_Y,
+  STORY_FONT_STACK,
   STORY_HEIGHT,
   STORY_MARGIN,
   STORY_TYPE,
@@ -22,7 +24,11 @@ import {
   TRACE,
   TRACE_STROKE,
   figureColumnX,
+  figureRowFontSize,
 } from './storyLayout';
+
+/** Only the web needs telling; native falls back to the system face. */
+const FONT = Platform.select({ web: STORY_FONT_STACK, default: undefined });
 
 export interface StoryFigure {
   label: string;
@@ -64,6 +70,11 @@ export const StoryCard = forwardRef<Svg, StoryCardProps>(function StoryCard(
   const start = trace?.points[0];
   const end = trace?.points[trace.points.length - 1];
 
+  const figureSize = figureRowFontSize(
+    figures.map((figure) => figure.value ?? '—'),
+    figures.length,
+  );
+
   return (
     <Svg ref={ref} width={STORY_WIDTH} height={STORY_HEIGHT} viewBox={`0 0 ${STORY_WIDTH} ${STORY_HEIGHT}`}>
       <Defs>
@@ -97,6 +108,7 @@ export const StoryCard = forwardRef<Svg, StoryCardProps>(function StoryCard(
         x={STORY_MARGIN}
         y={STORY_MARGIN + STORY_TYPE.brand + 64}
         fill={neutral[400]}
+        fontFamily={FONT}
         fontSize={STORY_TYPE.date}
         fontWeight="400"
       >
@@ -141,7 +153,8 @@ export const StoryCard = forwardRef<Svg, StoryCardProps>(function StoryCard(
               x={x}
               y={FIGURE_ROW_Y}
               fill={neutral[0]}
-              fontSize={STORY_TYPE.figure}
+              fontFamily={FONT}
+              fontSize={figureSize}
               fontWeight="700"
               textAnchor="middle"
             >
@@ -153,6 +166,7 @@ export const StoryCard = forwardRef<Svg, StoryCardProps>(function StoryCard(
               x={x}
               y={FIGURE_ROW_Y + 52}
               fill={neutral[400]}
+              fontFamily={FONT}
               fontSize={STORY_TYPE.figureLabel}
               fontWeight="600"
               letterSpacing={2}
@@ -170,6 +184,7 @@ export const StoryCard = forwardRef<Svg, StoryCardProps>(function StoryCard(
         x={STORY_WIDTH / 2}
         y={STORY_HEIGHT - STORY_MARGIN}
         fill={neutral[500]}
+        fontFamily={FONT}
         fontSize={STORY_TYPE.footer}
         textAnchor="middle"
       >
