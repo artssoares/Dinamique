@@ -8,7 +8,7 @@
 -- altere a migration correspondente e rode `pnpm --filter @dinamique/database
 -- run build:setup`.
 --
--- Arquivos incluídos (22):
+-- Arquivos incluídos (23):
 --   20260818000100_extensions_and_enums.sql
 --   20260818000200_identity_and_catalogue.sql
 --   20260818000300_operations.sql
@@ -31,6 +31,7 @@
 --   20260819000300_platform_brand_colour.sql
 --   20260821000100_products.sql
 --   20260821000200_journey_gps_routes.sql
+--   20260821000300_uber_passe.sql
 -- ============================================================================
 
 
@@ -3444,3 +3445,25 @@ from revenue_days r
 full outer join expense_days e on e.user_id = r.user_id and e.date = r.date
 full outer join journey_days j
   on j.user_id = coalesce(r.user_id, e.user_id) and j.date = coalesce(r.date, e.date);
+
+
+-- ==========================================================================
+-- 20260821000300_uber_passe.sql
+-- ==========================================================================
+
+-- ============================================================================
+-- Uber Passe
+--
+-- Em alguns pontos de São Paulo — aeroportos, terminais, alguns shoppings —
+-- o motorista paga uma taxa de acesso para poder embarcar passageiro ali.
+-- Sai do bolso dele durante a jornada e some do lucro, então precisa existir
+-- como categoria: sem ela o dinheiro vira "Outros" e o motorista não
+-- consegue ver quanto o passe custou no mês.
+--
+-- is_vehicle_cost = true pelo mesmo motivo do pedágio e do estacionamento
+-- (§35): é o carro entrando num lugar, não uma despesa pessoal do dia.
+-- ============================================================================
+
+insert into expense_categories (slug, name, is_vehicle_cost, sort_order) values
+  ('uber-passe', 'Uber Passe', true, 45)
+on conflict (slug) do nothing;

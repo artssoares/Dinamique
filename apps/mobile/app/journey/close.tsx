@@ -53,7 +53,15 @@ interface QuickCategory {
 }
 
 /** Categorias de gasto que aparecem como atalho no fim da jornada (§52). */
-const QUICK_SLUGS = ['combustivel', 'alimentacao', 'pedagio', 'estacionamento'];
+const QUICK_SLUGS = [
+  'combustivel',
+  'alimentacao',
+  'pedagio',
+  'estacionamento',
+  // A taxa de acesso cobrada em aeroporto, terminal e alguns shoppings de São
+  // Paulo. É paga durante a corrida e esquecida na hora de fechar o dia.
+  'uber-passe',
+];
 
 /**
  * Encerramento de jornada em três passos: quanto entrou por aplicativo, quantos

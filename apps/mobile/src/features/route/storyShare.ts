@@ -24,8 +24,11 @@ export interface ShareResult {
  * The size is passed explicitly rather than inherited from the layout: the
  * card is mounted off-screen at whatever the renderer gives it, and a story
  * exported at the phone's width would post as a blurry rectangle.
+ *
+ * The web takes its own path — see `captureOnWeb`.
  */
-export function captureStory(node: Svg | null): Promise<string | null> {
+export function captureStory(node: Svg | null, host?: unknown): Promise<string | null> {
+  if (Platform.OS === 'web') return captureOnWeb(host);
   if (!node) return Promise.resolve(null);
 
   return new Promise((resolve) => {
@@ -36,9 +39,6 @@ export function captureStory(node: Svg | null): Promise<string | null> {
       resolve(value);
     };
 
-    // On the web the capture goes through an <img> load, which simply never
-    // fires if the browser refuses the serialised SVG. Without this the
-    // spinner would spin for the rest of the session.
     const timer = setTimeout(() => finish(null), CAPTURE_TIMEOUT_MS);
 
     try {
@@ -54,6 +54,91 @@ export function captureStory(node: Svg | null): Promise<string | null> {
       finish(null);
     }
   });
+}
+
+/**
+ * The same picture, drawn by hand, because the library's web `toDataURL`
+ * cannot produce it here.
+ *
+ * That implementation builds its output frame from `getBoundingClientRect()`
+ * of the node. The card is mounted at its real 1080×1920 and shrunk to the
+ * preview by a CSS transform — and a transformed element measures as what you
+ * see, 250 across, not as what it is. So the export asked for a 1080×1920
+ * canvas while telling the renderer the drawing was 250×444: the card came out
+ * blown up four times, cropped to its own top-left corner. That is the
+ * "compartilhou e saiu zoado".
+ *
+ * Serialising the node ourselves and stating the frame outright is both the
+ * fix and one fewer thing taken on faith. Base64 rather than a raw `utf8`
+ * data URI, too: the card carries "sábado", "março" and "R$", and browsers
+ * disagree about unescaped bytes in a data URL.
+ */
+function captureOnWeb(host: unknown): Promise<string | null> {
+  const node = findSvg(host);
+  if (!node) return Promise.resolve(null);
+
+  const clone = node.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+  clone.setAttribute('width', String(STORY_WIDTH));
+  clone.setAttribute('height', String(STORY_HEIGHT));
+  clone.setAttribute('viewBox', `0 0 ${STORY_WIDTH} ${STORY_HEIGHT}`);
+
+  const source = `data:image/svg+xml;base64,${toBase64(
+    new XMLSerializer().serializeToString(clone),
+  )}`;
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: string | null) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+
+    // A decode that never resolves would leave the button spinning for the
+    // rest of the session.
+    const timer = setTimeout(() => finish(null), CAPTURE_TIMEOUT_MS);
+
+    const image = new Image();
+    image.onerror = () => {
+      clearTimeout(timer);
+      finish(null);
+    };
+    image.onload = () => {
+      clearTimeout(timer);
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = STORY_WIDTH;
+        canvas.height = STORY_HEIGHT;
+        const context = canvas.getContext('2d');
+        if (!context) return finish(null);
+        context.drawImage(image, 0, 0, STORY_WIDTH, STORY_HEIGHT);
+        finish(canvas.toDataURL('image/png').replace(/^data:image\/png;base64,/, '') || null);
+      } catch {
+        finish(null);
+      }
+    };
+    image.src = source;
+  });
+}
+
+/** The hook hands over the wrapper; on the web that is a DOM node. */
+function findSvg(host: unknown): SVGSVGElement | null {
+  const element = host as Element | null;
+  if (!element || typeof element.querySelector !== 'function') return null;
+  if (element.tagName?.toLowerCase() === 'svg') return element as unknown as SVGSVGElement;
+  return element.querySelector('svg');
+}
+
+function toBase64(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  const CHUNK = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return globalThis.btoa(binary);
 }
 
 /**

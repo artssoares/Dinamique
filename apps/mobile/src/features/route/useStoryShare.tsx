@@ -69,6 +69,9 @@ export function useStoryShare({
   const theme = useTheme();
   const { preferences } = useRoutePreferences();
   const cardRef = useRef<Svg>(null);
+  // On the web the capture reads the DOM node rather than the component, so
+  // it needs the wrapper as well as the card.
+  const hostRef = useRef<View>(null);
   const [visible, setVisible] = useState(false);
   const [sharing, setSharing] = useState(false);
 
@@ -104,7 +107,7 @@ export function useStoryShare({
     if (sharing) return;
     setSharing(true);
     try {
-      const base64 = await captureStory(cardRef.current);
+      const base64 = await captureStory(cardRef.current, hostRef.current);
       if (!base64) {
         Alert.alert(
           'Não conseguimos montar a imagem',
@@ -187,6 +190,10 @@ export function useStoryShare({
           */}
           <View style={{ width: PREVIEW_WIDTH, height: STORY_HEIGHT * scale }}>
             <View
+              ref={hostRef}
+              // Without this Android flattens the wrapper away, and the web
+              // capture has nothing to look inside for the card.
+              collapsable={false}
               style={{
                 width: STORY_WIDTH,
                 height: STORY_HEIGHT,
