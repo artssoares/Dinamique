@@ -27,6 +27,7 @@ import { useSession } from '@/hooks/useSession';
 import { addExpense, addRevenue, useActiveJourney } from '@/features/journey/useJourney';
 import { useOffline } from '@/features/offline/useOfflineSync';
 import { useJourneyStart } from '@/features/tracking/useJourneyStart';
+import { locationService } from '@/features/tracking/locationService';
 import { useCostCategories } from '@/features/costs/categories';
 import { ProductSalePicker } from '@/features/products/ProductSalePicker';
 import { costRows, revenueRows, totalsFor } from '@/features/products/sales';
@@ -517,6 +518,16 @@ function JourneyCard({
         <Text variant="captionStrong" color="secondary">
           Contando seus km
           {foregroundOnly ? ' · só com o app aberto' : ''}
+        </Text>
+      ) : null}
+
+      {/* No navegador a contagem depende da página estar acordada, e o
+          motorista é a única pessoa que pode garantir isso. Uma linha, uma
+          vez, enquanto está contando: não é um aviso de erro, é como usar. */}
+      {counting && !locationService.supportsBackground ? (
+        <Text variant="caption" color="muted">
+          Deixe o Dinamique aberto na tela durante a jornada. É assim que o navegador consegue
+          seguir o seu caminho até o fim.
         </Text>
       ) : null}
 

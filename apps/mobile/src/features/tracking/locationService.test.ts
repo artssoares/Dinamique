@@ -5,11 +5,20 @@ const beginRoute = vi.fn();
 const clearDeliberateStop = vi.fn();
 const markDeliberateStop = vi.fn();
 
+const holdScreen = vi.fn();
+const releaseScreen = vi.fn();
+
 vi.mock('./buffer', () => ({
   appendFixes: (...args: unknown[]) => appendFixes(...args),
   beginRoute: (...args: unknown[]) => beginRoute(...args),
   clearDeliberateStop: () => clearDeliberateStop(),
   markDeliberateStop: () => markDeliberateStop(),
+}));
+
+vi.mock('./screenLock', () => ({
+  holdScreen: () => holdScreen(),
+  releaseScreen: () => releaseScreen(),
+  screenHeld: () => false,
 }));
 
 /** One position, shaped exactly as the browser hands it over. */
@@ -21,6 +30,9 @@ function position(lat: number, lon: number) {
 }
 
 let watchCallback: ((p: unknown) => void) | null = null;
+let seedCallback: ((p: unknown) => void) | null = null;
+let visibilityListeners: Array<() => void> = [];
+let visibility = 'visible';
 let cleared: number[] = [];
 let nextBrowserWatchId = 0;
 
@@ -35,13 +47,33 @@ beforeEach(async () => {
   // first test and lost every shift after it.
   nextBrowserWatchId = 41;
 
+  seedCallback = null;
+  visibilityListeners = [];
+  visibility = 'visible';
+
   vi.stubGlobal('navigator', {
     geolocation: {
       watchPosition: (success: (p: unknown) => void) => {
         watchCallback = success;
         return (nextBrowserWatchId += 1);
       },
+      getCurrentPosition: (success: (p: unknown) => void) => {
+        seedCallback = success;
+      },
       clearWatch: (id: number) => cleared.push(id),
+    },
+  });
+
+  vi.stubGlobal('document', {
+    get visibilityState() {
+      return visibility;
+    },
+    addEventListener: (type: string, listener: () => void) => {
+      if (type === 'visibilitychange') visibilityListeners.push(listener);
+    },
+    removeEventListener: (type: string, listener: () => void) => {
+      if (type !== 'visibilitychange') return;
+      visibilityListeners = visibilityListeners.filter((item) => item !== listener);
     },
   });
 });
@@ -145,5 +177,74 @@ describe('web capture', () => {
   it('never claims to count with the tab closed', async () => {
     const service = await freshService();
     expect(service.supportsBackground).toBe(false);
+  });
+
+  it('takes one reading immediately instead of waiting for the watch', async () => {
+    const service = await freshService();
+    await service.start('journey-1');
+
+    // `watchPosition` can be tens of seconds from its first fix. A short shift
+    // closed before then used to have no route at all.
+    expect(seedCallback).not.toBeNull();
+    seedCallback!(position(-23.5629, -46.6544));
+
+    expect(appendFixes).toHaveBeenCalledTimes(1);
+    expect((appendFixes.mock.calls[0] as [string, unknown[]])[0]).toBe('journey-1');
+  });
+
+  it('never files a seeded reading against the wrong shift', async () => {
+    const service = await freshService();
+    await service.start('journey-1');
+    const stale = seedCallback!;
+    await service.stop();
+
+    stale(position(-23.5629, -46.6544));
+
+    expect(appendFixes).not.toHaveBeenCalled();
+  });
+
+  it('holds the screen while counting and lets go when it stops', async () => {
+    const service = await freshService();
+    await service.start('journey-1');
+    expect(holdScreen).toHaveBeenCalled();
+
+    await service.stop();
+    expect(releaseScreen).toHaveBeenCalled();
+  });
+
+  it('picks the screen and the track back up when the tab returns', async () => {
+    const service = await freshService();
+    await service.start('journey-1');
+    holdScreen.mockClear();
+    seedCallback = null;
+
+    expect(visibilityListeners).toHaveLength(1);
+    visibilityListeners[0]!();
+
+    // The browser drops a wake lock every time the tab is hidden, so the first
+    // app switch of a shift used to end the counting for good.
+    expect(holdScreen).toHaveBeenCalled();
+    expect(seedCallback).not.toBeNull();
+  });
+
+  it('ignores a hidden tab rather than seeding from it', async () => {
+    const service = await freshService();
+    await service.start('journey-1');
+    holdScreen.mockClear();
+    seedCallback = null;
+    visibility = 'hidden';
+
+    visibilityListeners[0]!();
+
+    expect(holdScreen).not.toHaveBeenCalled();
+    expect(seedCallback).toBeNull();
+  });
+
+  it('stops listening for the tab once the journey ends', async () => {
+    const service = await freshService();
+    await service.start('journey-1');
+    await service.stop();
+
+    expect(visibilityListeners).toEqual([]);
   });
 });

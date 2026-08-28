@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeProvider';
+import { useBottomInset } from '../hooks/useBottomInset';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { NATIVE_DRIVER } from '../hooks/usePressMotion';
 import { useResponsive } from '../hooks/useResponsive';
@@ -82,6 +83,10 @@ export function Screen({
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
   const { isCompact, isMedium } = useResponsive();
+  // Room the app is holding at the bottom of *this* screen: the floating menu
+  // that stays put across pushed pages. Zero inside the tab group, where
+  // `tabBarSpacing` below already accounts for the bar.
+  const floating = useBottomInset();
   const entrance = useRef(new Animated.Value(animate ? 0 : 1)).current;
 
   useEffect(() => {
@@ -110,10 +115,17 @@ export function Screen({
   // Compact phones give a step of horizontal padding back to the content.
   const horizontal = isCompact ? theme.spacing.lg : theme.spacing[padding];
 
+  // The two never stack: `tabBarSpacing` is for the bar the tab navigator
+  // draws, `floating` for the one the app floats over a pushed screen, and a
+  // screen is under exactly one of them. `max` rather than a sum, so a future
+  // screen that sets both does not end up with a hand's width of dead space.
+  const barSpace = Math.max(
+    tabBarSpacing ? layout.tabBarHeight + layout.tabBarInset + theme.spacing.lg : 0,
+    floating > 0 ? floating + theme.spacing.lg : 0,
+  );
+
   const bottomPadding =
-    (tabBarSpacing
-      ? layout.tabBarHeight + layout.tabBarInset + theme.spacing.lg
-      : theme.spacing['3xl']) + (footer ? 0 : insets.bottom);
+    (barSpace > 0 ? barSpace : theme.spacing['3xl']) + (footer ? 0 : insets.bottom);
 
   const column: StyleProp<ViewStyle> = {
     width: '100%',
@@ -183,7 +195,10 @@ export function Screen({
             paddingBottom:
               insets.bottom +
               theme.spacing.md +
-              (tabBarSpacing ? layout.tabBarHeight + layout.tabBarInset : 0),
+              Math.max(
+                tabBarSpacing ? layout.tabBarHeight + layout.tabBarInset : 0,
+                floating,
+              ),
             borderTopWidth: 1,
             borderTopColor: theme.colors.borderSubtle,
             backgroundColor: backgrounds[background],

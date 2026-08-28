@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import type { DateOnly } from '@dinamique/types';
 import {
   computeGoalProgress,
   deriveGoalSuggestions,
   estimateSecondsToGoal,
+  goalStreakDays,
 } from './goals';
 import { estimateGoalReachDate, projectPeriodTotal } from './projections';
 
@@ -150,5 +152,65 @@ describe('estimateGoalReachDate', () => {
     expect(
       estimateGoalReachDate({ target: 100, achieved: 500, period: 'monthly', today: '2026-08-18' }),
     ).toBe('2026-08-18');
+  });
+});
+
+describe('goalStreakDays', () => {
+  const target = 20_000;
+
+  function day(date: string, achieved: number) {
+    return { date: date as DateOnly, achieved };
+  }
+
+  it('counts back from today while the goal was met', () => {
+    expect(
+      goalStreakDays({
+        target,
+        today: '2026-08-25' as DateOnly,
+        days: [
+          day('2026-08-25', 25_000),
+          day('2026-08-24', 20_000),
+          day('2026-08-23', 30_000),
+          day('2026-08-22', 1_000),
+        ],
+      }),
+    ).toBe(3);
+  });
+
+  it('does not break the streak on a day still being worked', () => {
+    // Half past ten in the morning is not a streak that ended.
+    expect(
+      goalStreakDays({
+        target,
+        today: '2026-08-25' as DateOnly,
+        days: [day('2026-08-25', 4_000), day('2026-08-24', 21_000), day('2026-08-23', 22_000)],
+      }),
+    ).toBe(2);
+  });
+
+  it('stops at a day with no record at all', () => {
+    expect(
+      goalStreakDays({
+        target,
+        today: '2026-08-25' as DateOnly,
+        days: [day('2026-08-25', 21_000), day('2026-08-23', 30_000)],
+      }),
+    ).toBe(1);
+  });
+
+  it('is zero without a goal to beat', () => {
+    expect(
+      goalStreakDays({ target: 0, today: '2026-08-25' as DateOnly, days: [day('2026-08-25', 9)] }),
+    ).toBe(0);
+  });
+
+  it('is zero when yesterday missed and today has not landed', () => {
+    expect(
+      goalStreakDays({
+        target,
+        today: '2026-08-25' as DateOnly,
+        days: [day('2026-08-25', 100), day('2026-08-24', 100)],
+      }),
+    ).toBe(0);
   });
 });

@@ -139,6 +139,14 @@ export default function RouteSettings() {
         <Text variant="caption" color="muted">
           Isso usa mais bateria. Se ficar pesado no seu aparelho, é só desligar aqui.
         </Text>
+        {/* A outra porta para a contagem. Fazia a mesma promessa que a tela de
+            consentimento fazia, e no navegador ela não se cumpre para quem
+            dirige com o aplicativo da corrida por cima. */}
+        {locationService.supportsBackground ? null : (
+          <Text variant="caption" color="warning">
+            {PERMISSION_COPY.browserOnly}
+          </Text>
+        )}
       </Card>
 
       <Card padding="xl" style={{ gap: theme.spacing.sm }}>

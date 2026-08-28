@@ -57,19 +57,23 @@ export const SHARED_ROUTE_TRIM_M = 500;
 export const MAX_TRIM_SHARE = 0.1;
 
 /**
- * Below this, a route cannot be trimmed into anything worth publishing, and
- * `trimRouteEnds` returns nothing at all. Failing closed is the point: a short
- * route shared whole is an address, not a shape.
+ * A route needs an interior to survive having both ends removed. Two points
+ * are two ends, so there is nothing left over to draw.
  */
-export const MIN_POINTS_TO_TRIM = 5;
+export const MIN_POINTS_TO_TRIM = 3;
 
 /**
- * The trim has to actually hide a block or two, not a doorstep.
+ * The smallest radius the trim is willing to call privacy.
  *
- * The cap is proportional, so on a 300 m route a tenth is thirty metres —
- * which clears every count-based guard and still starts the picture at the
- * driver's address. A route that cannot give up this much from each end is not
- * shareable, and at `MAX_TRIM_SHARE` that means anything under 1.5 km.
+ * `MAX_TRIM_SHARE` is a cap, not a floor, and read alone it produces a trim
+ * that shrinks with the route: a tenth of 300 m is thirty metres, which hides
+ * a doorstep and nothing else. So the budget is at least this, whatever the
+ * proportional figure works out to, and a route that cannot give up this much
+ * from each end and still leave a line is not published at all.
+ *
+ * A hundred and fifty metres is a block or two in a Brazilian city: enough
+ * that the picture starts somewhere on the driver's street rather than at
+ * their gate.
  */
 export const MIN_TRIM_M = 150;
 
@@ -320,27 +324,44 @@ export function fitToPointBudget(
  * Removes the first and last stretch of a route before it is shown to anyone
  * but the driver.
  *
- * The trim is capped at `MAX_TRIM_SHARE` of the total per end: 500 m off each
- * end of a 3 km route would eat a third of it, and a driver sharing a short
- * shift deserves a line that still looks like where they went.
+ * The budget per end is `MAX_TRIM_SHARE` of the total, never more than
+ * `SHARED_ROUTE_TRIM_M` and never less than `MIN_TRIM_M`. Both bounds matter,
+ * and they used to be read as one rule with the wrong shape.
+ *
+ * The old version refused any route whose proportional trim came out under
+ * `MIN_TRIM_M`, which meant everything below about 1.5 km came back empty and
+ * the driver was told their day was "curto demais para compartilhar". A short
+ * shift is still a shift, and a privacy rule whose visible effect is that the
+ * feature does not work is not protecting anybody.
+ *
+ * The answer is not to shrink the radius on a short route, though, which is
+ * where this landed on the first pass: a tenth of 300 m is thirty metres, and
+ * a picture starting thirty metres from someone's gate is their address. So
+ * the minimum *raises* the budget instead of refusing the route. A 1 km shift
+ * now gives up 150 m from each end and keeps 700 m of line, where before it
+ * was refused outright. What still comes back empty is the route that never
+ * gets `MIN_TRIM_M` away from where it began, and that one is not a trip
+ * across town, it is the driver's own neighbourhood.
  */
 export function trimRouteEnds(
   points: readonly LatLng[],
   trimM: number = SHARED_ROUTE_TRIM_M,
 ): LatLng[] {
   if (trimM <= 0) return [...points];
-  // Too short to hide anything in: returning it whole would publish the exact
-  // spot the driver set off from, which is the one thing this exists to stop.
+  // Two points are two ends. Removing both leaves nothing, and publishing
+  // either is the one thing this exists to stop.
   if (points.length < MIN_POINTS_TO_TRIM) return [];
 
   const last = points.length - 1;
   const total = trackDistance(points);
-  const budget = total > 0 ? Math.min(trimM, total * MAX_TRIM_SHARE) : 0;
+  // A pile of readings in one place is a parked car, not a route. There is no
+  // shape in it to publish, only an address.
+  if (total <= 0) return [];
 
-  // A proportional cap on a short route hides a doorstep, not a
-  // neighbourhood. If it cannot give up a real distance from each end, it is
-  // not shareable.
-  if (budget < MIN_TRIM_M) return [];
+  // The floor is applied before the ceiling, so a short route asks for more
+  // than its proportional share rather than settling for a token trim, and a
+  // long one is still capped at the 500 m the settings screen promises.
+  const budget = Math.min(trimM, Math.max(total * MAX_TRIM_SHARE, MIN_TRIM_M));
 
   // Two conditions, and both have to hold. Walking the path alone is not
   // enough: a shift that opens with a loop around the block covers the whole
@@ -368,11 +389,16 @@ export function trimRouteEnds(
     end -= 1;
   }
 
-  // With a budget of at least MIN_TRIM_M and real distance to walk, each loop
-  // takes at least one step — so neither original endpoint can survive into
-  // the slice. The walks can still cross on a route that doubles back tightly.
-  // Nothing left to show is the correct answer: the alternative is publishing
-  // the ends, and the caller refuses to share an empty route.
+  // Belt and braces on top of the walks: the true endpoints never survive into
+  // the slice even if a degenerate geometry let a walk stop on step zero.
+  start = Math.max(start, 1);
+  end = Math.min(end, last - 1);
+
+  // The walks crossed, which means the route never gets `budget` away from
+  // where it started: a few blocks circled, a short errand, an afternoon
+  // inside one neighbourhood. There is no part of it far enough from home to
+  // publish, so nothing is. Keeping the middle here, which is what the first
+  // pass did, would post a point inside the very radius this is hiding.
   if (start > end || end - start + 1 < 2) return [];
 
   return points.slice(start, end + 1);

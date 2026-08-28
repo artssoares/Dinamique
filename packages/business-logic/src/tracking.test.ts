@@ -4,6 +4,7 @@ import {
   fitToPointBudget,
   filterFixes,
   haversineMetres,
+  MIN_TRIM_M,
   MAX_STORED_ROUTE_POINTS,
   MIN_GPS_DISTANCE_M,
   simplifyTrack,
@@ -225,12 +226,37 @@ describe('trimRouteEnds', () => {
     ).toEqual([]);
   });
 
-  it('refuses a short trip a proportional trim would barely touch', () => {
-    // ~300 m over thirty points: plenty of points, but a tenth of it is thirty
-    // metres, which leaves the picture starting at the driver's door.
-    const shortTrip = straightRun(30, 10).map((f) => ({ lat: f.lat, lon: f.lon }));
-    expect(trackDistance(shortTrip)).toBeLessThan(1_500);
-    expect(trimRouteEnds(shortTrip)).toEqual([]);
+  it('shares a short shift the old rule refused outright', () => {
+    // ~1 km. The proportional trim is 100 m, under the minimum, and the old
+    // rule read that as "refuse" — so the driver was told a one kilometre day
+    // was too short to share. The minimum raises the budget instead.
+    const shortShift = straightRun(50, 20).map((f) => ({ lat: f.lat, lon: f.lon }));
+    expect(trackDistance(shortShift)).toBeLessThan(1_500);
+
+    const trimmed = trimRouteEnds(shortShift);
+    expect(trimmed.length).toBeGreaterThanOrEqual(2);
+    expect(haversineMetres(shortShift[0]!, trimmed[0]!)).toBeGreaterThanOrEqual(MIN_TRIM_M);
+    expect(haversineMetres(shortShift.at(-1)!, trimmed.at(-1)!)).toBeGreaterThanOrEqual(
+      MIN_TRIM_M,
+    );
+  });
+
+  it('never publishes a point inside the minimum radius', () => {
+    // The whole point of the minimum. A 300 m errand cannot give up 150 m from
+    // each end and still leave a line, so it is not published at all — a
+    // picture starting thirty metres from someone's gate is their address.
+    const errand = straightRun(30, 10).map((f) => ({ lat: f.lat, lon: f.lon }));
+    expect(trackDistance(errand)).toBeLessThan(2 * MIN_TRIM_M);
+    expect(trimRouteEnds(errand)).toEqual([]);
+  });
+
+  it('refuses a route that never leaves its own neighbourhood', () => {
+    // Out and straight back: plenty of metres walked, never far from home.
+    const outAndBack = [...straightRun(8, 12), ...straightRun(8, 12).reverse()].map((f) => ({
+      lat: f.lat,
+      lon: f.lon,
+    }));
+    expect(trimRouteEnds(outAndBack)).toEqual([]);
   });
 
   it('refuses a pile of points in one place', () => {
