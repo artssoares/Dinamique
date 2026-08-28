@@ -33,6 +33,21 @@ plan and exactly where each area stands.
 Veja [`SETUP.md`](./SETUP.md) – instalação do banco em um passo, depois as
 variáveis de ambiente.
 
+### Onde testar
+
+Um endereço só, sempre o mesmo. Ele serve o último deploy do `main`, então
+não muda a cada branch e não precisa ser reencontrado a cada conversa:
+
+| O quê | Endereço | Projeto na Vercel |
+| --- | --- | --- |
+| Aplicativo | https://dinamique-mobile.vercel.app | `dinamique1/dinamique-mobile`, raiz `apps/mobile` |
+| Painel administrativo | https://dinamique.vercel.app | `feed-on-track/dinamique` |
+
+Os dois projetos vivem em escopos diferentes da Vercel, e é por isso que
+`list_projects` num escopo só devolve vazio. As URLs de preview por branch
+(`dinamique-mobile-git-<branch>-dinamique1.vercel.app`) existem para revisar
+um PR e mudam a cada branch; para testar o que está no ar, use as de cima.
+
 ## Setup
 
 ```bash

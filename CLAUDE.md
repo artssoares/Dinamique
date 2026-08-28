@@ -40,3 +40,26 @@ in `packages/business-logic`, tested, and never inside a screen.
 `pnpm typecheck` and `pnpm test` both green. CI additionally builds the admin
 and bundles the mobile app for web, which is what catches monorepo resolution
 problems that typecheck cannot see.
+
+## Where to test
+
+One address, always the same one. It serves the latest `main`, so it does not
+change per branch and does not have to be rediscovered every session:
+
+- app: https://dinamique-mobile.vercel.app
+- admin: https://dinamique.vercel.app
+
+Hand over that link, not a branch preview. Per-branch preview URLs exist for
+reviewing a pull request and change every time, which is exactly the swapping
+this is here to avoid.
+
+The two Vercel projects live in different scopes, `dinamique1/dinamique-mobile`
+(root `apps/mobile`) and `feed-on-track/dinamique`, which is why listing
+projects in one scope comes back empty.
+
+## Check the base before starting
+
+`git log --oneline origin/main -1` before writing anything. A session has
+started from a stale clone whose base was not an ancestor of `origin/main`,
+and the work was a reimplementation of a feature that already shipped. If the
+checkout does not descend from `origin/main`, rebase onto it first.

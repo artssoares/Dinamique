@@ -754,9 +754,16 @@ export default function CloseJourney() {
             <RouteReplay
               points={measured.points}
               distance={summary.distance > 0 ? summary.distance : null}
-              onPress={story.open}
+              onPress={story.canShare ? story.open : undefined}
             />
 
+            {/* Printed, not hidden behind a tap. An explanation somebody has
+                to go looking for is one most people never read. */}
+            {story.reason ? (
+              <Text variant="caption" color="muted">
+                {story.reason}
+              </Text>
+            ) : null}
             {story.canShare ? (
               <Button
                 label="Compartilhar meu trajeto"
