@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import type { Metres } from '@dinamique/types';
+import type { LiveTrackState } from '@dinamique/business-logic';
 import { formatCents, formatDistanceKm, formatDuration, parseCents, toDateOnly } from '@dinamique/utils';
 import {
   AmountInput,
@@ -251,7 +251,7 @@ export default function Record() {
           onStart={() => void beginJourney()}
           onPause={() => void pauseJourney()}
           onResume={() => void resumeJourney()}
-          liveDistance={tracking.tracking ? tracking.liveDistance : null}
+          live={tracking.live}
           counting={tracking.tracking}
           foregroundOnly={tracking.tracking && !tracking.background}
           recovered={tracking.recovered}
@@ -423,7 +423,7 @@ function JourneyCard({
   onPause,
   onResume,
   onFinish,
-  liveDistance,
+  live,
   counting,
   foregroundOnly,
   recovered,
@@ -436,8 +436,8 @@ function JourneyCard({
   onPause: () => void;
   onResume: () => void;
   onFinish: () => void;
-  /** Metres counted so far, or null when capture is off or still too thin. */
-  liveDistance?: Metres | null;
+  /** What the counter may claim right now. */
+  live?: LiveTrackState;
   /** True while the OS is feeding positions, even before the figure is usable. */
   counting?: boolean;
   /** True when the driver allowed location only while the app is open. */
@@ -477,6 +477,20 @@ function JourneyCard({
     Math.round((now - Date.parse(journey.startedAt)) / 1000) - journey.pausedSeconds,
   );
 
+  const paused = journey.status === 'paused';
+  // A buffer that has accepted anything is a route in progress, and it stays
+  // that way through a pause: `halt()` stops the OS feed and leaves the
+  // buffer alone, so "continua de onde parou" is a statement of fact.
+  const routeRunning = live !== undefined && live.kind !== 'waiting';
+  const counterLine =
+    live?.kind === 'counting'
+      ? `${formatDistanceKm(live.distance, 1)} contados`
+      : live?.kind === 'stationary'
+        ? 'Parado no mesmo lugar'
+        : live?.kind === 'warming'
+          ? 'Contando seus km'
+          : 'Procurando o sinal do GPS';
+
   return (
     // A soft brand tint rather than a dark slab: this card is on screen while
     // someone is driving, and a bright block at night is glare.
@@ -501,24 +515,39 @@ function JourneyCard({
       </Text>
 
       {/* One line, and only when there is something true to put in it. A
-          driver who declined the permission sees today's card unchanged — no
+          driver who declined the permission sees today's card unchanged: no
           banner, no badge, no second invitation.
 
-          Below the minimum the figure is deliberately null: a distance built
-          from too few positions is not trustworthy enough to divide money by.
-          But saying nothing at all is indistinguishable from capture being
-          off, so the first few hundred metres get a line of their own. The
-          driver knows it started; they just do not get a number yet. */}
-      {liveDistance !== null && liveDistance !== undefined ? (
-        <Text variant="captionStrong" color="secondary">
-          {formatDistanceKm(liveDistance, 1)} contados
-          {foregroundOnly ? ' · só com o app aberto' : ''}
-        </Text>
+          Four states, four sentences. This used to be two, because the counter
+          answered with a number or a null and null meant three different
+          things at once. A driver waiting in the airport queue watched
+          "Contando seus km" for forty minutes without a number and had nothing
+          on screen telling them the app was fine and the car was simply
+          parked. */}
+      {paused ? (
+        <View style={{ gap: theme.spacing.xxs }}>
+          <Text variant="captionStrong" color="secondary">
+            {routeRunning ? 'O relógio e o mapa estão parados' : 'O relógio está parado'}
+          </Text>
+          <Text variant="caption" color="muted">
+            {routeRunning
+              ? 'Nada é contado durante a pausa. Quando você continuar, o trajeto segue de onde parou, no mesmo mapa.'
+              : 'Nada é contado durante a pausa. Quando você continuar, ele volta de onde parou.'}
+          </Text>
+        </View>
       ) : counting ? (
-        <Text variant="captionStrong" color="secondary">
-          Contando seus km
-          {foregroundOnly ? ' · só com o app aberto' : ''}
-        </Text>
+        <>
+          <Text variant="captionStrong" color="secondary">
+            {counterLine}
+            {foregroundOnly ? ' · só com o app aberto' : ''}
+          </Text>
+          {live?.kind === 'stationary' ? (
+            <Text variant="caption" color="muted">
+              O GPS está funcionando, o carro é que não saiu do lugar. O mapa começa a ser
+              desenhado assim que você andar.
+            </Text>
+          ) : null}
+        </>
       ) : null}
 
       {/* No navegador a contagem depende da página estar acordada, e o

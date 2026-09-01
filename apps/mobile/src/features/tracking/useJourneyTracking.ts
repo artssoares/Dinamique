@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import type { Metres } from '@dinamique/types';
-import { summariseTrack, type TrackSummary } from '@dinamique/business-logic';
+import {
+  liveTrackState,
+  summariseTrack,
+  type LiveTrackState,
+  type TrackSummary,
+} from '@dinamique/business-logic';
 import { track } from '@/lib/analytics';
 import { runningJourneyId } from '@/features/journey/runningJourneyId';
 import {
   clearRoute,
   getActiveRoute,
-  liveDistance as readBufferedDistance,
+  liveProgress as readBufferedProgress,
   pruneOrphanBuffers,
   readBreaks,
   readRoute,
@@ -26,8 +30,13 @@ export interface JourneyTracking {
   tracking: boolean;
   /** False when the driver allowed only "while using the app". */
   background: boolean;
-  /** Metres so far, or null while the track is still too thin to trust. */
-  liveDistance: Metres | null;
+  /**
+   * What the counter may claim right now.
+   *
+   * A state rather than a number, because "no distance yet" has three causes
+   * and the driver needs a different sentence for each. See `liveTrackState`.
+   */
+  live: LiveTrackState;
   /** True when we had to re-register after the device was restarted. */
   recovered: boolean;
   begin: (journeyId: string) => Promise<PermissionOutcome>;
@@ -67,7 +76,7 @@ export function useJourneyTracking(
 ): JourneyTracking {
   const [tracking, setTracking] = useState(false);
   const [background, setBackground] = useState(false);
-  const [liveDistance, setLiveDistance] = useState<Metres | null>(null);
+  const [live, setLive] = useState<LiveTrackState>({ kind: 'waiting' });
   const [recovered, setRecovered] = useState(false);
 
   const readLive = useCallback(async (id: string) => {
@@ -75,7 +84,7 @@ export function useJourneyTracking(
     // not parse the shift or re-run the filter over it — which by hour eight
     // would be half a megabyte and a full Douglas-Peucker pass, every twenty
     // seconds, on the phone of someone who is driving.
-    setLiveDistance(await readBufferedDistance(id));
+    setLive(liveTrackState(await readBufferedProgress(id)));
   }, []);
 
   /**
@@ -144,7 +153,7 @@ export function useJourneyTracking(
     setRecovered(false);
     if (!journeyId) {
       setTracking(false);
-      setLiveDistance(null);
+      setLive({ kind: 'waiting' });
       return;
     }
     if (!recover) return;
@@ -221,7 +230,7 @@ export function useJourneyTracking(
       return { granted: false, background: false, deniedAt: 'foreground' as const };
     }
     setTracking(true);
-    setLiveDistance(null);
+    setLive({ kind: 'waiting' });
 
     // `requestForeground` only speaks for the foreground grant. Reporting
     // `background: false` from it would re-ask a driver who already said yes
@@ -307,14 +316,14 @@ export function useJourneyTracking(
 
   const release = useCallback(async (id: string) => {
     await clearRoute(id);
-    setLiveDistance(null);
+    setLive({ kind: 'waiting' });
     setRecovered(false);
   }, []);
 
   return {
     tracking,
     background,
-    liveDistance,
+    live,
     recovered,
     begin,
     resume,

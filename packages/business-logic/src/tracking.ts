@@ -461,3 +461,44 @@ export function summariseTrack(
     movingSeconds: Math.round(movingSeconds),
   };
 }
+
+/**
+ * What the live counter on the journey card is allowed to claim.
+ *
+ * `liveDistance` used to answer this question with `number | null`, and null
+ * carried three different meanings: no fix has arrived yet, fixes are arriving
+ * but there are too few to divide money by, and the car has genuinely not left
+ * the spot it was parked in. The card printed the same "Contando seus km" for
+ * all three, so a driver sitting in a queue at the airport watched a line that
+ * never became a number and had nothing on screen to tell them why.
+ *
+ * They need different sentences, so they get different states.
+ */
+export type LiveTrackState =
+  /** Capture is on, but nothing usable has come back from the receiver. */
+  | { kind: 'waiting' }
+  /** Fixes are arriving. Too few to claim a distance, which is not a problem. */
+  | { kind: 'warming' }
+  /** Enough fixes, and the car is still where it started. */
+  | { kind: 'stationary' }
+  | { kind: 'counting'; distance: Metres };
+
+/** What the buffer knows about a shift in progress. */
+export interface LiveTrackProgress {
+  /** Running total over the accepted fixes, in metres. */
+  distanceM: number;
+  /** Fixes that survived the filter. */
+  acceptedCount: number;
+}
+
+/**
+ * The same two thresholds `summariseTrack` applies at the end of the shift, so
+ * the live line and the filed figure can never disagree about whether there is
+ * a distance to show.
+ */
+export function liveTrackState(progress: LiveTrackProgress | null): LiveTrackState {
+  if (!progress || progress.acceptedCount <= 0) return { kind: 'waiting' };
+  if (progress.acceptedCount < MIN_FIXES_FOR_GPS_DISTANCE) return { kind: 'warming' };
+  if (progress.distanceM < MIN_GPS_DISTANCE_M) return { kind: 'stationary' };
+  return { kind: 'counting', distance: Math.round(progress.distanceM) };
+}

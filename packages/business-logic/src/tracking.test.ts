@@ -4,6 +4,8 @@ import {
   fitToPointBudget,
   filterFixes,
   haversineMetres,
+  liveTrackState,
+  MIN_FIXES_FOR_GPS_DISTANCE,
   MIN_TRIM_M,
   MAX_STORED_ROUTE_POINTS,
   MIN_GPS_DISTANCE_M,
@@ -484,5 +486,42 @@ describe('a gap in the track is not distance', () => {
       }
     }
     expect(summariseTrack(fixes).distance).toBe(running);
+  });
+});
+
+describe('liveTrackState', () => {
+  it('waits while nothing has come back from the receiver', () => {
+    expect(liveTrackState(null)).toEqual({ kind: 'waiting' });
+    expect(liveTrackState({ distanceM: 0, acceptedCount: 0 })).toEqual({ kind: 'waiting' });
+  });
+
+  it('warms up while there are too few fixes to divide money by', () => {
+    expect(liveTrackState({ distanceM: 120, acceptedCount: MIN_FIXES_FOR_GPS_DISTANCE - 1 }))
+      .toEqual({ kind: 'warming' });
+  });
+
+  it('calls a parked car parked, not warming', () => {
+    // Enough fixes to be believed, and they all say the same corner. This is
+    // the state the card had no sentence for.
+    expect(liveTrackState({ distanceM: MIN_GPS_DISTANCE_M - 1, acceptedCount: 40 }))
+      .toEqual({ kind: 'stationary' });
+  });
+
+  it('counts once both thresholds are clear', () => {
+    expect(liveTrackState({ distanceM: 4321.6, acceptedCount: 60 }))
+      .toEqual({ kind: 'counting', distance: 4322 });
+  });
+
+  it('agrees with summariseTrack about when there is a distance', () => {
+    // Same fixtures, same verdict: a shift too short for summariseTrack must
+    // not be showing a number on the card while it is running.
+    const parked = Array.from({ length: 40 }, (_, i) => fix(i * 10_000, -23.55, -46.63));
+    expect(summariseTrack(parked).distance).toBeNull();
+    expect(liveTrackState({ distanceM: 0, acceptedCount: 40 }).kind).toBe('stationary');
+
+    const run = straightRun(100);
+    expect(summariseTrack(run).distance).not.toBeNull();
+    expect(liveTrackState({ distanceM: summariseTrack(run).distance!, acceptedCount: 100 }).kind)
+      .toBe('counting');
   });
 });
