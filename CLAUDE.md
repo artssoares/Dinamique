@@ -43,19 +43,30 @@ problems that typecheck cannot see.
 
 ## Where to test
 
-One address, always the same one. It serves the latest `main`, so it does not
-change per branch and does not have to be rediscovered every session:
+Two Vercel projects, and only these two. There is no `dinamique-app`.
 
-- app: https://dinamique-mobile.vercel.app
-- admin: https://dinamique.vercel.app
+| Project | Address | Publishes |
+| --- | --- | --- |
+| `dinamique-mobile` | https://app.dinamique.com.br | `main` |
+| `dinamique-admin` | https://dinamique-admin.vercel.app | the repository default branch |
 
-Hand over that link, not a branch preview. Per-branch preview URLs exist for
-reviewing a pull request and change every time, which is exactly the swapping
-this is here to avoid.
+The app lives on its own domain, not on a `.vercel.app` address. Hand over that
+domain, not a branch preview: per-branch previews exist for reviewing a pull
+request and change every time.
 
-The two Vercel projects live in different scopes, `dinamique1/dinamique-mobile`
+The two projects sit in different Vercel scopes, `dinamique1/dinamique-mobile`
 (root `apps/mobile`) and `feed-on-track/dinamique`, which is why listing
 projects in one scope comes back empty.
+
+**The repository default branch is `claude/dinamique-support-tickets-gfdh4o`**,
+from August, not `main`. Two consequences that have already cost a day of work:
+the admin panel publishes old code, and a fresh session starts from a tree with
+no map, no route capture and none of the recent pull requests, which is enough
+to conclude with full confidence that those features were never built.
+
+To reach the route replay in the app: **Histórico, then tap a day**. The day
+screen picks that day's journey with the largest `distance_gps`, and only draws
+the map when a `journey_routes` row exists for it.
 
 ## Check the base before starting
 
