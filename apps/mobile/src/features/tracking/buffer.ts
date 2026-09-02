@@ -3,9 +3,8 @@ import {
   acceptFix,
   haversineMetres,
   MAX_MOVING_SEGMENT_S,
-  MIN_FIXES_FOR_GPS_DISTANCE,
-  MIN_GPS_DISTANCE_M,
   type Fix,
+  type LiveTrackProgress,
 } from '@dinamique/business-logic';
 import {
   activeRouteKey,
@@ -302,18 +301,20 @@ export async function readBreaks(journeyId: string): Promise<number[]> {
 }
 
 /**
- * The live figure, as one key read. Null until the track is worth believing.
+ * How the shift is going, as one key read.
  *
- * Applies both minimums `summariseTrack` applies, and for the same reason: a
- * sparse track showing counted kilometres all shift and then reporting nothing
- * at close would look like the app losing the driver's day.
+ * Returns the two raw numbers rather than a distance-or-null, because the card
+ * needs to tell a parked car apart from a receiver that has not answered yet,
+ * and both used to arrive as the same null. `liveTrackState` turns this into a
+ * sentence, and applies the same minimums `summariseTrack` applies at close.
+ * A sparse track showing counted kilometres all shift and then reporting
+ * nothing at the end would look like the app losing the driver's day.
  */
-export async function liveDistance(journeyId: string): Promise<number | null> {
+export async function liveProgress(journeyId: string): Promise<LiveTrackProgress | null> {
   // Only a display figure, so an unreadable meta is a dash, not an error.
   const meta = await readJson<RouteMeta>(routeMetaKey(journeyId)).catch(() => null);
-  if (!meta?.distanceM) return null;
-  if ((meta.acceptedCount ?? 0) < MIN_FIXES_FOR_GPS_DISTANCE) return null;
-  return meta.distanceM >= MIN_GPS_DISTANCE_M ? Math.round(meta.distanceM) : null;
+  if (!meta) return null;
+  return { distanceM: meta.distanceM ?? 0, acceptedCount: meta.acceptedCount ?? 0 };
 }
 
 /**

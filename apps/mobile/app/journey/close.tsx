@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { summarisePeriod, type TrackSummary } from '@dinamique/business-logic';
+import { journeyDistance, summarisePeriod, type TrackSummary } from '@dinamique/business-logic';
 import {
   encodePolyline,
   formatCents,
@@ -37,6 +37,7 @@ import { costRows, revenueRows as saleRevenueRows, totalsFor } from '@/features/
 import { useProducts } from '@/features/products/useProducts';
 import { closeRowClientId } from '@/features/journey/closeClientIds';
 import { uniformRows } from '@/features/journey/closeRows';
+import { routeVerdict, routeVerdictCopy } from '@/features/journey/closeReview';
 import { resolveDistanceSource } from '@/features/journey/distanceSource';
 import { useJourneyTracking } from '@/features/tracking/useJourneyTracking';
 import { useRoutePreferences } from '@/features/tracking/preferences';
@@ -815,6 +816,35 @@ export default function CloseJourney() {
   }
 
   // -------------------------------------------------------------- passos ---
+
+  /**
+   * What the last step tells the driver about their day.
+   *
+   * `journeyDistance` rather than a fourth copy of the precedence rule: the
+   * review has to name the figure the history will name, or it is a promise
+   * the next screen breaks.
+   */
+  const reviewDistance = journeyDistance({
+    id: journey?.id ?? 'x',
+    startedAt: journey?.startedAt ?? new Date().toISOString(),
+    endedAt: new Date().toISOString(),
+    pausedSeconds: journey?.pausedSeconds ?? 0,
+    distanceOverride: parsed.distanceOverride,
+    odometerStart: journey?.odometerStart ?? null,
+    odometerEnd: parsed.odometerEnd,
+    distanceGps: preferences?.captureEnabled === false ? null : (measured?.distance ?? null),
+  });
+
+  // Unknown counts as on, matching `save()`: it falls back to the last answer
+  // it read rather than treating a failed query as a refusal.
+  const routeCopy = routeVerdictCopy(
+    routeVerdict({
+      captureEnabled: routePreferencesKnown ? (preferences?.captureEnabled ?? false) : null,
+      pointCount: measured?.points.length ?? 0,
+      distance: measured?.distance ?? null,
+    }),
+  );
+
   const steps = [
     {
       title: 'Quanto entrou hoje?',
@@ -938,6 +968,45 @@ export default function CloseJourney() {
                 placeholder="R$ 0,00"
               />
             ))}
+        </View>
+      ),
+    },
+    {
+      title: 'Tudo certo?',
+      subtitle: 'Confira o dia antes de fechar. Depois disso a contagem para.',
+      content: (
+        <View style={{ gap: theme.spacing.lg }}>
+          <Card padding="lg" style={{ gap: theme.spacing.sm }}>
+            <Row label="Tempo trabalhado" value={formatDuration(workedSeconds)} />
+            <Row label="Faturado" value={formatCents(totals.gross)} />
+            <Row label="Custos" value={formatCents(totals.costs)} />
+            <Row label="Sobrou" value={formatCents(totals.profit)} />
+            {/* An en dash and a reason, never a zero: a day whose kilometres
+                nobody knows is not a day of zero kilometres, and every figure
+                per km would be wrong if it were. */}
+            <Row
+              label="Quilômetros"
+              value={reviewDistance !== null ? formatDistanceKm(reviewDistance, 1) : '–'}
+            />
+            {reviewDistance === null ? (
+              <Text variant="caption" color="muted">
+                Sem km não dá para mostrar ganho por quilômetro. Você pode voltar e informar,
+                ou deixar assim.
+              </Text>
+            ) : null}
+          </Card>
+
+          <Card padding="lg" tone="brand" style={{ gap: theme.spacing.xs }}>
+            <Text variant="captionStrong">{routeCopy.title}</Text>
+            <Text variant="caption" color="secondary">
+              {routeCopy.detail}
+            </Text>
+          </Card>
+
+          <Text variant="caption" color="muted">
+            Ao encerrar, a jornada vai para o Histórico e o relógio para de contar. Os valores
+            você ainda pode corrigir por lá; o trajeto do dia fecha aqui.
+          </Text>
         </View>
       ),
     },
