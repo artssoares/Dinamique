@@ -9,6 +9,19 @@ psql -d <database> -f seed/001_demo.sql
 psql -d <database> -c 'select demo_teardown();'
 ```
 
+`002_demo_route.sql` é outra coisa e não cria dado nenhum. Ele mantém a jornada
+marcada com `note = 'demo-recap'` sempre no dia de hoje, para haver um trajeto
+para abrir no aplicativo sem sair dirigindo.
+
+```bash
+psql -d <database> -f seed/002_demo_route.sql
+psql -d <database> -c "select cron.unschedule('demo-journey-hoje')"
+```
+
+O Histórico abre na semana corrente, então uma jornada de teste com data fixa
+some da primeira tela poucos dias depois de ser criada, mesmo com tudo certo no
+banco. É o tipo de sumiço que parece defeito do aplicativo.
+
 ## What it creates
 
 - **Arthur Soares** – São Paulo, Honda Civic 2020, Uber + 99, ~30 days of
