@@ -90,11 +90,39 @@ jobs:
       # "CommandError: --output-dir must be a subdirectory of the project
       # directory" – so the old path failed before bundling anything. `dist`
       # is already gitignored.
+      #
+      # `--clear` porque é o que o vercel.json usa, e os dois não podem
+      # divergir: o passo seguinte só prova alguma coisa se este for o mesmo
+      # comando que constrói o site de verdade.
       - name: Bundle mobile for web
         env:
           EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
-          EXPO_PUBLIC_SUPABASE_ANON_KEY: ci
-        run: pnpm --filter @dinamique/mobile exec expo export --platform web --output-dir dist
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ci-anon-key
+          EXPO_PUBLIC_ARCGIS_API_KEY: ci-arcgis-key
+        run: pnpm --filter @dinamique/mobile exec expo export --platform web --output-dir dist --clear
+
+      # O bug que este passo existe para pegar já foi para produção e ficou lá.
+      #
+      # O Metro substitui `process.env.EXPO_PUBLIC_*` na hora de transformar o
+      # arquivo, mas o VALOR não entra na chave do cache de transformação. Com
+      # o Build Cache da Vercel ligado, toda construção seguinte reaproveitava
+      # o `supabase.ts` transformado da primeira, que não tinha chave nenhuma.
+      # O site subia "com sucesso", e o aplicativo abria na tela "Falta
+      # conectar o banco de dados" com o mapa desligado junto.
+      #
+      # Um export que passa não prova nada sobre isso: as três chaves ausentes
+      # compilam perfeitamente. Só a busca no pacote pronto prova.
+      - name: As chaves públicas entraram no pacote
+        run: |
+          fail() { echo "FALHOU: $1"; exit 1; }
+
+          test -d apps/mobile/dist || fail "pacote web ausente"
+
+          for chave in example.supabase.co ci-anon-key ci-arcgis-key; do
+            grep -rq -- "$chave" apps/mobile/dist \
+              || fail "$chave não foi embutida no pacote (cache do Metro reaproveitado?)"
+          done
+          echo "As três variáveis EXPO_PUBLIC chegaram ao pacote."
 
       # O export passar é só a prova negativa. Módulos nativos são mantidos fora
       # da web por extensão de plataforma (`.native.ts`), e um import distraído

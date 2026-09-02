@@ -68,6 +68,23 @@ To reach the route replay in the app: **Histórico, then tap a day**. The day
 screen picks that day's journey with the largest `distance_gps`, and only draws
 the map when a `journey_routes` row exists for it.
 
+### The build cache poisons the keys
+
+Metro substitutes `process.env.EXPO_PUBLIC_*` while it transforms a file, and
+the substituted value is not part of the transform cache key. A warm cache
+therefore reuses whatever value it saw first, in both directions: a build with
+the keys set can ship without them, and a build with no keys at all can ship
+the previous build's. With Vercel's build cache on, one bad first build sticks
+for every deployment after it.
+
+This shipped. `app.dinamique.com.br` served the "Falta conectar o banco de
+dados" screen, with the map off for the same reason, while the deployment log
+said success and `vercel.json` held all three keys.
+
+The build command carries `--clear` for this, and CI greps the exported bundle
+for the three `EXPO_PUBLIC_` values it built with. An export that succeeds
+proves nothing here: a missing key compiles perfectly.
+
 ## Check the base before starting
 
 `git log --oneline origin/main -1` before writing anything. A session has
