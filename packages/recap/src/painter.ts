@@ -886,7 +886,7 @@ export const PAINTER_SOURCE = `
 
     ctx.font = '500 ' + Math.round(34 * U) + 'px ' + FONT;
     ctx.fillStyle = withAlpha(COLOR_ACCENT, 0.95);
-    ctx.fillText(brand.handle || 'dinamique.app', W / 2, centreY + 62 * U);
+    ctx.fillText(brand.handle || 'dinamique.com.br', W / 2, centreY + 62 * U);
 
     ctx.font = '400 ' + Math.round(26 * U) + 'px ' + FONT;
     ctx.fillStyle = 'rgba(255,255,255,0.6)';

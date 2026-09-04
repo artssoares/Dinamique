@@ -1,29 +1,21 @@
-import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
-import { Animated, Pressable, View } from 'react-native';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Recap, RecapMessage } from '@dinamique/recap';
-import { Button, darkTokens, Icon, IconButton, Text, usePressMotion, useTheme } from '@dinamique/ui';
+import { Button, darkTokens, Icon, IconButton, Text, useTheme } from '@dinamique/ui';
 import { FilmStage, type FilmStageHandle } from './FilmStage';
 import { useFilmVideo, type VideoPhase } from './useFilmVideo';
 
 /**
- * The film, playing, with the one thing a driver does with it: share it.
+ * The film, full screen, with the one thing a driver does with it: share it.
  *
- * One component for both places the film appears. On the day screen it is a
- * card: the film is already playing when the screen opens, tapping it grows
- * it to full screen, and the share button sits right under it. Full screen
- * is the same player with the chrome moved to the edges. Keeping the two in
- * one file is what stops the card and the full screen drifting apart in what
- * they can do.
- *
- * Recording swaps the playing stage for a second one at file resolution,
- * in the same frame. It stays visible on purpose: a hidden page has its
+ * Used by the full-screen route and by the day screen when the thumbnail
+ * grows. Recording swaps the playing stage for a second one at file
+ * resolution. It stays visible on purpose: a hidden page has its
  * `requestAnimationFrame` throttled to a frame a second, and the video would
  * come out that way. Watching it record is also the honest answer to "what is
  * it doing with my phone for twenty seconds".
  */
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export interface FilmPlayerHandle {
   play: () => void;
@@ -35,23 +27,21 @@ export interface FilmPlayerProps {
   journeyId: string;
   /** The file-resolution film, recorded when the driver shares. */
   recap: Recap;
-  /** What plays on screen: the card size or the full-screen size. */
+  /** What plays on screen. */
   playing: Recap;
   hasRoute: boolean;
   trimmed: boolean;
-  layout: 'card' | 'full';
   /** Frame to pick up from, so the film continues rather than restarts. */
   startIndex?: number;
   /** Every frame the film advances, for whoever needs to pick up where it is. */
   onFrame?: (index: number) => void;
-  /** Card only: the whole picture is the control that opens full screen. */
-  onExpand?: () => void;
-  /** Full only: the back control. */
+  /** Start recording as soon as the player is up: the share button on the day screen. */
+  autoRecord?: boolean;
   onClose?: () => void;
 }
 
 export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function FilmPlayer(
-  { journeyId, recap, playing, hasRoute, trimmed, layout, startIndex, onFrame, onExpand, onClose },
+  { journeyId, recap, playing, hasRoute, trimmed, startIndex, onFrame, autoRecord = false, onClose },
   ref,
 ) {
   const theme = useTheme();
@@ -60,8 +50,7 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
 
   const previewRef = useRef<FilmStageHandle>(null);
   const exportRef = useRef<FilmStageHandle>(null);
-  const [recording, setRecording] = useState(false);
-  const press = usePressMotion({ scale: 0.985, opacity: 0.96, disabled: !onExpand || recording });
+  const [recording, setRecording] = useState(autoRecord);
 
   useImperativeHandle(
     ref,
@@ -72,6 +61,15 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
     }),
     [],
   );
+
+  // The share button on the day screen opens this player already recording.
+  // `begin` moves the state machine to "preparing" so the label and the
+  // overlay say so from the first frame.
+  useEffect(() => {
+    if (autoRecord) video.begin();
+    // Once, on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePreviewMessage = useCallback(
     (message: RecapMessage) => {
@@ -111,102 +109,10 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
     previewRef.current?.play();
   }
 
-  const stage = recording ? (
-    <FilmStage key="export" ref={exportRef} recap={recap} mode="export" onMessage={handleExportMessage} />
-  ) : (
-    <FilmStage key="preview" ref={previewRef} recap={playing} mode="preview" onMessage={handlePreviewMessage} />
-  );
-
-  const notice = video.error ? (
-    <Notice icon="alert" text={video.error} />
-  ) : !hasRoute ? (
-    // Saying why there is no map beats letting the person think it broke.
-    // It is also where GPS counting gets discovered.
-    <Notice
-      icon="info"
-      text="Sem trajeto nesta jornada. Ligue a contagem por GPS em Registrar para o próximo dia ter mapa."
-    />
-  ) : trimmed ? (
-    <Notice icon="shield" text="As pontas do caminho foram cortadas, para não mostrar onde você começou e terminou." />
-  ) : null;
-
-  const shareButton = (
-    <Button
-      label={recording ? labelFor(video.phase, video.progress) : 'Compartilhar vídeo'}
-      size="lg"
-      fullWidth
-      iconName={recording ? undefined : 'arrowUpRight'}
-      loading={recording && video.phase === 'sharing'}
-      disabled={recording}
-      onPress={startRecording}
-    />
-  );
-
-  if (layout === 'card') {
-    return (
-      <View style={{ gap: theme.spacing.sm }}>
-        <AnimatedPressable
-          accessibilityRole="button"
-          accessibilityLabel="Ver o filme em tela cheia"
-          disabled={!onExpand || recording}
-          onPress={onExpand}
-          {...press.handlers}
-          style={[
-            {
-              width: '100%',
-              aspectRatio: 9 / 16,
-              borderRadius: theme.radius['2xl'],
-              overflow: 'hidden',
-              backgroundColor: darkTokens.backgroundPrimary,
-            },
-            press.style,
-          ]}
-        >
-          {stage}
-
-          {/* The whole picture is the control, and this is what says so.
-              Pinned rather than laid out because the stage underneath is a
-              canvas whose size we do not control, and `pointerEvents` none so
-              the badge never eats the tap it advertises. */}
-          {!recording ? (
-            <View
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                right: theme.spacing.md,
-                bottom: theme.spacing.md,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: theme.spacing.xs,
-                paddingVertical: theme.spacing.xs,
-                paddingHorizontal: theme.spacing.sm,
-                borderRadius: theme.radius.pill,
-                backgroundColor: darkTokens.surfacePrimary,
-              }}
-            >
-              <Icon name="expand" size={15} color={darkTokens.textPrimary} />
-              <Text variant="captionStrong" style={{ color: darkTokens.textPrimary }}>
-                Tela cheia
-              </Text>
-            </View>
-          ) : (
-            <RecordingOverlay phase={video.phase} progress={video.progress} />
-          )}
-        </AnimatedPressable>
-
-        {notice}
-        {shareButton}
-        {recording ? (
-          <Button label="Cancelar" variant="ghost" size="sm" fullWidth onPress={cancelRecording} />
-        ) : null}
-      </View>
-    );
-  }
-
   return (
     <View style={{ flex: 1, backgroundColor: darkTokens.backgroundPrimary }}>
       {recording ? (
-        stage
+        <FilmStage key="export" ref={exportRef} recap={recap} mode="export" onMessage={handleExportMessage} />
       ) : (
         <Pressable
           style={{ flex: 1 }}
@@ -214,7 +120,13 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
           accessibilityLabel="Tocar o filme de novo"
           onPress={() => previewRef.current?.play()}
         >
-          {stage}
+          <FilmStage
+            key="preview"
+            ref={previewRef}
+            recap={playing}
+            mode="preview"
+            onMessage={handlePreviewMessage}
+          />
         </Pressable>
       )}
 
@@ -253,8 +165,32 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
           gap: theme.spacing.sm,
         }}
       >
-        {notice}
-        {shareButton}
+        {video.error ? (
+          <Notice icon="alert" text={video.error} />
+        ) : !hasRoute ? (
+          // Saying why there is no map beats letting the person think it
+          // broke. It is also where GPS counting gets discovered.
+          <Notice
+            icon="info"
+            text="Sem trajeto nesta jornada. Ligue a contagem por GPS em Registrar para o próximo dia ter mapa."
+          />
+        ) : trimmed ? (
+          <Notice
+            icon="shield"
+            text="As pontas do caminho foram cortadas, para não mostrar onde você começou e terminou."
+          />
+        ) : null}
+
+        <Button
+          label={recording ? labelFor(video.phase, video.progress) : 'Compartilhar vídeo'}
+          size="lg"
+          fullWidth
+          iconName={recording ? undefined : 'arrowUpRight'}
+          loading={recording && video.phase === 'sharing'}
+          disabled={recording}
+          onPress={startRecording}
+        />
+
         {recording ? (
           <Button label="Cancelar" variant="ghost" size="sm" fullWidth onPress={cancelRecording} />
         ) : null}

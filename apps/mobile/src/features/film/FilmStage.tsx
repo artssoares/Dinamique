@@ -22,7 +22,7 @@ import type { FilmStageHandle, FilmStageProps } from './FilmStageShared';
  * platforms genuinely differ.
  */
 export const FilmStage = forwardRef<FilmStageHandle, FilmStageProps>(function FilmStage(
-  { recap, onMessage, mode = 'preview', style },
+  { recap, onMessage, mode = 'preview', fit = 'contain', style },
   ref,
 ) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
@@ -35,8 +35,9 @@ export const FilmStage = forwardRef<FilmStageHandle, FilmStageProps>(function Fi
         loop: mode === 'preview',
         autoplay: mode === 'preview',
         deliver: 'objectUrl',
+        fit,
       }),
-    [recap, mode],
+    [recap, mode, fit],
   );
 
   function player(): FilmWindow | null {

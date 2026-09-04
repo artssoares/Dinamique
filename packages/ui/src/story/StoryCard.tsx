@@ -188,7 +188,7 @@ export const StoryCard = forwardRef<Svg, StoryCardProps>(function StoryCard(
         fontSize={STORY_TYPE.footer}
         textAnchor="middle"
       >
-        dinamique.app
+        dinamique.com.br
       </SvgText>
     </Svg>
   );
