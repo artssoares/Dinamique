@@ -242,7 +242,13 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
         }}
       >
         {video.error ? (
-          <Notice icon="alert" text={video.error} />
+          // The code goes on screen with the sentence. A driver reporting
+          // "nothing happened" cannot open a console, and this is what turns
+          // that report into something that can be fixed.
+          <Notice
+            icon="alert"
+            text={video.errorCode ? `${video.error} (${video.errorCode})` : video.error}
+          />
         ) : !hasRoute ? (
           // Saying why there is no map beats letting the person think it
           // broke. It is also where GPS counting gets discovered.
