@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { summarisePeriod, trimRouteEnds } from '@dinamique/business-logic';
+import type { LatLng } from '@dinamique/types';
+import { summarisePeriod, trimRouteEnds, type PeriodSummary } from '@dinamique/business-logic';
 import { buildRecap, fixesFromRoute, type RawFix, type Recap } from '@dinamique/recap';
 import { darkTokens, lightTokens } from '@dinamique/ui';
 import { decodePolyline } from '@dinamique/utils';
@@ -57,18 +58,32 @@ interface RouteRow {
   precision: number | null;
 }
 
+/**
+ * The three sizes one film is built at.
+ *
+ * Every size in the painter derives from the width, so the three are the
+ * same drawing with fewer pixels per frame. The card on the day screen is a
+ * third the area of the full-screen preview, and the preview under half the
+ * export; on a mid-range Android that is the difference between a smooth
+ * film and one that stutters, and the driver judges the feature by what
+ * plays first.
+ */
+const EXPORT = { width: 1080, height: 1920 };
+const FULL = { width: 720, height: 1280 };
+const CARD = { width: 540, height: 960 };
+
 export interface JourneyFilm {
   /** 1080 by 1920: the file. The size Stories expect and WhatsApp keeps legible. */
   recap: Recap | null;
-  /**
-   * 720 by 1280 for the screen.
-   *
-   * Every size in the painter derives from the width, so the two are the same
-   * drawing with under half the pixels per frame. On a mid-range Android that
-   * is the difference between a smooth preview and one that stutters, and the
-   * driver judges the feature by the preview.
-   */
+  /** 720 by 1280, for the full-screen preview. */
   preview: Recap | null;
+  /** 540 by 960, for the card inside a scrolling screen. */
+  card: Recap | null;
+  /** The route as drawn, after the privacy cut. Empty when there is none. */
+  points: LatLng[];
+  summary: PeriodSummary | null;
+  startedAt: string | null;
+  endedAt: string | null;
   loading: boolean;
   /** The journey exists but has not been closed: there is nothing to sum up. */
   unfinished: boolean;
@@ -83,6 +98,11 @@ export function useJourneyFilm(journeyId: string | null): JourneyFilm {
   const { preferences } = useRoutePreferences();
   const [recap, setRecap] = useState<Recap | null>(null);
   const [preview, setPreview] = useState<Recap | null>(null);
+  const [card, setCard] = useState<Recap | null>(null);
+  const [points, setPoints] = useState<LatLng[]>([]);
+  const [summary, setSummary] = useState<PeriodSummary | null>(null);
+  const [startedAt, setStartedAt] = useState<string | null>(null);
+  const [endedAt, setEndedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [unfinished, setUnfinished] = useState(false);
   const [notFound, setNotFound] = useState(false);
@@ -124,22 +144,27 @@ export function useJourneyFilm(journeyId: string | null): JourneyFilm {
     if (!journey) {
       setRecap(null);
       setPreview(null);
+      setCard(null);
       setNotFound(true);
       setLoading(false);
       return;
     }
+
+    setStartedAt(journey.started_at);
+    setEndedAt(journey.ended_at);
 
     if (!journey.ended_at) {
       // Worked time only counts what has closed. A film of an open journey
       // would show a profit that is still going to change.
       setRecap(null);
       setPreview(null);
+      setCard(null);
       setUnfinished(true);
       setLoading(false);
       return;
     }
 
-    const summary = summarisePeriod({
+    const totals = summarisePeriod({
       journeys: [
         {
           id: journey.id,
@@ -174,23 +199,24 @@ export function useJourneyFilm(journeyId: string | null): JourneyFilm {
     });
 
     let fixes: RawFix[] = [];
+    let shown: LatLng[] = [];
     let cut = false;
     const route = routeResult.data as RouteRow | null;
     if (route?.polyline) {
-      const points = decodePolyline(route.polyline, route.precision ?? undefined);
-      const shown = trimShared ? trimRouteEnds(points) : points;
-      cut = trimShared && shown.length !== points.length;
+      const decoded = decodePolyline(route.polyline, route.precision ?? undefined);
+      shown = trimShared ? trimRouteEnds(decoded) : decoded;
+      cut = trimShared && shown.length !== decoded.length;
       fixes = fixesFromRoute({
         points: shown,
         startedAt: journey.started_at,
         endedAt: journey.ended_at,
-        workedSeconds: summary.workedSeconds,
+        workedSeconds: totals.workedSeconds,
       });
     }
 
     const request = {
       id: journey.id,
-      summary,
+      summary: totals,
       date: new Date(journey.started_at),
       driverName,
       fixes,
@@ -204,8 +230,11 @@ export function useJourneyFilm(journeyId: string | null): JourneyFilm {
       },
     };
 
-    setRecap(buildRecap({ ...request, width: 1080, height: 1920 }));
-    setPreview(buildRecap({ ...request, width: 720, height: 1280 }));
+    setRecap(buildRecap({ ...request, ...EXPORT }));
+    setPreview(buildRecap({ ...request, ...FULL }));
+    setCard(buildRecap({ ...request, ...CARD }));
+    setPoints(shown);
+    setSummary(totals);
     setTrimmed(cut);
     setUnfinished(false);
     setNotFound(false);
@@ -216,5 +245,18 @@ export function useJourneyFilm(journeyId: string | null): JourneyFilm {
     void reload();
   }, [reload]);
 
-  return { recap, preview, loading, unfinished, notFound, trimmed, reload };
+  return {
+    recap,
+    preview,
+    card,
+    points,
+    summary,
+    startedAt,
+    endedAt,
+    loading,
+    unfinished,
+    notFound,
+    trimmed,
+    reload,
+  };
 }

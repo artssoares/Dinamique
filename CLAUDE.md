@@ -64,14 +64,16 @@ the admin panel publishes old code, and a fresh session starts from a tree with
 no map, no route capture and none of the recent pull requests, which is enough
 to conclude with full confidence that those features were never built.
 
-To reach the route replay in the app: **Histórico, then tap a day**. The day
-screen picks that day's journey with the largest `distance_gps`, and only draws
-the map when a `journey_routes` row exists for it. Under the map, **Assistir ao
-filme do dia** opens the film (`/journey/film/[id]`): the route drawn over
-satellite imagery with the camera turning along the road, and the day's numbers
-at the end. The same button appears on the close-journey summary once the route
-has been saved. The film is `packages/recap`; `pnpm --filter @dinamique/recap
-run preview` writes it as a standalone HTML file to look at in a browser.
+To reach the film in the app: **Histórico, then tap a day**. The day screen
+lists every journey of that day that has a `journey_routes` row, one card per
+journey, and each card is the film itself, already playing: the route drawn
+over satellite imagery with the camera turning along the road, and the
+journey's numbers at the end. Tapping the card grows it to full screen from
+the same frame; **Compartilhar vídeo** under it records and shares the file.
+The close-journey summary links to the same film (`/journey/film/[id]`) once
+the route has been saved. The film is `packages/recap`; `pnpm --filter
+@dinamique/recap run preview` writes it as a standalone HTML file to look at
+in a browser.
 
 Every test account carries a copy of the demo journey (`note = 'demo-recap'`,
 33 km, 769 points), kept on today's date by a daily job. A new test account
