@@ -128,29 +128,31 @@ export function useRouteDays(start: DateOnly, end: DateOnly) {
   return days;
 }
 
+export interface DayJourney {
+  id: string;
+  startedAt: string;
+  endedAt: string | null;
+  distanceGps: number | null;
+}
+
 /**
- * The journey to replay for a given day.
+ * Every journey of a day that has a drawing, in the order they were driven.
  *
- * A driver can run more than one shift in a day, and the longest of them is
- * the one worth watching. Longest means *distance*, not point count: a run up
- * a motorway simplifies to a handful of points while a short errand round a
- * few blocks keeps hundreds, so ordering by points opened the errand and then
- * labelled it with the whole day's kilometres, hours and takings.
- *
- * The inner join is what proves a drawing still exists, and `started_at` then
- * `id` break the tie, so tapping the same day twice never opens two different
- * routes.
+ * All of them, not the longest: a driver who ran a morning shift and an
+ * evening one made two routes and gets two films. The inner join is what
+ * proves a drawing still exists (see `useRouteDays`), and `started_at` then
+ * `id` order them, so the same day never lists its shifts two different ways.
  */
-export function useDayJourney(date: DateOnly | null) {
+export function useDayJourneys(date: DateOnly | null) {
   const { session } = useSession();
-  const [journeyId, setJourneyId] = useState<string | null>(null);
+  const [journeys, setJourneys] = useState<DayJourney[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
     if (!session?.user || !date) {
-      setJourneyId(null);
+      setJourneys([]);
       setLoading(false);
       return;
     }
@@ -161,20 +163,26 @@ export function useDayJourney(date: DateOnly | null) {
     void (async () => {
       const { data } = await supabase
         .from('journeys')
-        .select('id, distance_gps, started_at, journey_routes!inner(journey_id)')
+        .select('id, started_at, ended_at, distance_gps, journey_routes!inner(journey_id)')
         .eq('user_id', session.user.id)
         .gte('started_at', range.start)
         .lt('started_at', range.end)
-        // `nullsFirst: false` so a shift whose distance never landed sorts
-        // last rather than winning the day outright.
-        .order('distance_gps', { ascending: false, nullsFirst: false })
         .order('started_at', { ascending: true })
-        .order('id', { ascending: true })
-        .limit(1);
+        .order('id', { ascending: true });
 
       if (cancelled) return;
-      const rows = (data as { id: string }[] | null) ?? [];
-      setJourneyId(rows[0]?.id ?? null);
+      const rows =
+        (data as
+          | { id: string; started_at: string; ended_at: string | null; distance_gps: number | null }[]
+          | null) ?? [];
+      setJourneys(
+        rows.map((row) => ({
+          id: row.id,
+          startedAt: row.started_at,
+          endedAt: row.ended_at,
+          distanceGps: row.distance_gps,
+        })),
+      );
       setLoading(false);
     })();
 
@@ -183,5 +191,5 @@ export function useDayJourney(date: DateOnly | null) {
     };
   }, [session?.user?.id, date]);
 
-  return { journeyId, loading };
+  return { journeys, loading };
 }

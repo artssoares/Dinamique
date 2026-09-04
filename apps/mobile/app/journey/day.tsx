@@ -1,8 +1,7 @@
-import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { DateOnly } from '@dinamique/types';
-import { formatCents, formatDistanceKm, formatDuration, toDateOnly } from '@dinamique/utils';
+import { formatCents, formatDistanceKm, formatDuration } from '@dinamique/utils';
 import {
   Button,
   Card,
@@ -14,24 +13,23 @@ import {
   Text,
   useTheme,
 } from '@dinamique/ui';
-import { track } from '@/lib/analytics';
-import { RouteReplay } from '@/features/route/RouteReplay';
-import { useStoryShare } from '@/features/route/useStoryShare';
+import { JourneyFilmCard } from '@/features/film/JourneyFilmCard';
 import { longDateLabel } from '@/features/route/routeDates';
-import { useDayJourney, useJourneyRoute } from '@/features/route/useJourneyRoute';
+import { useDayJourneys } from '@/features/route/useJourneyRoute';
 import { useDaySummary } from '@/features/route/useJourneySummary';
 
 /**
  * Um dia do histórico, aberto.
  *
- * O resumo é o principal e aparece sempre; o trajeto é o extra e aparece
- * quando existe. Foi ao contrário disso primeiro — a tela só abria se houvesse
- * desenho — e o resultado é que tocar num dia comum não levava a lugar nenhum,
- * mesmo com o dia inteiro de dinheiro e horas guardado ali.
+ * O resumo é o principal e aparece sempre; os filmes são o extra e aparecem
+ * quando existe trajeto. Foi ao contrário disso primeiro (a tela só abria se
+ * houvesse desenho) e o resultado é que tocar num dia comum não levava a
+ * lugar nenhum, mesmo com o dia inteiro de dinheiro e horas guardado ali.
  *
- * O desenho do caminho existe por um motivo que não é métrica nenhuma: o
- * motorista termina o dia cansado e quase nunca com algo bonito para mostrar
- * do que fez. É o mesmo dado que já estava ali, apenas visto de outro jeito.
+ * Cada jornada com trajeto vira um filme, já tocando: o caminho sendo
+ * desenhado sobre o satélite, a câmera virando com a rua, e o lucro no fim.
+ * Existe por um motivo que não é métrica nenhuma: o motorista termina o dia
+ * cansado e quase nunca com algo bonito para mostrar do que fez.
  */
 export default function JourneyDay() {
   const theme = useTheme();
@@ -39,33 +37,8 @@ export default function JourneyDay() {
   const { date } = useLocalSearchParams<{ date?: string }>();
   const day = (date ?? null) as DateOnly | null;
 
-  const { journeyId, loading: findingJourney } = useDayJourney(day);
-  const { route, loading: loadingRoute } = useJourneyRoute(journeyId);
+  const { journeys, loading: findingJourneys } = useDayJourneys(day);
   const { summary, loading: loadingSummary } = useDaySummary(day);
-
-  // Emitido uma vez por trajeto aberto. Sem isso, um `useEffect` com o objeto
-  // da rota nas dependências mandaria um evento a cada re-render da tela.
-  const reported = useRef<string | null>(null);
-  useEffect(() => {
-    if (!route || reported.current === route.journeyId) return;
-    reported.current = route.journeyId;
-    void track('route_replay_viewed', { points: route.points.length });
-  }, [route]);
-
-  const hasRoute = Boolean(route && route.points.length >= 1);
-
-  // Built whether or not there is a route: hooks cannot be conditional, and
-  // `canShare` already answers the only question the screen asks of it.
-  const story = useStoryShare({
-    points: route?.points ?? [],
-    date: day ?? toDateOnly(new Date()),
-    distance: summary?.distance ?? route?.distance ?? null,
-    workedSeconds: summary?.workedSeconds ?? 0,
-    revenuePerKm: summary?.revenuePerKm ?? null,
-  });
-  // O trajeto pode continuar carregando depois que o resumo chegou. Só o
-  // resumo segura a tela: o dinheiro é o que a pessoa veio ver.
-  const loadingRoutePanel = findingJourney || loadingRoute;
 
   return (
     <Screen
@@ -93,7 +66,7 @@ export default function JourneyDay() {
               value={
                 summary.workedSeconds > 0
                   ? formatDuration(summary.workedSeconds)
-                  : '— sem jornada'
+                  : '– sem jornada'
               }
             />
             <Row
@@ -101,7 +74,7 @@ export default function JourneyDay() {
               value={
                 summary.distance !== null
                   ? formatDistanceKm(summary.distance, 1)
-                  : '— sem km informado'
+                  : '– sem km informado'
               }
             />
             <Row
@@ -109,7 +82,7 @@ export default function JourneyDay() {
               value={
                 summary.revenuePerKm !== null
                   ? formatCents(summary.revenuePerKm)
-                  : '— sem km informado'
+                  : '– sem km informado'
               }
             />
           </View>
@@ -122,56 +95,21 @@ export default function JourneyDay() {
         />
       )}
 
-      {loadingRoutePanel ? (
-        <Skeleton height={260} radius={theme.radius['2xl']} />
-      ) : hasRoute && route ? (
-        <>
-          <Card padding="lg" style={{ gap: theme.spacing.md }}>
-            <Text variant="caption" color="secondary">
-              SEU TRAJETO
-            </Text>
-            <RouteReplay
-              points={route.points}
-              distance={summary?.distance ?? route.distance}
-              onPress={story.canShare ? story.open : undefined}
-            />
-            {/* Printed, not hidden behind a tap. An explanation somebody has
-                to go looking for is one most people never read. */}
-            {story.reason ? (
-              <Text variant="caption" color="muted">
-                {story.reason}
-              </Text>
-            ) : null}
-            {/* O filme: o mesmo trajeto, desenhado sobre o satélite com a
-                câmera seguindo a rua, e o lucro no fim. É o que o motorista
-                manda no grupo. */}
-            <Button
-              label="Assistir ao filme do dia"
-              size="lg"
-              fullWidth
-              iconName="play"
-              onPress={() =>
-                router.push({ pathname: '/journey/film/[id]', params: { id: route.journeyId } })
-              }
-            />
-            {story.canShare ? (
-              <Button
-                label="Compartilhar meu trajeto"
-                variant="secondary"
-                size="lg"
-                fullWidth
-                iconName="arrowUpRight"
-                onPress={story.open}
-              />
-            ) : null}
-          </Card>
-          {story.sheet}
-        </>
+      {findingJourneys ? (
+        <Skeleton height={480} radius={theme.radius['2xl']} />
+      ) : journeys.length > 0 ? (
+        journeys.map((journey, index) => (
+          <JourneyFilmCard
+            key={journey.id}
+            journeyId={journey.id}
+            label={journeys.length > 1 ? `FILME DA ${index + 1}ª JORNADA` : 'FILME DO DIA'}
+          />
+        ))
       ) : summary ? (
         // Uma linha, não uma tela vazia: o dia tem conteúdo, só não tem
         // desenho. Quem nunca ligou o GPS não precisa de um cartaz sobre isso.
         <Text variant="caption" color="muted">
-          Sem trajeto neste dia. Desenhamos o caminho dos dias em que a contagem por GPS
+          Sem trajeto neste dia. Fazemos o filme dos dias em que a contagem por GPS
           estava ligada.
         </Text>
       ) : null}
