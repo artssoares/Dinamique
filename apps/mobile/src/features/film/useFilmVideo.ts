@@ -13,18 +13,19 @@ import { track } from '@/lib/analytics';
  * came from, and passes through nowhere else. The same promise the
  * spreadsheet export makes.
  *
- * On a phone the file goes to the system share sheet, which is where
- * Instagram, WhatsApp and the rest live. In a browser that sheet exists too
- * (the Web Share API), but it opens only from a tap, and the recording ends
- * twenty seconds after the last one. So the browser records, then waits with
- * the file ready and asks for one more tap: that tap opens the sheet. A
- * download is what happens only where the sheet does not exist, a desktop
- * browser mostly.
+ * The file crosses out of the document as base64 in pieces, on both
+ * platforms. On a phone that is the only way across a WebView bridge; in a
+ * browser it is the only way that survives the iframe being torn down, which
+ * happens the moment the recording ends. A blob URL minted inside that iframe
+ * is revoked with it, and reading it afterwards is a race the page loses.
+ * The pieces are aligned to three bytes at the source, so they concatenate
+ * without decoding; decoding happens once, here.
  *
- * Between a WebView and React Native there is no shared memory, so there the
- * file crosses as base64 in pieces. The pieces are aligned to three bytes at
- * the source, which makes them concatenable without decoding; decoding
- * happens once, when the file is written.
+ * Then the two platforms differ in one thing only. On a phone the sheet opens
+ * straight away. In a browser `navigator.share` is allowed only from inside a
+ * tap, and the recording ends twenty seconds after the last one, so the file
+ * waits in `ready` for one more tap. A download is what happens where that
+ * sheet does not exist, a desktop browser mostly.
  */
 
 export type VideoPhase =
@@ -43,6 +44,8 @@ export interface FilmVideoState {
   /** 0 to 1 within the current phase. */
   progress: number;
   error: string | null;
+  /** Short code behind `error`, printed on screen so a report can name it. */
+  errorCode: string | null;
   busy: boolean;
   /** Browser only: whether the tap in `ready` opens a share sheet or saves a file. */
   canShareSheet: boolean;
@@ -61,6 +64,35 @@ function extensionFor(mime: string): string {
 
 function baseMime(mime: string): string {
   return mime.split(';')[0]?.trim().toLowerCase() || 'video/mp4';
+}
+
+/**
+ * base64 to bytes, in slices.
+ *
+ * `atob` over a twenty megabyte string at once is a stall long enough to be
+ * felt; a megabyte at a time is not, and the pieces are already aligned to
+ * three bytes, which is what makes slicing legal at all.
+ */
+function bytesFrom(base64: string): Uint8Array {
+  const SLICE = 1_398_100 - (1_398_100 % 4);
+  const parts: Uint8Array[] = [];
+  let total = 0;
+
+  for (let start = 0; start < base64.length; start += SLICE) {
+    const binary = globalThis.atob(base64.slice(start, start + SLICE));
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    parts.push(bytes);
+    total += bytes.length;
+  }
+
+  const all = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    all.set(part, offset);
+    offset += part.length;
+  }
+  return all;
 }
 
 interface ReadyFile {
@@ -91,6 +123,7 @@ export function useFilmVideo(options: { journeyId: string; hasRoute: boolean }):
   const [phase, setPhase] = useState<VideoPhase>('idle');
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [ready, setReady] = useState<ReadyFile | null>(null);
 
   // The pieces live in a ref, not in state: they are thousands of kilobytes
@@ -111,12 +144,14 @@ export function useFilmVideo(options: { journeyId: string; hasRoute: boolean }):
     setPhase('idle');
     setProgress(0);
     setError(null);
+    setErrorCode(null);
   }, []);
 
   const begin = useCallback(() => {
     chunks.current = [];
     setReady(null);
     setError(null);
+    setErrorCode(null);
     setProgress(0);
     setPhase('preparing');
   }, []);
@@ -125,6 +160,7 @@ export function useFilmVideo(options: { journeyId: string; hasRoute: boolean }):
     (message: string, code: string) => {
       chunks.current = [];
       setError(message);
+      setErrorCode(code);
       setPhase('error');
       void track('journey_film_failed', { code, journey_id: options.journeyId });
     },
@@ -180,18 +216,25 @@ export function useFilmVideo(options: { journeyId: string; hasRoute: boolean }):
     [fail, fileName, shared],
   );
 
-  /** Browser: fetch the blob the document made and hold it for the next tap. */
+  /** Browser: turn the pieces into a File this page owns, and hold it. */
   const finishWeb = useCallback(
-    async (url: string, mimeType: string) => {
+    (base64: string, mimeType: string) => {
       try {
-        const blob = await fetch(url).then((response) => response.blob());
-        const type = baseMime(blob.type || mimeType);
-        const file = new File([blob], fileName(type), { type });
-        setReady({ file, url });
+        const type = baseMime(mimeType);
+        const bytes = bytesFrom(base64);
+        if (bytes.length === 0) {
+          fail('O vídeo saiu vazio. Tente gravar de novo.', 'empty');
+          return;
+        }
+        // `bytes.buffer` rather than the view: the DOM types in this
+        // toolchain do not accept a `Uint8Array` as a `BlobPart`, and the
+        // buffer is exactly the same memory.
+        const file = new File([bytes.buffer as ArrayBuffer], fileName(type), { type });
+        setReady({ file, url: URL.createObjectURL(file) });
         setProgress(1);
         setPhase('ready');
       } catch {
-        fail('Não foi possível ler o vídeo gerado.', 'read');
+        fail('Não foi possível montar o vídeo gerado.', 'assemble');
       }
     },
     [fail, fileName],
@@ -200,9 +243,9 @@ export function useFilmVideo(options: { journeyId: string; hasRoute: boolean }):
   /**
    * Must run inside the tap, with nothing awaited before `navigator.share`:
    * iOS counts the gesture as spent the moment the handler yields, and then
-   * refuses the sheet with NotAllowedError. That is why the call below is
-   * not awaited before it is made, and why the button that triggers it on
-   * the web is a plain DOM button rather than a Pressable.
+   * refuses the sheet. That is why the call below is not awaited before it is
+   * made, and why the button that triggers it on the web is a plain DOM
+   * button rather than a Pressable.
    */
   const share = useCallback(() => {
     if (!ready) return;
@@ -225,8 +268,8 @@ export function useFilmVideo(options: { journeyId: string; hasRoute: boolean }):
     navigator
       .share({ files: [file], title: 'Meu dia no Dinamique' })
       .then(() => shared(file.type, 'sheet'))
-      .catch((error: unknown) => {
-        const name = (error as { name?: string })?.name ?? 'Error';
+      .catch((shareError: unknown) => {
+        const name = (shareError as { name?: string })?.name ?? 'Error';
         // The driver closed the sheet without picking anything. Nothing went
         // wrong, and the file is still here for another try.
         if (name === 'AbortError') {
@@ -235,9 +278,10 @@ export function useFilmVideo(options: { journeyId: string; hasRoute: boolean }):
         }
         // Anything else is said out loud, with the reason, and the file is
         // saved so twenty seconds of recording are never lost. Silent
-        // fallbacks are how "nothing happens" reports get written.
+        // fallbacks are how "nothing happened" reports get written.
         void track('journey_film_failed', { code: `share-${name}`, journey_id: options.journeyId });
-        setError(`A tela de compartilhar não abriu (${name}). O vídeo foi salvo no aparelho.`);
+        setError('A tela de compartilhar não abriu. O vídeo foi salvo no aparelho.');
+        setErrorCode(`share-${name}`);
         download();
       });
   }, [options.journeyId, ready, shared]);
@@ -266,19 +310,18 @@ export function useFilmVideo(options: { journeyId: string; hasRoute: boolean }):
           break;
 
         case 'done': {
-          if (message.url) {
-            void finishWeb(message.url, message.mime);
-            return;
-          }
           const expected = message.chunks ?? chunks.current.length;
           const received = chunks.current.filter((chunk) => typeof chunk === 'string').length;
-          if (received < expected) {
+          if (expected === 0 || received < expected) {
             // A missing piece produces a file that opens and shows garbage.
             // Better to fail here, where it can be explained and retried.
             fail('A transferência do vídeo ficou incompleta. Tente de novo.', 'incomplete');
             return;
           }
-          void finishNative(chunks.current.join(''), message.mime);
+          const base64 = chunks.current.join('');
+          chunks.current = [];
+          if (Platform.OS === 'web') finishWeb(base64, message.mime);
+          else void finishNative(base64, message.mime);
           break;
         }
 
@@ -297,6 +340,7 @@ export function useFilmVideo(options: { journeyId: string; hasRoute: boolean }):
     phase,
     progress,
     error,
+    errorCode,
     busy:
       phase === 'preparing' || phase === 'rendering' || phase === 'encoding' || phase === 'sharing',
     canShareSheet: Platform.OS !== 'web' || (ready !== null && sheetAvailable(ready.file)),
