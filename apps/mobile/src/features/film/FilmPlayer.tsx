@@ -9,12 +9,15 @@ import { useFilmVideo, type VideoPhase } from './useFilmVideo';
 /**
  * The film, full screen, with the one thing a driver does with it: share it.
  *
- * Used by the full-screen route and by the day screen when the thumbnail
- * grows. Recording swaps the playing stage for a second one at file
- * resolution. It stays visible on purpose: a hidden page has its
- * `requestAnimationFrame` throttled to a frame a second, and the video would
- * come out that way. Watching it record is also the honest answer to "what is
- * it doing with my phone for twenty seconds".
+ * Used by the full-screen route and by the day screen when the square grows.
+ * Recording swaps the playing stage for a second one at file resolution. It
+ * stays visible on purpose: a hidden page has its `requestAnimationFrame`
+ * throttled to a frame a second, and the video would come out that way.
+ * Watching it record is also the honest answer to "what is it doing with my
+ * phone for twenty seconds".
+ *
+ * In a browser the share sheet opens only from a tap, so after the recording
+ * the button changes to the tap that opens it. See `useFilmVideo`.
  */
 
 export interface FilmPlayerHandle {
@@ -30,7 +33,6 @@ export interface FilmPlayerProps {
   /** What plays on screen. */
   playing: Recap;
   hasRoute: boolean;
-  trimmed: boolean;
   /** Frame to pick up from, so the film continues rather than restarts. */
   startIndex?: number;
   /** Every frame the film advances, for whoever needs to pick up where it is. */
@@ -41,7 +43,7 @@ export interface FilmPlayerProps {
 }
 
 export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function FilmPlayer(
-  { journeyId, recap, playing, hasRoute, trimmed, startIndex, onFrame, autoRecord = false, onClose },
+  { journeyId, recap, playing, hasRoute, startIndex, onFrame, autoRecord = false, onClose },
   ref,
 ) {
   const theme = useTheme();
@@ -51,6 +53,9 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
   const previewRef = useRef<FilmStageHandle>(null);
   const exportRef = useRef<FilmStageHandle>(null);
   const [recording, setRecording] = useState(autoRecord);
+  // The preview warms its tiles before it plays; until then the opening card
+  // holds the screen and this says why.
+  const [warming, setWarming] = useState(true);
 
   useImperativeHandle(
     ref,
@@ -77,7 +82,14 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
         previewRef.current?.seek(startIndex);
         return;
       }
-      if (message.type === 'frame') onFrame?.(message.index);
+      if (message.type === 'progress' && message.phase === 'tiles') {
+        setWarming(message.value < 1);
+        return;
+      }
+      if (message.type === 'frame') {
+        setWarming(false);
+        onFrame?.(message.index);
+      }
     },
     // `startIndex` is read once, at 'ready'; a later change must not reseek a
     // film the driver is watching.
@@ -109,6 +121,26 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
     previewRef.current?.play();
   }
 
+  const fileReady = video.phase === 'ready' || video.phase === 'done';
+
+  function primaryAction() {
+    if (fileReady) {
+      void video.share();
+      return;
+    }
+    startRecording();
+  }
+
+  const primaryLabel = recording
+    ? labelFor(video.phase, video.progress)
+    : video.phase === 'sharing'
+      ? 'Abrindo o compartilhamento'
+      : fileReady
+        ? video.canShareSheet
+          ? 'Enviar para o story'
+          : 'Baixar o vídeo'
+        : 'Compartilhar vídeo';
+
   return (
     <View style={{ flex: 1, backgroundColor: darkTokens.backgroundPrimary }}>
       {recording ? (
@@ -120,11 +152,14 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
           accessibilityLabel="Tocar o filme de novo"
           onPress={() => previewRef.current?.play()}
         >
+          {/* Not interactive: an iframe swallows every tap that lands on it,
+              and the Pressable around it is the control. */}
           <FilmStage
             key="preview"
             ref={previewRef}
             recap={playing}
             mode="preview"
+            interactive={false}
             onMessage={handlePreviewMessage}
           />
         </Pressable>
@@ -141,6 +176,7 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
           paddingHorizontal: theme.spacing.md,
           flexDirection: 'row',
           alignItems: 'center',
+          gap: theme.spacing.sm,
         }}
       >
         <IconButton
@@ -149,6 +185,7 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
           tone="surface"
           onPress={() => (recording ? cancelRecording() : onClose?.())}
         />
+        {!recording && warming ? <Pill text="Carregando o mapa" /> : null}
       </View>
 
       {recording ? <RecordingOverlay phase={video.phase} progress={video.progress} /> : null}
@@ -174,25 +211,31 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
             icon="info"
             text="Sem trajeto nesta jornada. Ligue a contagem por GPS em Registrar para o próximo dia ter mapa."
           />
-        ) : trimmed ? (
+        ) : fileReady && !recording ? (
           <Notice
-            icon="shield"
-            text="As pontas do caminho foram cortadas, para não mostrar onde você começou e terminou."
+            icon="check"
+            text={
+              video.canShareSheet
+                ? 'Vídeo pronto. Toque para escolher onde postar.'
+                : 'Vídeo pronto. Este navegador não abre a tela de compartilhar, então ele baixa o arquivo.'
+            }
           />
         ) : null}
 
         <Button
-          label={recording ? labelFor(video.phase, video.progress) : 'Compartilhar vídeo'}
+          label={primaryLabel}
           size="lg"
           fullWidth
-          iconName={recording ? undefined : 'arrowUpRight'}
-          loading={recording && video.phase === 'sharing'}
-          disabled={recording}
-          onPress={startRecording}
+          iconName={recording || video.phase === 'sharing' ? undefined : 'arrowUpRight'}
+          loading={video.phase === 'sharing'}
+          disabled={recording || video.phase === 'sharing'}
+          onPress={primaryAction}
         />
 
         {recording ? (
           <Button label="Cancelar" variant="ghost" size="sm" fullWidth onPress={cancelRecording} />
+        ) : fileReady ? (
+          <Button label="Gravar de novo" variant="ghost" size="sm" fullWidth onPress={startRecording} />
         ) : null}
       </View>
     </View>
@@ -215,7 +258,25 @@ function labelFor(phase: VideoPhase, progress: number): string {
   }
 }
 
-function Notice({ icon, text }: { icon: 'alert' | 'info' | 'shield'; text: string }) {
+function Pill({ text }: { text: string }) {
+  const theme = useTheme();
+  return (
+    <View
+      style={{
+        paddingVertical: theme.spacing.xs,
+        paddingHorizontal: theme.spacing.sm,
+        borderRadius: theme.radius.pill,
+        backgroundColor: darkTokens.surfacePrimary,
+      }}
+    >
+      <Text variant="captionStrong" style={{ color: darkTokens.textSecondary }}>
+        {text}
+      </Text>
+    </View>
+  );
+}
+
+function Notice({ icon, text }: { icon: 'alert' | 'info' | 'check'; text: string }) {
   const theme = useTheme();
   return (
     <View

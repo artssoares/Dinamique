@@ -22,7 +22,7 @@ import type { FilmStageHandle, FilmStageProps } from './FilmStageShared';
  * platforms genuinely differ.
  */
 export const FilmStage = forwardRef<FilmStageHandle, FilmStageProps>(function FilmStage(
-  { recap, onMessage, mode = 'preview', fit = 'contain', style },
+  { recap, onMessage, mode = 'preview', fit = 'contain', interactive = true, style },
   ref,
 ) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
@@ -72,7 +72,10 @@ export const FilmStage = forwardRef<FilmStageHandle, FilmStageProps>(function Fi
   }, []);
 
   return (
-    <View style={[{ flex: 1, overflow: 'hidden', backgroundColor: darkTokens.backgroundPrimary }, style]}>
+    <View
+      pointerEvents={interactive ? 'auto' : 'none'}
+      style={[{ flex: 1, overflow: 'hidden', backgroundColor: darkTokens.backgroundPrimary }, style]}
+    >
       {createElement('iframe', {
         ref: frameRef,
         srcDoc: html,
@@ -83,6 +86,7 @@ export const FilmStage = forwardRef<FilmStageHandle, FilmStageProps>(function Fi
           border: 'none',
           display: 'block',
           background: darkTokens.backgroundPrimary,
+          pointerEvents: interactive ? 'auto' : 'none',
         },
         // No origin sandbox: the document is generated here and needs to be
         // same-origin for its canvas to be captured.

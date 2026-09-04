@@ -136,7 +136,6 @@ export function JourneyFilmCard({ journeyId, label }: { journeyId: string; label
           recap={film.recap}
           playing={film.preview}
           hasRoute={hasRoute}
-          trimmed={film.trimmed}
           startIndex={frame.current}
           autoRecord={full?.record ?? false}
           onFrame={(index) => {
