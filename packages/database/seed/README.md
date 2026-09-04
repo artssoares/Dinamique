@@ -9,12 +9,15 @@ psql -d <database> -f seed/001_demo.sql
 psql -d <database> -c 'select demo_teardown();'
 ```
 
-`002_demo_route.sql` é outra coisa e não cria dado nenhum. Ele mantém a jornada
-marcada com `note = 'demo-recap'` sempre no dia de hoje, para haver um trajeto
-para abrir no aplicativo sem sair dirigindo.
+`002_demo_route.sql` é outra coisa. Ele mantém as jornadas marcadas com
+`note = 'demo-recap'` (uma por conta de teste) sempre no dia de hoje, para
+haver um trajeto, e o filme do dia, para abrir no aplicativo sem sair
+dirigindo. E dá a jornada a uma conta de teste nova, copiando ganhos, gastos e
+trajeto.
 
 ```bash
 psql -d <database> -f seed/002_demo_route.sql
+psql -d <database> -c "select clone_demo_journey(id) from auth.users where email = 'alguem@exemplo.com'"
 psql -d <database> -c "select cron.unschedule('demo-journey-hoje')"
 ```
 
