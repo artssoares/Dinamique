@@ -66,7 +66,24 @@ to conclude with full confidence that those features were never built.
 
 To reach the route replay in the app: **Histórico, then tap a day**. The day
 screen picks that day's journey with the largest `distance_gps`, and only draws
-the map when a `journey_routes` row exists for it.
+the map when a `journey_routes` row exists for it. Under the map, **Assistir ao
+filme do dia** opens the film (`/journey/film/[id]`): the route drawn over
+satellite imagery with the camera turning along the road, and the day's numbers
+at the end. The same button appears on the close-journey summary once the route
+has been saved. The film is `packages/recap`; `pnpm --filter @dinamique/recap
+run preview` writes it as a standalone HTML file to look at in a browser.
+
+Every test account carries a copy of the demo journey (`note = 'demo-recap'`,
+33 km, 769 points), kept on today's date by a daily job. A new test account
+gets its own copy with `select clone_demo_journey(id) from auth.users where
+email = '...'` (see `packages/database/seed/002_demo_route.sql`). Without it,
+a fresh account opens Histórico, sees no map, and concludes the map is not
+published.
+
+The film was built in late August, on a branch that started from the stale
+default branch, and its commits were dropped before the branch reached `main`.
+The "HTML file with the map animation" people remember is that film's preview.
+It is on `main` now; do not rebuild it.
 
 ### The build cache poisons the keys
 

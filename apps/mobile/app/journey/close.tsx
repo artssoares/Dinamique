@@ -776,6 +776,22 @@ export default function CloseJourney() {
             ) : null}
             {story.sheet}
 
+            {/* Só quando o trajeto foi guardado: o filme é montado a partir
+                do histórico, e um desenho que ficou só no aparelho não está
+                lá para ser lido. */}
+            {routeOutcome === 'kept' && closed ? (
+              <Button
+                label="Assistir ao filme do dia"
+                variant="secondary"
+                size="lg"
+                fullWidth
+                iconName="play"
+                onPress={() =>
+                  router.push({ pathname: '/journey/film/[id]', params: { id: closed.id } })
+                }
+              />
+            ) : null}
+
             {/* O desenho está aqui, no aparelho. O que falhou foi guardá-lo
                 no histórico, e é isso que a linha diz. */}
             {routeOutcome === 'lost' ? (
