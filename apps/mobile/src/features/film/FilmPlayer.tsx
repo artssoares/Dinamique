@@ -1,5 +1,13 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import {
+  createElement,
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
+import { Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Recap, RecapMessage } from '@dinamique/recap';
 import { Button, darkTokens, Icon, IconButton, Text, useTheme } from '@dinamique/ui';
@@ -125,7 +133,7 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
 
   function primaryAction() {
     if (fileReady) {
-      void video.share();
+      video.share();
       return;
     }
     startRecording();
@@ -140,6 +148,37 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
           ? 'Enviar para o story'
           : 'Baixar o vídeo'
         : 'Compartilhar vídeo';
+
+  // On the web the tap that opens the share sheet has to reach
+  // `navigator.share` inside the browser's own click event. A Pressable
+  // hands the press through React Native Web's responder system, and iOS
+  // has been seen treating that as no gesture at all and refusing the sheet.
+  // So while the file is ready, a real DOM button sits over the styled one,
+  // invisible, and takes the click first.
+  const webShareTap =
+    Platform.OS === 'web' && fileReady && video.phase !== 'sharing'
+      ? createElement('button', {
+          type: 'button',
+          'aria-label': primaryLabel,
+          onClick: (event: { preventDefault: () => void }) => {
+            event.preventDefault();
+            video.share();
+          },
+          style: {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            opacity: 0,
+            border: 'none',
+            padding: 0,
+            margin: 0,
+            background: 'transparent',
+            cursor: 'pointer',
+          },
+        })
+      : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: darkTokens.backgroundPrimary }}>
@@ -222,15 +261,18 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
           />
         ) : null}
 
-        <Button
-          label={primaryLabel}
-          size="lg"
-          fullWidth
-          iconName={recording || video.phase === 'sharing' ? undefined : 'arrowUpRight'}
-          loading={video.phase === 'sharing'}
-          disabled={recording || video.phase === 'sharing'}
-          onPress={primaryAction}
-        />
+        <View style={{ position: 'relative' }}>
+          <Button
+            label={primaryLabel}
+            size="lg"
+            fullWidth
+            iconName={recording || video.phase === 'sharing' ? undefined : 'arrowUpRight'}
+            loading={video.phase === 'sharing'}
+            disabled={recording || video.phase === 'sharing'}
+            onPress={primaryAction}
+          />
+          {webShareTap}
+        </View>
 
         {recording ? (
           <Button label="Cancelar" variant="ghost" size="sm" fullWidth onPress={cancelRecording} />

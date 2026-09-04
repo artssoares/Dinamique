@@ -85,7 +85,7 @@ export function useFilmVideo(options: { journeyId: string; hasRoute: boolean }):
   handleMessage: (message: RecapMessage) => void;
   begin: () => void;
   /** Browser only, in `ready`: opens the share sheet, or saves the file where there is none. */
-  share: () => Promise<void>;
+  share: () => void;
   reset: () => void;
 } {
   const [phase, setPhase] = useState<VideoPhase>('idle');
@@ -197,34 +197,50 @@ export function useFilmVideo(options: { journeyId: string; hasRoute: boolean }):
     [fail, fileName],
   );
 
-  const share = useCallback(async () => {
+  /**
+   * Must run inside the tap, with nothing awaited before `navigator.share`:
+   * iOS counts the gesture as spent the moment the handler yields, and then
+   * refuses the sheet with NotAllowedError. That is why the call below is
+   * not awaited before it is made, and why the button that triggers it on
+   * the web is a plain DOM button rather than a Pressable.
+   */
+  const share = useCallback(() => {
     if (!ready) return;
     const { file, url } = ready;
-    setPhase('sharing');
 
-    if (sheetAvailable(file)) {
-      try {
-        await navigator.share({ files: [file], title: 'Meu dia no Dinamique' });
-        shared(file.type, 'sheet');
-        return;
-      } catch (error) {
+    const download = () => {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.name;
+      link.click();
+      shared(file.type, 'download');
+    };
+
+    if (!sheetAvailable(file)) {
+      download();
+      return;
+    }
+
+    setPhase('sharing');
+    navigator
+      .share({ files: [file], title: 'Meu dia no Dinamique' })
+      .then(() => shared(file.type, 'sheet'))
+      .catch((error: unknown) => {
+        const name = (error as { name?: string })?.name ?? 'Error';
         // The driver closed the sheet without picking anything. Nothing went
         // wrong, and the file is still here for another try.
-        if ((error as { name?: string })?.name === 'AbortError') {
+        if (name === 'AbortError') {
           setPhase('ready');
           return;
         }
-        // Anything else: fall through to the download, so the file is never
-        // lost after twenty seconds of recording.
-      }
-    }
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = file.name;
-    link.click();
-    shared(file.type, 'download');
-  }, [ready, shared]);
+        // Anything else is said out loud, with the reason, and the file is
+        // saved so twenty seconds of recording are never lost. Silent
+        // fallbacks are how "nothing happens" reports get written.
+        void track('journey_film_failed', { code: `share-${name}`, journey_id: options.journeyId });
+        setError(`A tela de compartilhar não abriu (${name}). O vídeo foi salvo no aparelho.`);
+        download();
+      });
+  }, [options.journeyId, ready, shared]);
 
   const handleMessage = useCallback(
     (message: RecapMessage) => {
