@@ -35,8 +35,11 @@ export function Text({ variant = 'body', color = 'primary', align, style, ...res
     muted: theme.colors.textMuted,
     inverse: theme.colors.textInverse,
     onBrand: theme.colors.textOnBrand,
-    brand: theme.colors.brandPrimary,
-    accent: theme.colors.brandSecondary,
+    // Like the semantic roles below, these resolve to the accessible step
+    // rather than the vivid fill: Coral 500 is a badge colour, not a typeface
+    // colour, at 2.6:1 on its own tint.
+    brand: theme.colors.brandPrimaryText,
+    accent: theme.colors.brandSecondaryText,
     success: theme.colors.successText,
     danger: theme.colors.dangerText,
     warning: theme.colors.warningText,

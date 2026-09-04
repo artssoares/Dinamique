@@ -63,7 +63,12 @@ export type IconName =
   | 'megaphone'
   | 'compass'
   | 'flag'
-  | 'expand';
+  | 'expand'
+  | 'calendar'
+  | 'edit'
+  | 'trash'
+  | 'coins'
+  | 'scale';
 
 export interface IconProps {
   name: IconName;
@@ -457,6 +462,58 @@ export function Icon({ name, size = 22, color, strokeWidth = 1.8 }: IconProps) {
           <Polyline points="14.5,4.5 19.5,4.5 19.5,9.5" />
           <Polyline points="19.5,14.5 19.5,19.5 14.5,19.5" />
           <Polyline points="9.5,19.5 4.5,19.5 4.5,14.5" />
+        </Svg>
+      );
+    // A month with days in it, not a page with a fold. The three dots are what
+    // makes it read as a calendar at 16dp, where a plain rounded rectangle
+    // reads as a card.
+    case 'calendar':
+      return (
+        <Svg {...common}>
+          <Rect x="3.25" y="5" width="17.5" height="15.25" rx="3" />
+          <Line x1="3.25" y1="9.75" x2="20.75" y2="9.75" />
+          <Line x1="8" y1="3" x2="8" y2="6.5" />
+          <Line x1="16" y1="3" x2="16" y2="6.5" />
+          <Circle cx="8.25" cy="14" r="1.05" fill={stroke} stroke="none" />
+          <Circle cx="12" cy="14" r="1.05" fill={stroke} stroke="none" />
+          <Circle cx="15.75" cy="14" r="1.05" fill={stroke} stroke="none" />
+        </Svg>
+      );
+    case 'edit':
+      return (
+        <Svg {...common}>
+          <Path d="M4 20h4.2l9.55-9.55a2.4 2.4 0 0 0 0-3.4l-.8-.8a2.4 2.4 0 0 0-3.4 0L4 15.8z" />
+          <Line x1="12.9" y1="7.35" x2="16.65" y2="11.1" />
+        </Svg>
+      );
+    case 'trash':
+      return (
+        <Svg {...common}>
+          <Line x1="3.75" y1="6.5" x2="20.25" y2="6.5" />
+          <Path d="M9 6.5V4.75a1.5 1.5 0 0 1 1.5-1.5h3a1.5 1.5 0 0 1 1.5 1.5V6.5" />
+          <Path d="M5.75 6.5h12.5l-.85 12.2a2 2 0 0 1-2 1.8h-6.8a2 2 0 0 1-2-1.8z" />
+          <Line x1="10.25" y1="10.5" x2="10.25" y2="16.5" />
+          <Line x1="13.75" y1="10.5" x2="13.75" y2="16.5" />
+        </Svg>
+      );
+    case 'coins':
+      return (
+        <Svg {...common}>
+          <Circle cx="12" cy="12" r="8.25" />
+          <Path d="M14.6 9.1a3.1 3.1 0 0 0-2.6-1.2c-1.6 0-2.7.85-2.7 2s1 1.75 2.7 2.1c1.7.35 2.7.95 2.7 2.1s-1.1 2-2.7 2a3.1 3.1 0 0 1-2.6-1.2" />
+          <Line x1="12" y1="6.1" x2="12" y2="7.9" />
+          <Line x1="12" y1="16.1" x2="12" y2="17.9" />
+        </Svg>
+      );
+    // A pair of scales: the average, the middle, the typical day.
+    case 'scale':
+      return (
+        <Svg {...common}>
+          <Line x1="12" y1="4.25" x2="12" y2="20.25" />
+          <Line x1="7.25" y1="20.25" x2="16.75" y2="20.25" />
+          <Line x1="4.5" y1="7.25" x2="19.5" y2="7.25" />
+          <Path d="M4.5 7.25 1.9 13.4a2.9 2.9 0 0 0 5.2 0z" />
+          <Path d="M19.5 7.25 16.9 13.4a2.9 2.9 0 0 0 5.2 0z" />
         </Svg>
       );
   }

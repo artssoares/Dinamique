@@ -59,7 +59,7 @@ export function ListRow({
     },
     accent: {
       background: theme.colors.brandSecondarySubtle,
-      icon: theme.colors.brandSecondary,
+      icon: theme.colors.brandSecondaryText,
       border: 'transparent',
     },
     success: {

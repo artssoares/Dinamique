@@ -54,6 +54,7 @@ export interface PeriodSummary {
   /** null when no time was worked. */
   revenuePerHour: Cents | null;
   profitPerHour: Cents | null;
+  costPerHour: Cents | null;
   /** null when no distance was recorded – see §6. */
   revenuePerKm: Cents | null;
   profitPerKm: Cents | null;
@@ -153,6 +154,7 @@ export function summarisePeriod(input: {
     journeyCount: journeys.length,
     revenuePerHour: perUnit(grossRevenue, hours),
     profitPerHour: perUnit(netProfit, hours),
+    costPerHour: perUnit(totalExpenses, hours),
     revenuePerKm: perUnit(grossRevenue, km),
     profitPerKm: perUnit(netProfit, km),
     costPerKm: perUnit(vehicleExpenses, km),

@@ -5,20 +5,20 @@ import type { GoalPeriod } from '@dinamique/types';
 import { generateInsights, scoreLabel } from '@dinamique/business-logic';
 import {
   formatCents,
-  formatDistanceKm,
-  formatDuration,
   formatPercent,
   monthLabel,
   toDateOnly,
   weekdayLabel,
 } from '@dinamique/utils';
 import {
+  Badge,
   Button,
   Card,
   EmptyState,
   Icon,
   InsightCard,
   ProgressRing,
+  RatioBar,
   Screen,
   SectionHeader,
   SegmentedControl,
@@ -29,6 +29,7 @@ import {
 import { AppHeader } from '@/features/shell/AppHeader';
 import { usePeriodReport } from '@/features/insights/useSummary';
 import { useBenchmark } from '@/features/insights/useBenchmark';
+import { PeriodHeadline, PeriodMetrics, periodWord } from '@/features/insights/PeriodMetrics';
 
 /**
  * Dias com registro a partir dos quais a comparação entre um período e o
@@ -43,8 +44,16 @@ import { useBenchmark } from '@/features/insights/useBenchmark';
 const MIN_DAYS = 5;
 
 /**
- * Insights (§42–46). Interpretação, não painel: nota do dia, comparação com a
- * própria média, projeção, benchmark e o resumo do período em frases.
+ * Insights (§42–46). Interpretação, não painel: nota do dia, meta, comparação
+ * com a própria média, projeção, benchmark e o resumo do período.
+ *
+ * O resumo era um parágrafo: oito frases do mesmo tamanho e da mesma cor, cada
+ * uma carregando um número. "Você trabalhou 3h47. Percorreu 33 km. Faturou
+ * R$ 815,90." Estava tudo certo e nada chegava antes de nada, porque uma lista
+ * de frases não tem hierarquia. Agora é o mesmo bloco que o Histórico usa, com
+ * destaque, cor e grupos, e com os números que o aplicativo já calculava e
+ * nunca mostrava: custo por hora, custo por km, corridas e vendas, ticket
+ * médio, gorjetas e a média por dia.
  */
 export default function Insights() {
   const theme = useTheme();
@@ -125,99 +134,69 @@ export default function Insights() {
 
           <GoalSection report={report} period={period} onAdjust={() => router.push('/goals')} />
 
-          {report.score.hasData ? (
-            <Card padding="xl" style={{ gap: theme.spacing.lg, alignItems: 'center' }}>
-              <View style={{ alignSelf: 'stretch' }}>
-                <SectionHeader title="Nota de hoje" />
+          {report.score.hasData ? <ScoreCard score={report.score.score} /> : null}
+
+          <PeriodHeadline summary={report.summary} period={period} previous={report.previous} />
+
+          <PeriodMetrics summary={report.summary} daysWithData={report.daysWithData} />
+
+          {report.bestDay && period !== 'daily' ? (
+            <Card
+              padding="lg"
+              style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}
+            >
+              <View
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: theme.radius.pill,
+                  backgroundColor: theme.colors.successSubtle,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Icon name="flag" size={20} color={theme.colors.successText} />
               </View>
-              <ProgressRing
-                ratio={report.score.score / 10}
-                label={`Nota de hoje, ${report.score.score.toFixed(1)} de 10`}
-                centreLabel={report.score.score.toFixed(1).replace('.', ',')}
-                centreHint="de 10"
-                size={148}
-              />
-              <Text variant="bodyStrong" align="center">
-                {scoreLabel(report.score.score)}
-              </Text>
-              <Text variant="caption" color="muted" align="center">
-                A nota compara seu dia com a sua própria média e com a meta. Ela sobe quando você
-                supera o que costuma fazer.
-              </Text>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text variant="overline" color="secondary">
+                  MELHOR DIA {periodWord(period)}
+                </Text>
+                <Text variant="bodyStrong">
+                  {weekdayLabel(report.bestDay.date)} · {formatCents(report.bestDay.profit)} de lucro
+                </Text>
+              </View>
             </Card>
           ) : null}
-
-          <Card padding="xl" style={{ gap: theme.spacing.md }}>
-            <Text variant="caption" color="secondary">
-              RESUMO {period === 'weekly' ? 'DA SEMANA' : period === 'monthly' ? 'DO MÊS' : 'DO ANO'}
-            </Text>
-            {summaryLines(report, period).map((line) => (
-              <Text key={line} variant="body">
-                {line}
-              </Text>
-            ))}
-          </Card>
 
           {/* Só quando não há meta. Com uma meta na tela, o cartão dela já
               diz onde o ritmo atual termina, e repetir o mesmo número com
               outro rótulo faz o motorista procurar a diferença entre os
               dois. */}
           {!report.goal && report.projection?.hasEnoughData ? (
-            <Card padding="lg" style={{ gap: theme.spacing.xs }}>
-              <Text variant="caption" color="secondary">
-                PROJEÇÃO
+            <Card padding="lg" tone="brand" style={{ gap: theme.spacing.xs }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+                <Icon name="trendUp" size={16} color={theme.colors.brandPrimaryText} />
+                <Text variant="overline" color="brand">
+                  PROJEÇÃO
+                </Text>
+              </View>
+              <Text variant="moneyMedium" color="brand">
+                {formatCents(report.projection.projectedTotal)}
               </Text>
-              <Text variant="body">
-                Mantendo a média atual, sua projeção para{' '}
+              <Text variant="caption" color="secondary">
+                É onde você fecha{' '}
                 {period === 'monthly'
                   ? monthLabel(toDateOnly(new Date()))
                   : period === 'yearly'
                     ? 'o ano'
                     : 'a semana'}{' '}
-                é {formatCents(report.projection.projectedTotal)}.
-              </Text>
-              <Text variant="caption" color="muted">
-                É uma estimativa baseada nos {report.projection.daysElapsed} dias já registrados.
+                mantendo a média atual, estimado a partir dos {report.projection.daysElapsed} dias
+                já registrados.
               </Text>
             </Card>
           ) : null}
 
-          {benchmark ? (
-            <Card padding="xl" style={{ gap: theme.spacing.md }}>
-              <Text variant="caption" color="secondary">
-                COMPARAÇÃO ANÔNIMA
-              </Text>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <View>
-                  <Text variant="caption" color="secondary">
-                    {benchmark.scope}
-                  </Text>
-                  <Text variant="moneyMedium">
-                    {formatCents(benchmark.comparison.peerValue)}/km
-                  </Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text variant="caption" color="secondary">
-                    você
-                  </Text>
-                  <Text variant="moneyMedium" color="brand">
-                    {formatCents(benchmark.comparison.userValue)}/km
-                  </Text>
-                </View>
-              </View>
-              <Text
-                variant="bodyStrong"
-                color={benchmark.comparison.difference >= 0 ? 'success' : 'warning'}
-              >
-                {benchmark.comparison.difference >= 0 ? '+' : ''}
-                {formatPercent(benchmark.comparison.difference, 1)} em relação a eles
-              </Text>
-              <Text variant="caption" color="muted">
-                Média de {benchmark.comparison.sampleSize} motoristas. Nenhum dado individual de
-                outra pessoa é mostrado aqui.
-              </Text>
-            </Card>
-          ) : null}
+          {benchmark ? <BenchmarkCard benchmark={benchmark} /> : null}
 
           {insights.length > 0 ? (
             <View style={{ gap: theme.spacing.md }}>
@@ -395,40 +374,103 @@ function periodNoun(period: GoalPeriod): string {
   return 'de hoje';
 }
 
-/** Resumo automático em frases (§54) – cada uma só aparece se tiver dado real. */
-function summaryLines(
-  report: NonNullable<ReturnType<typeof usePeriodReport>['report']>,
-  period: GoalPeriod,
-): string[] {
-  const { summary, bestDay } = report;
-  const lines: string[] = [];
+/** A nota do dia, com a cor dizendo a mesma coisa que o número. */
+function ScoreCard({ score }: { score: number }) {
+  const theme = useTheme();
 
-  if (summary.workedSeconds > 0) {
-    lines.push(`Você trabalhou ${formatDuration(summary.workedSeconds)}.`);
-  }
-  if (summary.distance > 0) {
-    lines.push(`Percorreu ${formatDistanceKm(summary.distance)}.`);
-  }
-  lines.push(`Faturou ${formatCents(summary.grossRevenue)}.`);
-  lines.push(`Teve ${formatCents(summary.totalExpenses)} em custos estimados.`);
-  lines.push(`Seu lucro estimado foi ${formatCents(summary.netProfit)}.`);
+  const tone =
+    score >= 7
+      ? { arc: theme.colors.success, badge: 'success' as const }
+      : score >= 5
+        ? { arc: theme.colors.warning, badge: 'warning' as const }
+        : { arc: theme.colors.danger, badge: 'danger' as const };
 
-  if (summary.profitPerHour !== null) {
-    lines.push(`Isso dá ${formatCents(summary.profitPerHour)} por hora trabalhada.`);
-  }
-  if (summary.revenuePerKm !== null) {
-    lines.push(`E ${formatCents(summary.revenuePerKm)} por quilômetro rodado.`);
-  }
-  if (summary.tripCount > 0 && summary.averageTicket !== null) {
-    lines.push(
-      `Foram ${summary.tripCount} corridas ou entregas, a ${formatCents(summary.averageTicket)} cada.`,
-    );
-  }
-  if (bestDay && period !== 'daily') {
-    lines.push(
-      `Seu melhor dia foi ${weekdayLabel(bestDay.date)}, com ${formatCents(bestDay.profit)} de lucro.`,
-    );
-  }
+  return (
+    <Card padding="xl" style={{ gap: theme.spacing.lg, alignItems: 'center' }}>
+      <View style={{ alignSelf: 'stretch' }}>
+        <SectionHeader title="Nota de hoje" right={<Badge label={scoreLabel(score)} tone={tone.badge} />} />
+      </View>
+      <ProgressRing
+        ratio={score / 10}
+        color={tone.arc}
+        label={`Nota de hoje, ${score.toFixed(1)} de 10`}
+        centreLabel={score.toFixed(1).replace('.', ',')}
+        centreHint="de 10"
+        size={148}
+      />
+      <Text variant="caption" color="muted" align="center">
+        A nota compara seu dia com a sua própria média e com a meta. Ela sobe quando você supera o
+        que costuma fazer.
+      </Text>
+    </Card>
+  );
+}
 
-  return lines;
+/**
+ * O benchmark anônimo.
+ *
+ * A barra existe porque "R$ 2,10 contra R$ 1,95" é uma comparação que o olho
+ * não faz sozinho com dois números soltos em cantos opostos do cartão.
+ */
+function BenchmarkCard({ benchmark }: { benchmark: NonNullable<ReturnType<typeof useBenchmark>> }) {
+  const theme = useTheme();
+  const { comparison } = benchmark;
+  const ahead = comparison.difference >= 0;
+
+  return (
+    <Card padding="xl" style={{ gap: theme.spacing.lg }}>
+      <SectionHeader
+        title="Comparação anônima"
+        right={
+          <Badge
+            label={`${ahead ? '+' : ''}${formatPercent(comparison.difference, 1)}`}
+            tone={ahead ? 'success' : 'warning'}
+          />
+        }
+      />
+
+      <RatioBar
+        legend={false}
+        height={10}
+        label={`Você: ${formatCents(comparison.userValue)} por km. ${benchmark.scope}: ${formatCents(comparison.peerValue)} por km.`}
+        segments={[
+          { label: 'você', amount: comparison.userValue, tone: 'brand', display: '' },
+          { label: 'eles', amount: comparison.peerValue, tone: 'neutral', display: '' },
+        ]}
+      />
+
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: theme.spacing.md }}>
+        <View style={{ gap: 2 }}>
+          <Legend colour={theme.colors.brandPrimary} label="Você" />
+          <Text variant="moneyMedium" color="brand">
+            {formatCents(comparison.userValue)}/km
+          </Text>
+        </View>
+
+        <View style={{ gap: 2, alignItems: 'flex-end', flexShrink: 1 }}>
+          <Legend colour={theme.colors.borderStrong} label={benchmark.scope} />
+          <Text variant="moneyMedium">{formatCents(comparison.peerValue)}/km</Text>
+        </View>
+      </View>
+
+      <Text variant="caption" color="muted">
+        Média de {comparison.sampleSize} motoristas. Nenhum dado individual de outra pessoa é
+        mostrado aqui.
+      </Text>
+    </Card>
+  );
+}
+
+function Legend({ colour, label }: { colour: string; label: string }) {
+  const theme = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs }}>
+      <View
+        style={{ width: 8, height: 8, borderRadius: theme.radius.pill, backgroundColor: colour }}
+      />
+      <Text variant="caption" color="secondary" numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
 }

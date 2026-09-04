@@ -35,6 +35,7 @@ const GOAL_STREAK_WINDOW_DAYS = 180;
 export interface DayRow {
   date: string;
   gross_revenue: number;
+  tips: number;
   total_expenses: number;
   vehicle_expenses: number;
   net_profit: number;
@@ -42,6 +43,16 @@ export interface DayRow {
   distance: number;
   trip_count: number;
 }
+
+/**
+ * Every column `summariseRows` reads, in one place.
+ *
+ * Histórico and Insights both build a `PeriodSummary` out of `daily_totals`,
+ * and a column missing from one of the two lists is a metric that silently
+ * comes back null on one screen and right on the other.
+ */
+export const DAY_ROW_COLUMNS =
+  'date, gross_revenue, tips, total_expenses, vehicle_expenses, net_profit, worked_seconds, distance, trip_count';
 
 export interface PeriodReport {
   summary: PeriodSummary;
@@ -99,8 +110,10 @@ export function summariseRows(rows: DayRow[]): PeriodSummary {
     })),
     revenues: rows.map((row) => ({
       date: row.date,
-      amount: row.gross_revenue,
-      tips: 0,
+      // `gross_revenue` in the view already includes tips, so the two are
+      // split back apart here rather than counted twice.
+      amount: row.gross_revenue - (row.tips ?? 0),
+      tips: row.tips ?? 0,
       tripCount: row.trip_count || null,
       platformId: null,
     })),
@@ -140,7 +153,7 @@ export function usePeriodReport(period: GoalPeriod) {
     const [rowsResult, fuelResult, goalResult, streakResult] = await Promise.all([
       supabase
         .from('daily_totals')
-        .select('date, gross_revenue, total_expenses, vehicle_expenses, net_profit, worked_seconds, distance, trip_count')
+        .select(DAY_ROW_COLUMNS)
         .eq('user_id', session.user.id)
         .gte('date', previous.start)
         .lte('date', current.end),
