@@ -13,7 +13,7 @@ import type { FilmStageHandle, FilmStageProps } from './FilmStageShared';
  * because there is no shared memory between a WebView and React Native.
  */
 export const FilmStage = forwardRef<FilmStageHandle, FilmStageProps>(function FilmStage(
-  { recap, onMessage, mode = 'preview', fit = 'contain', style },
+  { recap, onMessage, mode = 'preview', fit = 'contain', interactive = true, style },
   ref,
 ) {
   const webRef = useRef<WebView>(null);
@@ -45,7 +45,7 @@ export const FilmStage = forwardRef<FilmStageHandle, FilmStageProps>(function Fi
   );
 
   return (
-    <View style={[styles.stage, style]}>
+    <View pointerEvents={interactive ? 'auto' : 'none'} style={[styles.stage, style]}>
       <WebView
         ref={webRef}
         source={{ html }}

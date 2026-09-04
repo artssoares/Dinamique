@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { LatLng } from '@dinamique/types';
-import { summarisePeriod, trimRouteEnds, type PeriodSummary } from '@dinamique/business-logic';
+import { summarisePeriod, type PeriodSummary } from '@dinamique/business-logic';
 import { buildRecap, fixesFromRoute, type RawFix, type Recap } from '@dinamique/recap';
 import { darkTokens, lightTokens } from '@dinamique/ui';
 import { decodePolyline } from '@dinamique/utils';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/useSession';
-import { useRoutePreferences } from '@/features/tracking/preferences';
 import { filmBasemap } from './basemap';
 
 /**
@@ -19,10 +18,9 @@ import { filmBasemap } from './basemap';
  * nothing.
  *
  * The route is the one the replay draws: the polyline in `journey_routes`,
- * decoded at the precision it was stored with. The ends are cut before the
- * film is built when the driver's privacy preference says so, exactly as the
- * story card cuts them, so the preview the driver watches is the file that
- * leaves the phone.
+ * decoded at the precision it was stored with, whole. The film shows the
+ * entire drive, start to end; the privacy cut the story card makes at both
+ * ends is not applied here, by the product owner's decision.
  */
 
 interface JourneyRow {
@@ -79,7 +77,7 @@ export interface JourneyFilm {
   preview: Recap | null;
   /** 540 by 960, for the card inside a scrolling screen. */
   card: Recap | null;
-  /** The route as drawn, after the privacy cut. Empty when there is none. */
+  /** The route as drawn. Empty when there is none. */
   points: LatLng[];
   summary: PeriodSummary | null;
   startedAt: string | null;
@@ -88,14 +86,11 @@ export interface JourneyFilm {
   /** The journey exists but has not been closed: there is nothing to sum up. */
   unfinished: boolean;
   notFound: boolean;
-  /** True when the route was cut at both ends for privacy. */
-  trimmed: boolean;
   reload: () => Promise<void>;
 }
 
 export function useJourneyFilm(journeyId: string | null): JourneyFilm {
   const { session, profile } = useSession();
-  const { preferences } = useRoutePreferences();
   const [recap, setRecap] = useState<Recap | null>(null);
   const [preview, setPreview] = useState<Recap | null>(null);
   const [card, setCard] = useState<Recap | null>(null);
@@ -106,9 +101,7 @@ export function useJourneyFilm(journeyId: string | null): JourneyFilm {
   const [loading, setLoading] = useState(true);
   const [unfinished, setUnfinished] = useState(false);
   const [notFound, setNotFound] = useState(false);
-  const [trimmed, setTrimmed] = useState(false);
 
-  const trimShared = preferences.trimShared;
   const driverName = profile?.preferredName ?? profile?.firstName ?? null;
 
   const reload = useCallback(async () => {
@@ -200,12 +193,9 @@ export function useJourneyFilm(journeyId: string | null): JourneyFilm {
 
     let fixes: RawFix[] = [];
     let shown: LatLng[] = [];
-    let cut = false;
     const route = routeResult.data as RouteRow | null;
     if (route?.polyline) {
-      const decoded = decodePolyline(route.polyline, route.precision ?? undefined);
-      shown = trimShared ? trimRouteEnds(decoded) : decoded;
-      cut = trimShared && shown.length !== decoded.length;
+      shown = decodePolyline(route.polyline, route.precision ?? undefined);
       fixes = fixesFromRoute({
         points: shown,
         startedAt: journey.started_at,
@@ -235,11 +225,10 @@ export function useJourneyFilm(journeyId: string | null): JourneyFilm {
     setCard(buildRecap({ ...request, ...CARD }));
     setPoints(shown);
     setSummary(totals);
-    setTrimmed(cut);
     setUnfinished(false);
     setNotFound(false);
     setLoading(false);
-  }, [driverName, journeyId, session?.user, trimShared]);
+  }, [driverName, journeyId, session?.user]);
 
   useEffect(() => {
     void reload();
@@ -256,7 +245,6 @@ export function useJourneyFilm(journeyId: string | null): JourneyFilm {
     loading,
     unfinished,
     notFound,
-    trimmed,
     reload,
   };
 }

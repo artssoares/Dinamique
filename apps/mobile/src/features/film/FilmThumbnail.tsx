@@ -79,7 +79,16 @@ export const FilmThumbnail = forwardRef<FilmThumbnailHandle, FilmThumbnailProps>
         press.style,
       ]}
     >
-      <FilmStage ref={stageRef} recap={recap} mode="preview" fit="cover" onMessage={handleMessage} />
+      {/* Not interactive: the square is the control, and an iframe that
+          took the tap would keep it from the Pressable around it. */}
+      <FilmStage
+        ref={stageRef}
+        recap={recap}
+        mode="preview"
+        fit="cover"
+        interactive={false}
+        onMessage={handleMessage}
+      />
 
       {/* Pinned rather than laid out, because the stage underneath is a
           canvas whose size we do not control, and `pointerEvents` none so

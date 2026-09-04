@@ -20,5 +20,11 @@ export interface FilmStageProps {
    * the day screen, where the middle of the frame is what matters).
    */
   fit?: 'contain' | 'cover';
+  /**
+   * Whether the document itself takes the finger. Off wherever something
+   * above it is the control: an iframe swallows every tap that lands on it,
+   * so a Pressable wrapped around one never hears the press.
+   */
+  interactive?: boolean;
   style?: object;
 }

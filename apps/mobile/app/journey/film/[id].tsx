@@ -75,7 +75,6 @@ export default function JourneyFilm() {
       recap={film.recap}
       playing={film.preview}
       hasRoute={hasRoute}
-      trimmed={film.trimmed}
       onClose={() => router.back()}
     />
   );

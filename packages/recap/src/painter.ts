@@ -405,10 +405,23 @@ export const PAINTER_SOURCE = `
     for (var i = 0; i < needed.length; i += 1) {
       var tile = needed[i];
       var image = getTile(tile[0], tile[1], tile[2], allowLoad);
-      if (!image) continue;
-      // Half a pixel of overdraw: without it, rotation leaves hairline seams
-      // between tiles that read as a grid drawn over the city.
-      ctx.drawImage(image, tile[1] * size - 0.5, tile[2] * size - 0.5, size + 1, size + 1);
+      if (image) {
+        // Half a pixel of overdraw: without it, rotation leaves hairline
+        // seams between tiles that read as a grid drawn over the city.
+        ctx.drawImage(image, tile[1] * size - 0.5, tile[2] * size - 0.5, size + 1, size + 1);
+        continue;
+      }
+      // Not here yet. Draw the nearest ancestor that is, scaled up: softer
+      // than the real tile, but a soft frame is the map still there, and a
+      // hole is the map gone, which is what read as the screen going black
+      // between two stretches of road.
+      var fallback = ancestorTile(tile[0], tile[1], tile[2]);
+      if (!fallback) continue;
+      ctx.drawImage(
+        fallback.image,
+        fallback.sx, fallback.sy, fallback.sw, fallback.sh,
+        tile[1] * size - 0.5, tile[2] * size - 0.5, size + 1, size + 1
+      );
     }
     ctx.restore();
 
@@ -421,6 +434,34 @@ export const PAINTER_SOURCE = `
     ctx.fillStyle = 'rgba(10,16,32,0.32)';
     ctx.fillRect(0, 0, W, H);
     ctx.restore();
+  }
+
+  /**
+   * The part of a loaded lower-zoom tile that covers a tile not loaded yet.
+   *
+   * Up to four levels up, which is what the pull-backs span. Nothing is
+   * requested here: this only reads the cache, so it costs nothing on the
+   * frames where every tile is already in.
+   */
+  function ancestorTile(z, x, y) {
+    for (var k = 1; k <= 4; k += 1) {
+      var pz = z - k;
+      if (pz < 0) return null;
+      var px = x >> k;
+      var py = y >> k;
+      var entry = tiles[tileKey(pz, px, py)];
+      if (!entry || !entry.ok) continue;
+      var whole = entry.image.naturalWidth || TILE;
+      var part = whole / Math.pow(2, k);
+      return {
+        image: entry.image,
+        sx: (x - (px << k)) * part,
+        sy: (y - (py << k)) * part,
+        sw: part,
+        sh: part
+      };
+    }
+    return null;
   }
 
   /** Projects the drawn portion of the route into a reusable screen buffer. */
@@ -992,7 +1033,9 @@ export const PAINTER_SOURCE = `
       var needed = tilesForFrame(frameAt(i));
       for (var j = 0; j < needed.length; j += 1) {
         var key = tileKey(needed[j][0], needed[j][1], needed[j][2]);
-        if (!wanted[key]) {
+        // A tile the preview already fetched is not fetched again for the
+        // recording: the cache is the point of it.
+        if (!wanted[key] && !(tiles[key] && tiles[key].ok)) {
           wanted[key] = true;
           order.push(needed[j]);
         }
@@ -1230,6 +1273,23 @@ export const PAINTER_SOURCE = `
 
   paint(0, true);
   post({ type: 'ready', frameCount: film.frameCount, durationMs: film.durationMs, fps: film.fps });
-  if (options.autoplay !== false) play();
+
+  // The preview warms the tile cache before it starts, the same way the
+  // recording does. Started cold, the camera outran the network on every
+  // stretch of road: a black frame, then the map, then black again. The
+  // opening card holds the screen while the tiles come in.
+  if (options.autoplay !== false) {
+    if (basemap.urlTemplate) {
+      post({ type: 'progress', phase: 'tiles', value: 0 });
+      preloadTiles(function (value) {
+        post({ type: 'progress', phase: 'tiles', value: value });
+      }).then(function () {
+        paint(0, true);
+        play();
+      });
+    } else {
+      play();
+    }
+  }
 })();
 `;
