@@ -566,6 +566,21 @@ describe('the rendered document', () => {
     expect(html).not.toMatch(/<link[^>]+href=/i);
   });
 
+  it('letterboxes by default and fills the box when asked to', () => {
+    const scene = sceneWith(drive(200));
+    const { film } = buildFilm(scene);
+    expect(renderRecapDocument(scene, film)).toContain('object-fit: contain');
+    expect(renderRecapDocument(scene, film, { fit: 'cover' })).toContain('object-fit: cover');
+  });
+
+  it('signs off with an address that exists', () => {
+    const scene = sceneWith(drive(200));
+    const { film } = buildFilm(scene);
+    const html = renderRecapDocument(scene, film);
+    expect(html).toContain('dinamique.com.br');
+    expect(html).not.toContain('dinamique.app');
+  });
+
   it('cannot be broken out of by data inside the payload', () => {
     const scene = sceneWith(drive(200));
     scene.brand = { ...scene.brand, wordmark: '</script><script>alert(1)</script>' };

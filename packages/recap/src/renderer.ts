@@ -24,6 +24,13 @@ export interface RenderOptions {
    * React Native; `objectUrl` keeps it in the page for a browser download.
    */
   deliver?: 'chunks' | 'objectUrl';
+  /**
+   * How the 9:16 canvas sits in a box of another shape. `contain` letterboxes
+   * and is right for a full screen; `cover` fills the box and crops the sides,
+   * which is what a small square tile wants: the middle of the frame, where
+   * the head of the route moves, with no black bars.
+   */
+  fit?: 'contain' | 'cover';
 }
 
 export function renderRecapDocument(
@@ -68,7 +75,7 @@ export function renderRecapDocument(
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: ${options.fit === 'cover' ? 'cover' : 'contain'};
   }
 </style>
 </head>

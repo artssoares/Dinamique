@@ -14,5 +14,11 @@ export interface FilmStageProps {
   onMessage?: (message: RecapMessage) => void;
   /** A recording document does not loop and does not start on its own. */
   mode?: 'preview' | 'export';
+  /**
+   * How the 9:16 canvas sits in a box of another shape. `contain` letterboxes
+   * (the full screen); `cover` fills and crops the sides (the square tile on
+   * the day screen, where the middle of the frame is what matters).
+   */
+  fit?: 'contain' | 'cover';
   style?: object;
 }
