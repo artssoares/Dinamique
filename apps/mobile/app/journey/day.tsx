@@ -202,16 +202,12 @@ export default function JourneyDay() {
                   }
                   value={formatCents(revenue.amount + revenue.tips)}
                   valueTone="success"
-                  onPress={() => setEditor({ kind: 'revenue', revenue })}
                   showChevron={false}
                   right={
-                    <IconButton
-                      icon="trash"
-                      label={`Apagar o ganho de ${formatCents(revenue.amount)}`}
-                      tone="ghost"
-                      size={36}
-                      iconSize={17}
-                      onPress={() => confirmDelete('revenues', revenue.id, 'este ganho')}
+                    <RowActions
+                      onEdit={() => setEditor({ kind: 'revenue', revenue })}
+                      onDelete={() => confirmDelete('revenues', revenue.id, 'este ganho')}
+                      what={`o ganho de ${formatCents(revenue.amount)}`}
                     />
                   }
                 />
@@ -241,16 +237,12 @@ export default function JourneyDay() {
                   description={expense.isVehicleCost ? 'custo do veículo' : 'custo pessoal'}
                   value={formatCents(expense.amount)}
                   valueTone="danger"
-                  onPress={() => setEditor({ kind: 'expense', expense })}
                   showChevron={false}
                   right={
-                    <IconButton
-                      icon="trash"
-                      label={`Apagar o gasto de ${formatCents(expense.amount)}`}
-                      tone="ghost"
-                      size={36}
-                      iconSize={17}
-                      onPress={() => confirmDelete('expenses', expense.id, 'este gasto')}
+                    <RowActions
+                      onEdit={() => setEditor({ kind: 'expense', expense })}
+                      onDelete={() => confirmDelete('expenses', expense.id, 'este gasto')}
+                      what={`o gasto de ${formatCents(expense.amount)}`}
                     />
                   }
                 />
@@ -282,20 +274,19 @@ export default function JourneyDay() {
                       ? journeyDistanceLabel(journey)
                       : 'jornada ainda em andamento'
                   }
-                  onPress={
-                    journey.status === 'completed'
-                      ? () => setEditor({ kind: 'journey', journey })
-                      : undefined
-                  }
                   showChevron={false}
                   right={
-                    <IconButton
-                      icon="trash"
-                      label="Apagar esta jornada"
-                      tone="ghost"
-                      size={36}
-                      iconSize={17}
-                      onPress={() => confirmDelete('journeys', journey.id, 'esta jornada')}
+                    <RowActions
+                      // Uma jornada em andamento se encerra na tela de
+                      // encerramento, com os km e os ganhos junto. Editar o fim
+                      // de algo que ainda não terminou é uma contradição.
+                      onEdit={
+                        journey.status === 'completed'
+                          ? () => setEditor({ kind: 'journey', journey })
+                          : undefined
+                      }
+                      onDelete={() => confirmDelete('journeys', journey.id, 'esta jornada')}
+                      what="esta jornada"
                     />
                   }
                 />
@@ -347,6 +338,49 @@ export default function JourneyDay() {
         onSaveJourney={saveJourney}
       />
     </Screen>
+  );
+}
+
+/**
+ * Corrigir e apagar, lado a lado, na própria linha.
+ *
+ * Os dois são botões de verdade em vez de "a linha inteira abre e o lixo fica
+ * por cima": um controle dentro de outro controle é ambíguo no navegador, onde
+ * o toque no lixo sobe para a linha e abre o editor por trás da confirmação. E
+ * um lápis visível também responde a "dá para mexer nisso?", que uma linha que
+ * só abre quando você adivinha não responde.
+ */
+function RowActions({
+  onEdit,
+  onDelete,
+  what,
+}: {
+  onEdit?: () => void;
+  onDelete: () => void;
+  what: string;
+}) {
+  const theme = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', gap: theme.spacing.xxs }}>
+      {onEdit ? (
+        <IconButton
+          icon="edit"
+          label={`Corrigir ${what}`}
+          tone="ghost"
+          size={38}
+          iconSize={17}
+          onPress={onEdit}
+        />
+      ) : null}
+      <IconButton
+        icon="trash"
+        label={`Apagar ${what}`}
+        tone="ghost"
+        size={38}
+        iconSize={17}
+        onPress={onDelete}
+      />
+    </View>
   );
 }
 
