@@ -142,9 +142,22 @@ export default function JourneyDay() {
                 {story.reason}
               </Text>
             ) : null}
+            {/* O filme: o mesmo trajeto, desenhado sobre o satélite com a
+                câmera seguindo a rua, e o lucro no fim. É o que o motorista
+                manda no grupo. */}
+            <Button
+              label="Assistir ao filme do dia"
+              size="lg"
+              fullWidth
+              iconName="play"
+              onPress={() =>
+                router.push({ pathname: '/journey/film/[id]', params: { id: route.journeyId } })
+              }
+            />
             {story.canShare ? (
               <Button
                 label="Compartilhar meu trajeto"
+                variant="secondary"
                 size="lg"
                 fullWidth
                 iconName="arrowUpRight"

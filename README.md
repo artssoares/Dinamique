@@ -96,6 +96,7 @@ packages/types           domain model, enums mirroring the database
 packages/utils           integer-cent money, units, calendar-day helpers
 packages/business-logic  every financial rule, pure and tested
 packages/ui              design tokens, theme, React Native components
+packages/recap           the journey film: route drawn over satellite, camera and finale
 packages/database        migrations, RLS, functions, views, tests
 assets/brand             logo and brand colours
 ```

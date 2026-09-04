@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Testar o mapa do Dinamique</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 20px 64px;
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    color: #141821; background: #F7F8FA;
+    max-width: 680px; margin-inline: auto;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: #6E7686; margin: 0 0 24px; }
+  label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px; }
+  input {
+    width: 100%; padding: 14px 12px; font-size: 15px; font-family: ui-monospace, Menlo, Consolas, monospace;
+    border: 1px solid #CDD2DD; border-radius: 12px; background: #fff; color: #141821;
+  }
+  input:focus { outline: 3px solid rgba(1,55,247,.25); border-color: #0137F7; }
+  button {
+    margin-top: 12px; width: 100%; padding: 15px; font-size: 16px; font-weight: 600;
+    background: #0137F7; color: #fff; border: 0; border-radius: 14px; cursor: pointer;
+  }
+  button:disabled { opacity: .55; cursor: default; }
+  .card {
+    margin-top: 20px; background: #fff; border: 1px solid #E3E6ED;
+    border-radius: 16px; padding: 18px; display: none;
+  }
+  .card.on { display: block; }
+  .row { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid #F0F2F6; }
+  .row:first-child { border-top: 0; }
+  .mark { font-size: 20px; line-height: 1.2; width: 24px; flex: none; }
+  .row b { display: block; }
+  .row span { color: #525A69; font-size: 13.5px; }
+  .verdict { padding: 16px; border-radius: 14px; font-weight: 600; margin-bottom: 14px; }
+  .ok  { background: #E8F8EF; color: #0A7A3F; }
+  .bad { background: #FDECEC; color: #B01D28; }
+  img.tile { margin-top: 14px; width: 256px; max-width: 100%; border-radius: 12px; border: 1px solid #E3E6ED; display: none; }
+  img.tile.on { display: block; }
+  code { background: #F0F2F6; padding: 2px 6px; border-radius: 6px; font-size: 13px; word-break: break-all; }
+  .hint { color: #6E7686; font-size: 13px; margin-top: 18px; }
+</style>
+</head>
+<body>
+
+<h1>Testar o mapa</h1>
+<p class="sub">
+  Cole aqui a URL de tiles do seu provedor. Este teste confere as três coisas que
+  fazem o vídeo funcionar, e é o mesmo teste que o aplicativo faz na prática.
+</p>
+
+<label for="url">URL dos tiles (com <code>{z}</code>, <code>{x}</code> e <code>{y}</code>)</label>
+<input id="url" spellcheck="false" autocapitalize="off" autocorrect="off"
+  placeholder="https://api.exemplo.com/satelite/{z}/{x}/{y}.jpg?key=SUA_CHAVE" />
+<button id="go">Testar</button>
+
+<div class="card" id="card">
+  <div class="verdict" id="verdict"></div>
+  <div class="row"><div class="mark" id="m1">·</div><div><b>Formato da URL</b><span id="t1">,</span></div></div>
+  <div class="row"><div class="mark" id="m2">·</div><div><b>A imagem carrega</b><span id="t2">,</span></div></div>
+  <div class="row"><div class="mark" id="m3">·</div><div><b>Permite ser usada no vídeo (CORS)</b><span id="t3">,</span></div></div>
+  <img class="tile" id="tile" alt="Tile de teste sobre São Paulo" />
+</div>
+
+<p class="hint">
+  Nada aqui é enviado para lugar nenhum: a página roda inteira no seu navegador e
+  a chave não sai dele. O tile de teste é um pedaço de São Paulo.
+</p>
+
+<script>
+(function () {
+  var url = document.getElementById('url');
+  var go = document.getElementById('go');
+  var card = document.getElementById('card');
+  var verdict = document.getElementById('verdict');
+  var tile = document.getElementById('tile');
+
+  // Um quadrado sobre a região da Paulista, no zoom 12.
+  var Z = 12, X = 1517, Y = 2323;
+
+  function set(n, ok, text) {
+    document.getElementById('m' + n).textContent = ok === null ? '·' : ok ? '✓' : '✗';
+    document.getElementById('m' + n).style.color = ok === null ? '#9AA1B1' : ok ? '#0A7A3F' : '#B01D28';
+    document.getElementById('t' + n).textContent = text;
+  }
+
+  function finish(ok, message) {
+    verdict.className = 'verdict ' + (ok ? 'ok' : 'bad');
+    verdict.textContent = message;
+    go.disabled = false;
+    go.textContent = 'Testar de novo';
+  }
+
+  go.addEventListener('click', function () {
+    var template = url.value.trim();
+    card.className = 'card on';
+    tile.className = 'tile';
+    go.disabled = true;
+    go.textContent = 'Testando…';
+    set(1, null, ','); set(2, null, ','); set(3, null, ',');
+
+    if (!/\{z\}/.test(template) || !/\{x\}/.test(template) || !/\{y\}/.test(template)) {
+      set(1, false, 'Faltam {z}, {x} ou {y}. Troque os números da URL de exemplo do provedor por essas três marcações.');
+      finish(false, 'A URL ainda não está no formato certo.');
+      return;
+    }
+    if (!/^https:\/\//.test(template)) {
+      set(1, false, 'Precisa começar com https://');
+      finish(false, 'A URL precisa ser https.');
+      return;
+    }
+    set(1, true, 'As três marcações estão no lugar.');
+
+    var src = template.replace('{z}', Z).replace('{x}', X).replace('{y}', Y).replace('{s}', 'a');
+    // Duas tentativas, e a diferença entre elas é o diagnóstico.
+    //
+    // Com crossOrigin="anonymous", que é como o aplicativo pede o tile, um
+    // provedor sem os cabeçalhos de CORS não devolve "imagem sem permissão":
+    // o navegador simplesmente dispara erro de carregamento, igualzinho a uma
+    // chave errada. Só dá para separar os dois casos pedindo de novo, sem
+    // crossOrigin: se aí carregar, a imagem existe e o que falta é o CORS.
+    var settled = false;
+    var timer = setTimeout(function () {
+      if (settled) return;
+      settled = true;
+      set(2, false, 'O provedor não respondeu em 20 segundos.');
+      finish(false, 'Não deu para carregar o tile. Confira a URL e a chave.');
+    }, 20000);
+
+    function attempt(useCors, onFail) {
+      var img = new Image();
+      if (useCors) img.crossOrigin = 'anonymous';
+      img.onerror = function () { if (!settled) onFail(); };
+      img.onload = function () {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        set(2, true, 'O provedor respondeu com uma imagem de ' + (img.naturalWidth || 256) + '×' + (img.naturalHeight || 256) + '.');
+        tile.src = src;
+        tile.className = 'tile on';
+
+        if (!useCors) {
+          set(3, false, 'A imagem existe, mas o provedor não envia o cabeçalho Access-Control-Allow-Origin. O mapa apareceria na tela e a gravação do vídeo falharia no último passo.');
+          finish(false, 'O mapa carrega, mas não serve para o vídeo. Procure a opção de CORS no provedor, ou escolha outro.');
+          return;
+        }
+
+        // O teste que importa: desenhar num canvas e tentar ler de volta. Um
+        // canvas que recebeu uma imagem sem permissão fica "contaminado" para
+        // sempre e não pode ser gravado.
+        try {
+          var canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth || 256;
+          canvas.height = img.naturalHeight || 256;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          ctx.getImageData(0, 0, 1, 1);
+          set(3, true, 'O provedor permite. O vídeo vai poder ser gravado com o mapa.');
+          finish(true, 'Funcionou. Pode usar essa URL no aplicativo.');
+        } catch (error) {
+          set(3, false, 'O navegador bloqueou a leitura da imagem. O vídeo não conseguiria ser gravado com esse mapa.');
+          finish(false, 'O mapa carrega, mas não serve para o vídeo.');
+        }
+      };
+      img.src = src;
+    }
+
+    attempt(true, function () {
+      attempt(false, function () {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        set(2, false, 'A imagem não carregou de jeito nenhum. Chave errada, URL errada, ou o provedor recusou o pedido.');
+        finish(false, 'Não deu. Confira se copiou a chave inteira e se a URL está exatamente como o provedor mostra.');
+      });
+    });
+  });
+
+  url.addEventListener('keydown', function (e) { if (e.key === 'Enter') go.click(); });
+})();
+</script>
+</body>
+</html>
