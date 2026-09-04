@@ -14,6 +14,9 @@ Schema, security policies, server-side business functions and read models.
 | `…000550_grants` | table privileges for `authenticated` and `service_role` |
 | `…000600_functions_and_views` | signup, `redeem_code`, read-model views |
 | `…000700_reference_data` | production reference data (categories, platforms, settings) |
+| `…000800_vehicle_catalogue` | the first makes, models and versions |
+| `…819000200_vehicle_catalogue_expansion` | the makes and models drivers actually own |
+| `…904000100_vehicle_catalogue_versions` | a version, and so a reference consumption, for every one of them |
 
 ## Invariants the schema enforces
 
@@ -27,6 +30,9 @@ These are constraints and policies, not conventions – code cannot violate them
 - `user_attribution` is first-touch: updates raise an exception
 - a support internal note is invisible to the ticket owner at row level
 - a user cannot post a support message as `agent`
+- every catalogue model has at least one version, because the version is what
+  carries the reference consumption and a model without one cannot produce a
+  cost per kilometre
 
 ## Running the tests
 
