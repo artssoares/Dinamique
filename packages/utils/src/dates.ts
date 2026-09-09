@@ -117,3 +117,26 @@ const MONTH_LABELS = [
 export function monthLabel(value: DateOnly): string {
   return MONTH_LABELS[fromDateOnly(value).getMonth()] ?? '';
 }
+
+/** "4 de setembro", the way a date is said out loud. */
+export function longDayLabel(value: DateOnly): string {
+  return `${fromDateOnly(value).getDate()} de ${monthLabel(value)}`;
+}
+
+/** "04 set", the compact form used in lists and chips. */
+export function shortDateLabel(value: DateOnly): string {
+  const date = fromDateOnly(value);
+  return `${String(date.getDate()).padStart(2, '0')} ${monthLabel(value).slice(0, 3)}`;
+}
+
+/**
+ * How a day is named to the driver: Hoje and Ontem by name, anything else by
+ * its weekday and date. Someone fixing a forgotten Tuesday needs to read
+ * "terça-feira, 2 de setembro", not a bare `2026-09-02`.
+ */
+export function friendlyDayLabel(value: DateOnly, today: DateOnly = toDateOnly(new Date())): string {
+  if (value === today) return 'Hoje';
+  if (value === addDays(today, -1)) return 'Ontem';
+  if (value === addDays(today, 1)) return 'Amanhã';
+  return `${weekdayLabel(value)}, ${longDayLabel(value)}`;
+}

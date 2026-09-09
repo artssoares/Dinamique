@@ -143,6 +143,17 @@ describe('summarisePeriod', () => {
 
     expect(summary.revenuePerHour).toBe(5_000);
     expect(summary.profitPerHour).toBe(4_000);
+    expect(summary.costPerHour).toBe(1_000);
+  });
+
+  it('returns a null cost per hour when no time was worked', () => {
+    const summary = summarisePeriod({
+      journeys: [],
+      revenues: [revenue({ amount: 40_000 })],
+      expenses: [expense({ amount: 8_000 })],
+    });
+
+    expect(summary.costPerHour).toBeNull();
   });
 
   it('returns null per-km metrics when no distance was recorded (§6)', () => {

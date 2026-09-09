@@ -43,13 +43,17 @@ export interface ThemeTokens {
   borderSubtle: string;
   borderStrong: string;
 
-  /* brand */
+  /* brand. The same fill/text split as the semantic colours below, and for the
+     same reason: Coral 500 on its own subtle background measures 2.6:1, so the
+     colour that fills a badge cannot be the colour that writes on one. */
   brandPrimary: string;
   brandPrimaryHover: string;
   brandPrimarySubtle: string;
+  brandPrimaryText: string;
   brandSecondary: string;
   brandSecondaryHover: string;
   brandSecondarySubtle: string;
+  brandSecondaryText: string;
 
   /* hero – the two stops of the headline card's gradient. Same hue family as
      the brand; never an independently chosen colour (§138). */
@@ -126,9 +130,14 @@ export const lightTokens: ThemeTokens = {
   brandPrimary: blue[500],
   brandPrimaryHover: blue[600],
   brandPrimarySubtle: blue[50],
+  // Blue 500 already clears AA on white (7.3:1) and on its own tint (6.6:1),
+  // so the brand colour itself is safe to write in. Coral is not: 500 measures
+  // 2.6:1 on Coral 50, and even 600 only reaches 3.7:1, so type takes the 700.
+  brandPrimaryText: blue[500],
   brandSecondary: coral[500],
   brandSecondaryHover: coral[600],
   brandSecondarySubtle: coral[50],
+  brandSecondaryText: coral[700],
 
   heroFrom: blue[600],
   heroTo: blue[400],
@@ -192,9 +201,14 @@ export const darkTokens: ThemeTokens = {
   brandPrimary: blue[400],
   brandPrimaryHover: blue[300],
   brandPrimarySubtle: 'rgba(74, 113, 255, 0.16)',
+  // Blue 400 measures 3.6:1 once its own wash is composited over the dark
+  // surface, which is enough for a fill and short for type. Coral 400 clears
+  // it at 5.7:1, so on this side the fill and the text step are one colour.
+  brandPrimaryText: blue[300],
   brandSecondary: coral[400],
   brandSecondaryHover: coral[300],
   brandSecondarySubtle: 'rgba(255, 134, 111, 0.16)',
+  brandSecondaryText: coral[400],
 
   heroFrom: blue[600],
   heroTo: blue[400],

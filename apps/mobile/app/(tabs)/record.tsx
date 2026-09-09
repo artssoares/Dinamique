@@ -1,13 +1,23 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import type { DateOnly } from '@dinamique/types';
 import type { LiveTrackState } from '@dinamique/business-logic';
-import { formatCents, formatDistanceKm, formatDuration, parseCents, toDateOnly } from '@dinamique/utils';
+import {
+  addDays,
+  formatCents,
+  formatDistanceKm,
+  formatDuration,
+  friendlyDayLabel,
+  parseCents,
+  toDateOnly,
+} from '@dinamique/utils';
 import {
   AmountInput,
   Button,
   Card,
   Chip,
+  DateField,
   Field,
   Icon,
   Notice,
@@ -18,6 +28,7 @@ import {
   Text,
   useReducedMotion,
   useTheme,
+  type DayMark,
 } from '@dinamique/ui';
 import { AppHeader } from '@/features/shell/AppHeader';
 import { supabase } from '@/lib/supabase';
@@ -36,8 +47,14 @@ import { useProducts } from '@/features/products/useProducts';
 type Mode = 'revenue' | 'expense' | 'sale';
 
 /**
- * The + destination (§26). One screen, two modes, and a running journey
+ * The + destination (§26). One screen, three modes, and a running journey
  * summary on top – the goal is a completed entry in well under a minute.
+ *
+ * The entry also carries a date. It used to be `toDateOnly(new Date())` with
+ * no way to change it, so anything remembered the next morning went onto the
+ * wrong day, and a week with a hole in it makes every figure derived from it,
+ * R$/hora, R$/km, a nota, o benchmark, a claim about a week that did not
+ * happen. The default is still today and stays one tap away.
  */
 export default function Record() {
   const theme = useTheme();
@@ -61,6 +78,8 @@ export default function Record() {
   } = useJourneyStart();
 
   const [mode, setMode] = useState<Mode>('revenue');
+  const [date, setDate] = useState<DateOnly>(() => toDateOnly(new Date()));
+  const [marks, setMarks] = useState<Record<string, DayMark>>({});
   const [amount, setAmount] = useState('');
   const [trips, setTrips] = useState('');
   const [platformId, setPlatformId] = useState<string | null>(null);
@@ -95,6 +114,37 @@ export default function Record() {
       .order('sort_order')
       .then(({ data }) => setCategories((data as { id: string; name: string }[] | null) ?? []));
   }, []);
+
+  // The dots in the calendar are the point of opening it: "which day did I
+  // forget?" is a question you answer by looking, not by remembering.
+  const loadMarks = useCallback(async () => {
+    if (!session?.user) return;
+    const today = toDateOnly(new Date());
+    const { data } = await supabase
+      .from('daily_totals')
+      .select('date, net_profit')
+      .eq('user_id', session.user.id)
+      .gte('date', addDays(today, -75))
+      .lte('date', today);
+
+    const next: Record<string, DayMark> = {};
+    for (const row of (data as { date: string; net_profit: number }[] | null) ?? []) {
+      next[row.date] = row.net_profit < 0 ? 'negative' : 'positive';
+    }
+    setMarks(next);
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    void loadMarks();
+  }, [loadMarks]);
+
+  const isToday = date === toDateOnly(new Date());
+
+  /**
+   * A journey belongs to the day it ran on. Attaching today's running journey
+   * to a lançamento dated last Tuesday would be a lie about both.
+   */
+  const journeyForEntry = isToday ? (journey?.id ?? null) : null;
 
   // 0 is ganho, 1 is gasto. Everything that changes colour between the two
   // reads from this one value, so the whole card shifts together instead of
@@ -138,14 +188,13 @@ export default function Record() {
     if (isSale) return void handleSaveSale();
     if (cents === null) return;
     setSaving(true);
-    const date = toDateOnly(new Date());
 
     let sent = true;
 
     if (mode === 'revenue') {
       sent = await addRevenue(save, {
         userId: session.user.id,
-        journeyId: journey?.id ?? null,
+        journeyId: journeyForEntry,
         platformId,
         amount: cents,
         tips: 0,
@@ -155,7 +204,7 @@ export default function Record() {
     } else if (categoryId) {
       sent = await addExpense(save, {
         userId: session.user.id,
-        journeyId: journey?.id ?? null,
+        journeyId: journeyForEntry,
         categoryId,
         amount: cents,
         date,
@@ -167,9 +216,10 @@ export default function Record() {
     setSaving(false);
     // Sem rede o registro fica guardado; a barra no topo já explica isso, mas
     // o botão precisa dizer a verdade sobre o que aconteceu.
-    setSaved(sent ? 'Salvo' : 'Guardado neste aparelho');
+    setSaved(sent ? savedLabel(date) : 'Guardado neste aparelho');
     setTimeout(() => setSaved(null), 2500);
     await refresh();
+    await loadMarks();
   }
 
   /**
@@ -182,9 +232,8 @@ export default function Record() {
     if (!session?.user || saleTotals.units === 0) return;
     setSaving(true);
     setSaleError(null);
-    const date = toDateOnly(new Date());
     const userId = session.user.id;
-    const journeyId = journey?.id ?? null;
+    const journeyId = journeyForEntry;
 
     const { error: revenueError } = await supabase
       .from('revenues')
@@ -215,6 +264,7 @@ export default function Record() {
     setSaved(`${formatCents(saleTotals.gross)} em vendas`);
     setTimeout(() => setSaved(null), 2500);
     await refresh();
+    await loadMarks();
   }
 
   return (
@@ -260,6 +310,18 @@ export default function Record() {
       </Reveal>
 
       {consentSheets}
+
+      {/* Above the mode switch, because it frames everything under it: what
+          you are about to save, and onto which day. */}
+      <Card padding="lg">
+        <DateField
+          label="Em qual dia"
+          value={date}
+          onChange={setDate}
+          marks={marks}
+          hint={isToday ? undefined : 'você está lançando em um dia que já passou'}
+        />
+      </Card>
 
       <SegmentedControl
         label="O que você quer registrar"
@@ -380,6 +442,25 @@ export default function Record() {
         )}
         </Animated.View>
       </Animated.View>
+
+      {!isToday ? (
+        <Card
+          padding="lg"
+          tone="brand"
+          onPress={() => router.push({ pathname: '/journey/day', params: { date } })}
+          accessibilityLabel={`Abrir ${friendlyDayLabel(date)} inteiro`}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}
+        >
+          <Icon name="calendar" size={20} color={theme.colors.brandPrimaryText} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text variant="bodyStrong">Ver {friendlyDayLabel(date).toLowerCase()} inteiro</Text>
+            <Text variant="caption" color="secondary">
+              Confira e corrija tudo que já está lançado nesse dia
+            </Text>
+          </View>
+          <Icon name="chevronRight" size={18} color={theme.colors.textMuted} />
+        </Card>
+      ) : null}
 
       <View style={{ gap: theme.spacing.md, display: isSale ? 'none' : 'flex' }}>
         <SectionHeader title="Registros com conta própria" />
@@ -593,6 +674,17 @@ function JourneyCard({
       </View>
     </Card>
   );
+}
+
+/**
+ * The confirmation names the day when it is not today.
+ *
+ * "Salvo" is enough for an entry going onto the day the driver is living in.
+ * For a backdated one it is not: the whole risk of the feature is money landing
+ * on the wrong date and nobody noticing.
+ */
+function savedLabel(date: string): string {
+  return date === toDateOnly(new Date()) ? 'Salvo' : `Salvo em ${friendlyDayLabel(date)}`;
 }
 
 /** "Registrar 3 vendas" says what the button will do, "Salvar" does not. */

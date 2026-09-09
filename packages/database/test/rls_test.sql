@@ -966,3 +966,99 @@ begin
   raise notice 'TESTES DE TRAJETO PASSARAM';
 end;
 $$;
+
+-- ============================================================================
+-- Corrigir um dia que já passou.
+--
+-- O aplicativo passou a poder gravar em qualquer dia até hoje, e a tela do dia
+-- deixa apagar lançamento por lançamento. Duas coisas precisam ser verdade e
+-- nenhuma delas é óbvia.
+--
+-- A primeira é o fuso. Uma jornada lançada à mão é carimbada ao meio-dia local
+-- porque `daily_totals` agrupa jornadas pelo dia em São Paulo: carimbar à
+-- meia-noite põe o tempo trabalhado no dia anterior, e o motorista vê as horas
+-- somindo do dia que acabou de preencher.
+--
+-- A segunda é o que uma exclusão leva junto. Apagar a jornada tem de zerar o
+-- tempo e deixar o dinheiro em paz, porque o ganho existe mesmo quando a
+-- jornada foi lançada errado.
+-- ============================================================================
+do $$
+declare
+  v_carla uuid := gen_random_uuid();
+  v_dia   date := current_date - 4;
+  v_cat   uuid;
+  v_plat  uuid;
+  v_j     uuid;
+  v_r     uuid;
+  v_row   record;
+
+  -- O carimbo que a tela usa: meio-dia no fuso em que o dia do motorista é
+  -- contado, o mesmo que a view usa para agrupar.
+  v_meio_dia timestamptz := (v_dia::timestamp + interval '12 hours')
+                            at time zone 'America/Sao_Paulo';
+begin
+  insert into auth.users (id, email, raw_user_meta_data)
+  values (v_carla, 'carla.dia@example.com', '{"full_name": "Carla Dias"}'::jsonb);
+
+  select id into v_cat  from expense_categories where slug = 'combustivel';
+  select id into v_plat from platforms          where slug = 'uber';
+
+  perform login_as(v_carla);
+
+  -- "Informar tempo e km deste dia": 6 horas e 90 km, de cabeça.
+  insert into journeys (user_id, status, started_at, ended_at, paused_seconds, distance_override)
+  values (v_carla, 'completed', v_meio_dia, v_meio_dia + interval '6 hours', 0, 90000)
+  returning id into v_j;
+
+  insert into revenues (user_id, date, amount, tips, trip_count, platform_id)
+  values (v_carla, v_dia, 24000, 0, 18, v_plat)
+  returning id into v_r;
+
+  insert into expenses (user_id, date, amount, category_id)
+  values (v_carla, v_dia, 7000, v_cat);
+
+  select * into v_row from daily_totals where user_id = v_carla and date = v_dia;
+
+  perform assert(v_row.date = v_dia,
+    'a jornada carimbada ao meio-dia cai no dia escolhido, não no anterior');
+  perform assert(v_row.worked_seconds = 21600,
+    'seis horas informadas viram 21600 segundos trabalhados');
+  perform assert(v_row.distance = 90000,
+    'os 90 km digitados chegam ao histórico');
+  perform assert(v_row.net_profit = 17000,
+    'o lucro do dia corrigido é o que entrou menos o que saiu');
+  perform assert(v_row.trip_count = 18,
+    'as corridas informadas num dia anterior contam no ticket médio');
+
+  -- "Corrigir tempo e km" preserva o início, que é um fato observado, e move
+  -- só o fim, que é o que o motorista está corrigindo.
+  update journeys
+     set ended_at = started_at + interval '8 hours', distance_override = 120000
+   where id = v_j;
+
+  select * into v_row from daily_totals where user_id = v_carla and date = v_dia;
+  perform assert(v_row.date = v_dia and v_row.worked_seconds = 28800 and v_row.distance = 120000,
+    'corrigir para 8 horas e 120 km muda os números e não muda o dia');
+
+  -- Apagar a jornada não pode levar o dinheiro junto: `revenues.journey_id` é
+  -- `on delete set null` justamente para isso.
+  delete from journeys where id = v_j;
+
+  select * into v_row from daily_totals where user_id = v_carla and date = v_dia;
+  perform assert(v_row.gross_revenue = 24000,
+    'apagar a jornada preserva o ganho lançado nela');
+  perform assert(coalesce(v_row.worked_seconds, 0) = 0,
+    'apagar a jornada zera o tempo trabalhado do dia');
+
+  delete from revenues where id = v_r;
+  select * into v_row from daily_totals where user_id = v_carla and date = v_dia;
+  perform assert(v_row.net_profit = -7000,
+    'apagar o ganho deixa o dia negativo em vez de sumir com o gasto');
+
+  reset role;
+
+  raise notice '';
+  raise notice 'TESTES DE DIA ANTERIOR PASSARAM';
+end;
+$$;

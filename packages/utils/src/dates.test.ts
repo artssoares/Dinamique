@@ -4,8 +4,10 @@ import {
   daysBetween,
   elapsedDays,
   endOfMonth,
+  friendlyDayLabel,
   periodRange,
   rangeLengthDays,
+  shortDateLabel,
   startOfWeek,
   weekdayLabel,
 } from './dates';
@@ -46,5 +48,22 @@ describe('date ranges', () => {
 
   it('labels weekdays in Portuguese', () => {
     expect(weekdayLabel('2026-08-21')).toBe('sexta-feira');
+  });
+});
+
+describe('friendlyDayLabel', () => {
+  it('names today and yesterday rather than printing a date', () => {
+    expect(friendlyDayLabel('2026-09-04', '2026-09-04')).toBe('Hoje');
+    expect(friendlyDayLabel('2026-09-03', '2026-09-04')).toBe('Ontem');
+  });
+
+  it('gives any other day its weekday and date', () => {
+    expect(friendlyDayLabel('2026-09-01', '2026-09-04')).toBe('terça-feira, 1 de setembro');
+  });
+});
+
+describe('shortDateLabel', () => {
+  it('pads the day and abbreviates the month', () => {
+    expect(shortDateLabel('2026-09-04')).toBe('04 set');
   });
 });

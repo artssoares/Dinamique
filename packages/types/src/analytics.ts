@@ -19,6 +19,13 @@ export const ANALYTICS_EVENTS = [
   'journey_film_failed',
   'revenue_added',
   'expense_added',
+  // Correções em dias anteriores, separadas dos lançamentos normais: "quantas
+  // pessoas voltam para consertar um dia" é outra pergunta.
+  'revenue_edited',
+  'expense_edited',
+  'journey_added',
+  'journey_edited',
+  'entry_deleted',
   'product_created',
   'product_sale_added',
   'fuel_added',

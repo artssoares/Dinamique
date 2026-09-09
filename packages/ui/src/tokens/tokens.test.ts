@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { contrastRatio, relativeLuminance, WCAG_AA_LARGE, WCAG_AA_NORMAL } from './contrast';
+import {
+  contrastRatio,
+  flatten,
+  relativeLuminance,
+  WCAG_AA_LARGE,
+  WCAG_AA_NORMAL,
+} from './contrast';
 import { blue, coral } from './palette';
 import { darkTokens, lightTokens, themes } from './semantic';
 import { MIN_TOUCH_TARGET, breakpoints, layout, motion, radius, spacing } from './scale';
@@ -206,5 +212,74 @@ describe('token completeness', () => {
   it('meets the minimum touch target', () => {
     expect(MIN_TOUCH_TARGET).toBeGreaterThanOrEqual(44);
     expect(radius.pill).toBeGreaterThan(radius['3xl']);
+  });
+});
+
+/**
+ * The tinted `StatTile` washes a whole tile in a subtle colour and puts a
+ * secondary-grey label and a toned figure on top of it. Those are pairs the
+ * palette had never been asked about: every earlier assertion measured text
+ * against white or against its own subtle background, never a grey label
+ * against somebody else's, and dark mode was not measured at all, because its
+ * subtle tokens are rgba() overlays with no ratio of their own.
+ */
+describe('tinted metric tiles', () => {
+  function washes(tokens: typeof lightTokens) {
+    // What the eye sees on a dark tile is the overlay blended with the surface.
+    const solid = (color: string) => flatten(color, tokens.surfacePrimary)!;
+    return [
+      ['neutral', solid(tokens.backgroundSecondary), tokens.textPrimary],
+      ['brand', solid(tokens.brandPrimarySubtle), tokens.brandPrimaryText],
+      ['accent', solid(tokens.brandSecondarySubtle), tokens.brandSecondaryText],
+      ['success', solid(tokens.successSubtle), tokens.successText],
+      ['danger', solid(tokens.dangerSubtle), tokens.dangerText],
+      ['warning', solid(tokens.warningSubtle), tokens.warningText],
+    ] as const;
+  }
+
+  it('keeps the tile label readable on every wash, in both themes', () => {
+    for (const tokens of [lightTokens, darkTokens]) {
+      for (const [name, wash] of washes(tokens)) {
+        expect(
+          contrastRatio(tokens.textSecondary, wash)!,
+          `textSecondary on the ${name} wash`,
+        ).toBeGreaterThanOrEqual(WCAG_AA_NORMAL);
+      }
+    }
+  });
+
+  it('keeps the figure readable on its own wash, in both themes', () => {
+    for (const tokens of [lightTokens, darkTokens]) {
+      for (const [name, wash, ink] of washes(tokens)) {
+        // The figure is large text by the WCAG definition, 22/26 semibold, but
+        // it is the number the whole screen exists for, so it is held to the
+        // normal floor anyway.
+        expect(contrastRatio(ink, wash)!, `the ${name} figure on its wash`).toBeGreaterThanOrEqual(
+          WCAG_AA_NORMAL,
+        );
+      }
+    }
+  });
+
+  // Coral 500 on Coral 50 measures 2.6:1. It is the app's accent colour and it
+  // was being written in, which is the reason the brand tokens split. In dark
+  // mode the fill is already the lifted 400 step and needs no separate text
+  // colour, so only light mode can show the gap.
+  it('does not write type in the vivid accent fill', () => {
+    const wash = flatten(lightTokens.brandSecondarySubtle, lightTokens.surfacePrimary)!;
+    expect(contrastRatio(lightTokens.brandSecondary, wash)!).toBeLessThan(WCAG_AA_NORMAL);
+    expect(contrastRatio(lightTokens.brandSecondaryText, wash)!).toBeGreaterThanOrEqual(
+      WCAG_AA_NORMAL,
+    );
+  });
+});
+
+describe('colour compositing', () => {
+  it('flattens a translucent wash onto the surface behind it', () => {
+    expect(flatten('rgba(255, 255, 255, 1)', '#000000')).toBe('#ffffff');
+    expect(flatten('rgba(255, 255, 255, 0)', '#000000')).toBe('#000000');
+    expect(flatten('rgba(0, 0, 0, 0.5)', '#ffffff')).toBe('#808080');
+    // A solid colour is its own composite, whatever sits behind it.
+    expect(flatten('#0137F7', '#FFFFFF')).toBe('#0137f7');
   });
 });

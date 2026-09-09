@@ -55,6 +55,7 @@ with a short reason. It never returns zero, and it never invents a figure.
 | --- | --- | --- |
 | R$/hora (revenue) | gross ÷ worked hours | no worked time |
 | R$/hora (profit) | net ÷ worked hours | no worked time |
+| Custo/hora | expenses ÷ worked hours | no worked time |
 | R$/km (revenue) | gross ÷ km | no distance recorded |
 | R$/km (profit) | net ÷ km | no distance recorded |
 | Custo/km | vehicle-attributable costs ÷ km | no distance recorded |
@@ -101,6 +102,29 @@ Measured consumption is tank-to-tank: distance between consecutive odometer
 readings ÷ the volume that covered it. It needs at least 3 fuel logs with both
 an odometer and a volume; below that it returns nothing. We only offer to
 switch when the measured figure differs from the estimate by ≥ 8%.
+
+## Corrigir um dia que já passou
+
+Every entry carries a date, and that date can be any day up to today, never a
+future one: a day that has not happened cannot be recorded.
+
+This is not a convenience. Until it existed the app could only write to today,
+so anything remembered the next morning landed on the wrong date, and a period
+with a hole in it makes every figure derived from it, R$/hora, R$/km, the day's
+score, the benchmark, a statement about a week that did not happen. A missing
+Tuesday is not a missing row, it is a wrong average.
+
+- A day is opened from Histórico, from its calendar, or from Registrar.
+- Every ganho, gasto and jornada in it can be corrected or removed. Removal
+  always asks first.
+- Time and distance for a past day are entered as hours and kilometres.
+  Correcting a real journey keeps the hour it started, which is an observed
+  fact, and moves only the end, so worked time changes and history does not.
+  The kilometres go into the override slot, which is where a figure typed by
+  the driver belongs.
+- A manually entered journey is stamped at local noon, which keeps it inside
+  the intended day in the same timezone `daily_totals` groups by.
+- A lançamento dated in the past is never attached to today's running journey.
 
 ## Goals
 

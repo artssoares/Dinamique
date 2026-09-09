@@ -30,15 +30,32 @@ wrong.
 
 ## Fill versus text
 
-`success`, `danger` and `warning` are **fill** colours – bars, dots, badges.
-The `successText`, `dangerText` and `warningText` variants are the only ones
-safe to render type in.
+`success`, `danger`, `warning` **and both brand colours** are **fill** colours –
+bars, dots, badges. The `successText`, `dangerText`, `warningText`,
+`brandPrimaryText` and `brandSecondaryText` variants are the only ones safe to
+render type in.
 
 This split is not stylistic. A colour vivid enough to fill a shape rarely clears
-WCAG AA as small text: `#12A757` on its own subtle background measures 2.86:1.
+WCAG AA as small text: `#12A757` on its own subtle background measures 2.86:1,
+and Coral 500, the accent taken straight from the logo, measures 2.60:1 on Coral
+50. Type in coral takes the 700 step (5.27:1). Blue 500 is dark enough to write
+in as it stands, so `brandPrimaryText` is Blue 500 in light mode; in dark it
+drops to Blue 300, because Blue 400 over its own 16% wash reaches only 3.60:1.
+
+`Text`'s `color` prop names a **role**, and every role resolves to the
+accessible step: `color="accent"` renders Coral 700, never Coral 500.
+
 `packages/ui/src/tokens/tokens.test.ts` asserts every text token clears 4.5:1
 on both its subtle background and the surface, in light and dark. That test
 caught the original palette and is why the split exists.
+
+### Measuring a translucent wash
+
+In dark mode every `*Subtle` token is a low-alpha overlay rather than a solid
+tint, so it has no contrast ratio of its own: what the eye sees is the blend.
+`flatten(color, backdrop)` in `tokens/contrast.ts` composites the two, which is
+what lets the tinted tiles be asserted in the theme they are most likely to fail
+in rather than only in light mode.
 
 ## Semantic tokens
 
@@ -52,8 +69,8 @@ surfaceInverse      surfaceInverseHover  textOnInverse     textOnInverseMuted
 navSurface          navSurfaceActive     navText           navTextActive
 textPrimary         textSecondary        textMuted         textInverse   textOnBrand
 borderPrimary       borderSubtle         borderStrong
-brandPrimary        brandPrimaryHover    brandPrimarySubtle
-brandSecondary      brandSecondaryHover  brandSecondarySubtle
+brandPrimary        brandPrimaryHover    brandPrimarySubtle    brandPrimaryText
+brandSecondary      brandSecondaryHover  brandSecondarySubtle  brandSecondaryText
 heroFrom  heroTo    heroBackFrom  heroBackTo    heroDeepFrom  heroDeepTo
 textOnHeroBack
 success  successSubtle  successText
@@ -178,17 +195,35 @@ biggest reason the interface looked homemade. Icons take their colour from the
 **Layout** – `Screen` · `ScreenHeader` · `SectionHeader` · `Divider` · `Sheet`
 
 **Content** – `Text` · `Card` · `HeroDeck` · `Gradient` · `Money` · `Metric` /
-`CurrencyMetric` · `StatTile` · `GoalProgress` · `ProgressRing` · `EmptyState` ·
-`InsightCard` · `ListRow` · `Notice` · `Skeleton` · `Avatar` · `Badge` /
-`CountBadge` · `Reveal`
+`CurrencyMetric` · `StatTile` / `StatGrid` · `RatioBar` · `GoalProgress` ·
+`ProgressRing` · `EmptyState` · `InsightCard` · `ListRow` · `Notice` ·
+`Skeleton` · `Avatar` · `Badge` / `CountBadge` · `Reveal`
 
 **Controls** – `Button` · `IconButton` · `Chip` · `SegmentedControl` ·
-`OptionCard` · `Field` · `AmountInput` · `Select` · `StepProgress` · `Stepper`
+`OptionCard` · `Field` · `AmountInput` · `Select` · `StepProgress` · `Stepper` ·
+`Calendar` · `DateField`
 
 Several carry product rules rather than only style:
 
 - **`Metric`** and **`StatTile`** take `value: string | null`. Null renders a
   dash and an explanation ("sem km"), never a zero.
+- **`StatTile`**'s `tinted` variant washes the whole tile in its tone and moves
+  the icon into a puck. A grid of plain tiles is six white rectangles with six
+  grey labels, where every figure has exactly the weight of every other one;
+  tinted, the grid is scannable by colour before a word is read. `StatGrid`
+  owns the wrap, so the screens that lay out metric grids cannot drift apart.
+- **`RatioBar`** shows a split as a shape and keeps the exact figures in a
+  legend under it. It replaced the period summary, which was a paragraph of
+  same-size sentences, and nobody sees a ratio in a paragraph.
+- **`Calendar`** is drawn from these tokens rather than the platform date
+  picker, for three reasons: the native dialog looks native on each platform
+  and like nothing here; it cannot mark which days already have data, which is
+  the reason for opening it; and the web is a third control again. Future days
+  render but do not select.
+- **`DateField`** is the calendar's everyday face: Hoje and Ontem as one-tap
+  chips, the calendar behind "Outro dia", and the chosen day always spelled out
+  in words, because someone about to save R$ 180 onto the wrong date should not
+  have to infer it from which chip is lit.
 - **`GoalProgress`** and **`ProgressRing`** clamp to 100% and animate on mount,
   because a static shape reads as a picture while a growing one reads as
   progress.
@@ -315,7 +350,9 @@ Every animation checks `useReducedMotion` and falls back to an instant change.
 
 - every text token clears WCAG AA, asserted in both themes
 - muted text, borders, the tab bar and both hero gradients are asserted too
-- minimum touch target 44dp – `IconButton` adds hit slop when drawn smaller
+- minimum touch target 44dp – `IconButton` adds hit slop when drawn smaller,
+  and the calendar's day cells do the same, because seven columns cannot each
+  be 44dp wide on a 360dp phone
 - state is never carried by colour alone – the unread notification has a border
   *and* a badge; an internal note has a dashed border *and* a label
 - accessibility labels on every control; `accessibilityRole="progressbar"` with
