@@ -16,6 +16,7 @@ import { buildStoryboard, sampleFrame } from './storyboard';
 import { buildFilm } from './film';
 import { buildRecapStats, DEFAULT_BRAND, TILELESS_BASEMAP, type RecapScene } from './scene';
 import { renderRecapDocument } from './renderer';
+import { PAINTER_SOURCE } from './painter';
 
 /** A short drive east along a road in São Paulo, one fix every five seconds. */
 function drive(count = 60, startAt = Date.parse('2026-08-15T09:00:00.000Z')): RawFix[] {
@@ -656,5 +657,69 @@ describe('buildRecap', () => {
       ],
     });
     expect(recap.hasRoute).toBe(false);
+  });
+});
+
+/**
+ * The painter ships as a string of browser JavaScript, so what can be asserted
+ * here is its source, not its behaviour: running it needs a canvas, an Image
+ * and a requestAnimationFrame. These three assertions are narrow on purpose.
+ * Each one names a line that, when it was the other way round, produced the
+ * same bug in the field, a recording that flashed navy where the preview of
+ * the very same film played clean.
+ */
+describe('the map survives the recording, not just the preview', () => {
+  it('paints every recorded frame with tile loading enabled', () => {
+    // The preview always painted with loading on and self-healed a missing
+    // tile on the next frame. The recording painted with it off, so a tile
+    // the preload had not fetched was a hole for the whole take, and a hole
+    // is the navy backdrop showing through.
+    const record = PAINTER_SOURCE.slice(
+      PAINTER_SOURCE.indexOf('function record()'),
+      PAINTER_SOURCE.indexOf('function deliver('),
+    );
+
+    expect(record).toContain('paint(0, true)');
+    expect(record).toContain('paint(index, true)');
+    expect(record).not.toMatch(/paint\([^)]*,\s*false\)/);
+  });
+
+  it('walks every frame when warming the tiles, not every third', () => {
+    const preload = PAINTER_SOURCE.slice(
+      PAINTER_SOURCE.indexOf('function preloadTiles('),
+      PAINTER_SOURCE.indexOf('MIME_PREFERENCE'),
+    );
+
+    // Sampling skipped the tiles that a corner or a pull-back shows for two
+    // frames and no longer. Deduplication is what makes walking all of them
+    // free for the frames that genuinely do overlap.
+    expect(preload).toContain('i < film.frameCount; i += 1');
+    expect(preload).not.toContain('i += 3');
+    expect(preload).toContain('wanted[key]');
+  });
+
+  it('drops a zoom level on a wide shot rather than drawing no map at all', () => {
+    const tilesForFrame = PAINTER_SOURCE.slice(
+      PAINTER_SOURCE.indexOf('function tilesForFrame('),
+      PAINTER_SOURCE.indexOf('function paintBackdrop('),
+    );
+
+    // The old line was `if (... > 160) return [];`, which on the opening and
+    // closing pull-backs handed back nothing and left the frame bare.
+    expect(tilesForFrame).not.toMatch(/>\s*160\)\s*return \[\]/);
+    expect(tilesForFrame).toContain('z -= 1');
+    expect(tilesForFrame).toContain('continue');
+  });
+});
+
+describe('the painter is a string, and has to stay one', () => {
+  it('contains no backtick and no interpolation of its own', () => {
+    // The whole painter lives inside a template literal, so one backtick in a
+    // comment ends it early and the rest of the file becomes syntax. It reads
+    // as a transform error a hundred lines away from the character that
+    // caused it, which is a bad afternoon.
+    const body = PAINTER_SOURCE;
+    expect(body).not.toContain('`');
+    expect(body).not.toContain('${');
   });
 });

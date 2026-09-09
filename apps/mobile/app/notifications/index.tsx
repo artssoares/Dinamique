@@ -8,6 +8,7 @@ import {
   Screen,
   ScreenHeader,
   Text,
+  useContentInsets,
   useTheme,
 } from '@dinamique/ui';
 import { supabase } from '@/lib/supabase';
@@ -27,6 +28,8 @@ interface NotificationRow {
 /** The bell's contents (§58). Tapping opens the thing it is about. */
 export default function Notifications() {
   const theme = useTheme();
+  // A lista é quem rola, então a margem que a Screen daria vem para cá.
+  const insets = useContentInsets();
   const router = useRouter();
   const { session } = useSession();
   const [items, setItems] = useState<NotificationRow[]>([]);
@@ -97,7 +100,7 @@ export default function Notifications() {
       padding="none"
     >
       <FlatList
-        contentContainerStyle={{ gap: theme.spacing.md, flexGrow: 1 }}
+        contentContainerStyle={{ ...insets.column, gap: theme.spacing.md, flexGrow: 1 }}
         data={items}
         keyExtractor={(item) => item.id}
         onRefresh={load}
