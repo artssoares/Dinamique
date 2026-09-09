@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { FlatList, Pressable, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Icon, Screen, ScreenHeader, Text, useTheme } from '@dinamique/ui';
+import { Icon, Screen, ScreenHeader, Text, useContentInsets, useTheme } from '@dinamique/ui';
 import { useSession } from '@/hooks/useSession';
 import { useTicketConversation, type TicketMessage } from '@/features/support/useSupport';
 
@@ -11,6 +11,8 @@ import { useTicketConversation, type TicketMessage } from '@/features/support/us
  */
 export default function TicketConversation() {
   const theme = useTheme();
+  // A lista é quem rola, então a margem que a Screen daria vem para cá.
+  const insets = useContentInsets();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useSession();
@@ -77,7 +79,7 @@ export default function TicketConversation() {
       <FlatList
         data={messages}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ gap: theme.spacing.lg, paddingVertical: theme.spacing.lg }}
+        contentContainerStyle={{ ...insets.column, gap: theme.spacing.lg, paddingVertical: theme.spacing.lg }}
         renderItem={({ item }) => <MessageBubble message={item} />}
       />
     </Screen>

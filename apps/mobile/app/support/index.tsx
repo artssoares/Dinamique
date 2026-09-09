@@ -10,6 +10,7 @@ import {
   ScreenHeader,
   Skeleton,
   Text,
+  useContentInsets,
   useTheme,
 } from '@dinamique/ui';
 import { useTickets, type TicketSummary } from '@/features/support/useSupport';
@@ -20,6 +21,8 @@ import { useTickets, type TicketSummary } from '@/features/support/useSupport';
  */
 export default function SupportInbox() {
   const theme = useTheme();
+  // A lista é quem rola, então a margem que a Screen daria vem para cá.
+  const insets = useContentInsets();
   const router = useRouter();
   const { tickets, loading, refresh } = useTickets();
 
@@ -61,7 +64,7 @@ export default function SupportInbox() {
         keyExtractor={(item) => item.id}
         onRefresh={refresh}
         refreshing={false}
-        contentContainerStyle={{ gap: theme.spacing.md, flexGrow: 1 }}
+        contentContainerStyle={{ ...insets.column, gap: theme.spacing.md, flexGrow: 1 }}
         ListEmptyComponent={
           <EmptyState
             iconName="support"

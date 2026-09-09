@@ -16,6 +16,7 @@ import { useBottomInset } from '../hooks/useBottomInset';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { NATIVE_DRIVER } from '../hooks/usePressMotion';
 import { useResponsive } from '../hooks/useResponsive';
+import { useContentInsets } from '../hooks/useContentInsets';
 import { layout, type SpacingToken } from '../tokens/index';
 
 export interface ScreenProps {
@@ -82,7 +83,7 @@ export function Screen({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
-  const { isCompact, isMedium } = useResponsive();
+  const { isMedium } = useResponsive();
   // Room the app is holding at the bottom of *this* screen: the floating menu
   // that stays put across pushed pages. Zero inside the tab group, where
   // `tabBarSpacing` below already accounts for the bar.
@@ -112,8 +113,9 @@ export function Screen({
     surface: theme.colors.surfacePrimary,
   } as const;
 
-  // Compact phones give a step of horizontal padding back to the content.
-  const horizontal = isCompact ? theme.spacing.lg : theme.spacing[padding];
+  // One rule, shared with the screens whose list owns the scrolling and has to
+  // apply the same inset itself.
+  const { horizontal } = useContentInsets(padding, width);
 
   // The two never stack: `tabBarSpacing` is for the bar the tab navigator
   // draws, `floating` for the one the app floats over a pushed screen, and a

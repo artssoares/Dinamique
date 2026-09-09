@@ -26,6 +26,7 @@ import {
   Sheet,
   Skeleton,
   Text,
+  useContentInsets,
   useTheme,
   type DayMark,
   type IconName,
@@ -58,6 +59,10 @@ export default function History() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerMonth, setPickerMonth] = useState(() => startOfMonth(toDateOnly(new Date())));
   const [marks, setMarks] = useState<Record<string, DayMark>>({});
+  // A lista é quem rola, então a margem que a Screen daria vem para cá: no
+  // container do conteúdo, para a barra de rolagem continuar na borda e os
+  // cartões não.
+  const insets = useContentInsets();
 
   const load = useCallback(async () => {
     if (!session?.user) return;
@@ -134,7 +139,7 @@ export default function History() {
       tabBarSpacing
     >
       <FlatList
-        contentContainerStyle={{ gap: theme.spacing.md, flexGrow: 1 }}
+        contentContainerStyle={{ ...insets.column, gap: theme.spacing.md, flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
         data={rows}
         keyExtractor={(item) => item.date}
