@@ -300,23 +300,30 @@ export const PAINTER_SOURCE = `
     var projector = makeProjector(frame);
     var bounds = visibleBounds(projector);
     var z = clamp(Math.round(frame.zoom), 0, basemap.maxZoom || 18);
-    var count = Math.pow(2, z);
+    var count;
 
-    var x0 = Math.floor(bounds.minX * count);
-    var x1 = Math.floor(bounds.maxX * count);
-    var y0 = Math.floor(bounds.minY * count);
-    var y1 = Math.floor(bounds.maxY * count);
-
-    // A frame that somehow asks for a thousand tiles is a bug in the camera,
-    // not a request worth honouring; cap it and let the backdrop show.
-    if ((x1 - x0 + 1) * (y1 - y0 + 1) > 160) return [];
-
+    // A wide shot can ask for more tiles than are worth fetching. Dropping a
+    // zoom level quarters the count and still puts a map on screen; the old
+    // behaviour was to give up and return nothing, which leaves the navy
+    // backdrop bare. That is what read as the film flashing blue on the
+    // pull-backs, and it flashed because the frames on either side, at a
+    // slightly tighter camera, were under the cap and drew normally.
     var out = [];
-    for (var x = x0; x <= x1; x += 1) {
-      for (var y = y0; y <= y1; y += 1) {
-        if (y < 0 || y >= count) continue;
-        out.push([z, ((x % count) + count) % count, y]);
+    for (; z >= 0; z -= 1) {
+      count = Math.pow(2, z);
+      var x0 = Math.floor(bounds.minX * count);
+      var x1 = Math.floor(bounds.maxX * count);
+      var y0 = Math.floor(bounds.minY * count);
+      var y1 = Math.floor(bounds.maxY * count);
+      if ((x1 - x0 + 1) * (y1 - y0 + 1) > 160) continue;
+
+      for (var x = x0; x <= x1; x += 1) {
+        for (var y = y0; y <= y1; y += 1) {
+          if (y < 0 || y >= count) continue;
+          out.push([z, ((x % count) + count) % count, y]);
+        }
       }
+      return out;
     }
     return out;
   }
@@ -1020,16 +1027,23 @@ export const PAINTER_SOURCE = `
    * Warms the tile cache before recording.
    *
    * Without this the export is a slideshow of grey squares that fill in as it
-   * goes, because MediaRecorder does not wait for an <img> to load. Sampling
-   * every third frame is enough: consecutive frames overlap almost entirely,
-   * and the ones between are covered by their neighbours.
+   * goes, because MediaRecorder does not wait for an <img> to load.
+   *
+   * It used to sample every third frame, on the reasoning that consecutive
+   * frames overlap almost entirely. They do in the middle of a straight, and
+   * they do not where the camera swings through a corner or pulls back, which
+   * is exactly where a tile appears for two frames and then is gone. Every
+   * frame is walked now; the keys are deduplicated, so the frames that really
+   * do overlap cost nothing.
    */
+  var MAX_PRELOAD = 900;
+
   function preloadTiles(onProgress) {
     if (!basemap.urlTemplate) return Promise.resolve();
 
     var wanted = {};
     var order = [];
-    for (var i = 0; i < film.frameCount; i += 3) {
+    for (var i = 0; i < film.frameCount; i += 1) {
       var needed = tilesForFrame(frameAt(i));
       for (var j = 0; j < needed.length; j += 1) {
         var key = tileKey(needed[j][0], needed[j][1], needed[j][2]);
@@ -1042,10 +1056,12 @@ export const PAINTER_SOURCE = `
       }
     }
 
-    // A very long route at high zoom could ask for thousands of tiles. Past a
-    // few hundred we stop preloading and let the rest stream in: better a
-    // couple of soft frames than a driver watching a spinner for a minute.
-    if (order.length > 520) order = order.slice(0, 520);
+    // A very long route at high zoom could ask for thousands of tiles, and a
+    // driver should not watch a spinner for a minute. Past this many the rest
+    // arrive on demand while the recording runs, which is only safe because
+    // record() now paints with loading enabled. When it did not, everything
+    // past this line was a tile the video could never show.
+    if (order.length > MAX_PRELOAD) order = order.slice(0, MAX_PRELOAD);
 
     var loaded = 0;
     var CONCURRENCY = 6;
@@ -1179,7 +1195,16 @@ export const PAINTER_SOURCE = `
       // Paint frame zero and give the encoder a moment before starting, so
       // the first thing in the file is the composed opening rather than
       // whatever was on the canvas when the driver hit the button.
-      paint(0, false);
+      //
+      // Loading stays enabled for every frame of the recording. The preload
+      // above is the plan; this is what happens when the plan misses one, and
+      // it missed constantly: a tile past the preload ceiling, a tile whose
+      // request failed once, a tile the sampler skipped. With loading off
+      // those were holes for the whole take, and a hole is the navy backdrop,
+      // which is why the recording flashed blue where the preview, which has
+      // always painted with loading on, played clean. A tile that lands late
+      // costs one soft frame; a tile that can never land costs the shot.
+      paint(0, true);
 
       setTimeout(function () {
         recorder.start();
@@ -1191,7 +1216,7 @@ export const PAINTER_SOURCE = `
           var index = Math.floor((elapsed / 1000) * film.fps);
 
           if (index >= film.frameCount) {
-            paint(film.frameCount - 1, false);
+            paint(film.frameCount - 1, true);
             // A beat of slack so the last painted frame is actually captured
             // and the encoder flushes before the container is closed.
             setTimeout(function () { recorder.stop(); }, 260);
@@ -1199,7 +1224,7 @@ export const PAINTER_SOURCE = `
           }
 
           if (index !== lastPainted) {
-            paint(index, false);
+            paint(index, true);
             lastPainted = index;
             if (index % 6 === 0) {
               post({ type: 'progress', phase: 'render', value: index / film.frameCount });
