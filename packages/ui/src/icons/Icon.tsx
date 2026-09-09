@@ -64,6 +64,7 @@ export type IconName =
   | 'compass'
   | 'flag'
   | 'expand'
+  | 'search'
   | 'calendar'
   | 'edit'
   | 'trash'
@@ -467,6 +468,13 @@ export function Icon({ name, size = 22, color, strokeWidth = 1.8 }: IconProps) {
     // A month with days in it, not a page with a fold. The three dots are what
     // makes it read as a calendar at 16dp, where a plain rounded rectangle
     // reads as a card.
+    case 'search':
+      return (
+        <Svg {...common}>
+          <Circle cx="10.75" cy="10.75" r="6.5" />
+          <Line x1="15.5" y1="15.5" x2="20.25" y2="20.25" />
+        </Svg>
+      );
     case 'calendar':
       return (
         <Svg {...common}>

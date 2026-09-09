@@ -17,6 +17,7 @@ Schema, security policies, server-side business functions and read models.
 | `…000800_vehicle_catalogue` | the first makes, models and versions |
 | `…819000200_vehicle_catalogue_expansion` | the makes and models drivers actually own |
 | `…904000100_vehicle_catalogue_versions` | a version, and so a reference consumption, for every one of them |
+| `…909000100_vehicle_catalogue_depth` | the models each make actually sells, and more years per model |
 
 ## Invariants the schema enforces
 
