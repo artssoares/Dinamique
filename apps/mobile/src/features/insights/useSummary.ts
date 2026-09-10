@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { Cents, DateOnly, GoalBasis, GoalPeriod } from '@dinamique/types';
 import {
   achievedForBasis,
@@ -14,6 +14,7 @@ import {
 } from '@dinamique/business-logic';
 import { addDays, periodRange, toDateOnly, weekdayLabel } from '@dinamique/utils';
 import { supabase } from '@/lib/supabase';
+import { useReloadOnFocus } from '@/hooks/useReloadOnFocus';
 import { useSession } from '@/hooks/useSession';
 
 /**
@@ -53,6 +54,18 @@ export interface DayRow {
  */
 export const DAY_ROW_COLUMNS =
   'date, gross_revenue, tips, total_expenses, vehicle_expenses, net_profit, worked_seconds, distance, trip_count';
+
+/**
+ * O dia tem alguma coisa registrada.
+ *
+ * Um dia só de gasto conta. O Histórico contava e os Insights não, então um
+ * motorista que lançou o combustível numa segunda parada em casa via o mesmo
+ * período com um número de dias em cada aba, e a média por dia saía dividida
+ * pelo denominador errado. Uma regra só, nos dois lugares.
+ */
+export function hasEntries(row: DayRow): boolean {
+  return row.gross_revenue > 0 || row.total_expenses > 0 || row.worked_seconds > 0;
+}
 
 export interface PeriodReport {
   summary: PeriodSummary;
@@ -132,10 +145,17 @@ export function usePeriodReport(period: GoalPeriod) {
   const { session } = useSession();
   const [report, setReport] = useState<PeriodReport | null>(null);
   const [loading, setLoading] = useState(true);
+  // Qual período já está desenhado na tela. Ref, e não estado, porque entrar
+  // nas dependências de `load` faria o foco recarregar em laço.
+  const shown = useRef<GoalPeriod | null>(null);
 
   const load = useCallback(async () => {
     if (!session?.user) return;
-    setLoading(true);
+    // Esqueleto na primeira leitura e ao trocar de período, que são os dois
+    // casos em que o que está na tela não serve. Numa releitura já existe o
+    // relatório certo ali: trocá-lo por caixas cinzentas a cada volta de aba
+    // seria pior do que o número velho que isto veio consertar.
+    if (shown.current !== period) setLoading(true);
 
     const today = toDateOnly(new Date());
     const current = periodRange(period, today);
@@ -222,7 +242,7 @@ export function usePeriodReport(period: GoalPeriod) {
       expenseRatioAverage: summary.expenseRatio,
     });
 
-    const withData = currentRows.filter((row) => row.gross_revenue > 0 || row.worked_seconds > 0);
+    const withData = currentRows.filter(hasEntries);
 
     const bestDay = withData.length
       ? withData.reduce((best, row) => (row.net_profit > best.net_profit ? row : best))
@@ -269,12 +289,13 @@ export function usePeriodReport(period: GoalPeriod) {
       daysWithData: withData.length,
       rows: currentRows,
     });
+    shown.current = period;
     setLoading(false);
   }, [period, session?.user?.id]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  // Ao voltar o foco, e não só ao montar. Ver §useReloadOnFocus: uma correção
+  // num dia anterior muda todo número desta aba, e a aba fica montada.
+  useReloadOnFocus(load);
 
   return { report, loading, refresh: load };
 }

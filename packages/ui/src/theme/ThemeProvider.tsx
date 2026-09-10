@@ -97,6 +97,41 @@ export function ThemeProvider({
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
+export interface ThemeScopeProps {
+  children: ReactNode;
+  /** The scheme this subtree is painted in, whatever the driver picked. */
+  scheme: ColorSchemeName;
+}
+
+/**
+ * Pins a subtree to one scheme.
+ *
+ * For content that brings its own surface. The journey film plays over
+ * satellite imagery and is dark at every hour of the day, so the controls
+ * sitting on top of it are dark-theme controls even for someone using the app
+ * in light mode. Without this, "Cancelar" during a recording was near-black
+ * type on a night-time map, which is what it was.
+ *
+ * The preference passes straight through: this changes what is painted, never
+ * what the driver chose in the settings.
+ */
+export function ThemeScope({ scheme, children }: ThemeScopeProps) {
+  const outer = useContext(ThemeContext);
+
+  const value = useMemo<ThemeContextValue>(
+    () => ({
+      ...buildTheme(scheme),
+      preference: outer?.preference ?? 'system',
+      setPreference: outer?.setPreference ?? noop,
+    }),
+    [scheme, outer?.preference, outer?.setPreference],
+  );
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
+
+function noop() {}
+
 export function useTheme(): Theme {
   const context = useContext(ThemeContext);
   if (!context) {

@@ -114,7 +114,10 @@ with a hole in it makes every figure derived from it, R$/hora, R$/km, the day's
 score, the benchmark, a statement about a week that did not happen. A missing
 Tuesday is not a missing row, it is a wrong average.
 
-- A day is opened from Histórico, from its calendar, or from Registrar.
+- A day is opened from Histórico, from its calendar, from the strip of recent
+  days on the Home screen, or from Registrar. Fixing a forgotten Tuesday has to
+  be reachable from the screen the driver actually opens, not only from inside
+  a tab they have to know about.
 - Every ganho, gasto and jornada in it can be corrected or removed. Removal
   always asks first.
 - Time and distance for a past day are entered as hours and kilometres.
@@ -125,6 +128,20 @@ Tuesday is not a missing row, it is a wrong average.
 - A manually entered journey is stamped at local noon, which keeps it inside
   the intended day in the same timezone `daily_totals` groups by.
 - A lançamento dated in the past is never attached to today's running journey.
+- **A screen that reads `daily_totals` re-reads when it regains focus.** The
+  correction lands in the database and the day screen shows it at once, because
+  that screen recalculates from its own rows. Home, Histórico and Insights read
+  the view once and stay mounted underneath, so without this they answered with
+  the figures from before the correction. What the driver sees is "lancei o
+  gasto e ele não foi contabilizado", and the cost had been counted: the app was
+  showing an old answer. Focus is the trigger rather than a notice sent after
+  each write, because Registrar, o abastecimento, os custos fixos, a manutenção
+  and the close-journey flow all write too, and a notice that has to be
+  remembered in each of them is one that eventually is not.
+- A day counts as having something recorded when it has revenue, costs or
+  worked time. Costs alone count: Insights used to leave those days out while
+  Histórico kept them, so the same period reported a different number of days on
+  each tab and the average per day was divided by the wrong denominator.
 
 ## Goals
 

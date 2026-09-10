@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import type { GoalPeriod } from '@dinamique/types';
@@ -33,9 +33,15 @@ import {
 } from '@dinamique/ui';
 import { AppHeader } from '@/features/shell/AppHeader';
 import { supabase } from '@/lib/supabase';
+import { useReloadOnFocus } from '@/hooks/useReloadOnFocus';
 import { useSession } from '@/hooks/useSession';
 import { useRouteDays } from '@/features/route/useJourneyRoute';
-import { DAY_ROW_COLUMNS, summariseRows, type DayRow } from '@/features/insights/useSummary';
+import {
+  DAY_ROW_COLUMNS,
+  hasEntries,
+  summariseRows,
+  type DayRow,
+} from '@/features/insights/useSummary';
 import { PeriodHeadline, PeriodMetrics } from '@/features/insights/PeriodMetrics';
 
 /**
@@ -63,10 +69,15 @@ export default function History() {
   // container do conteúdo, para a barra de rolagem continuar na borda e os
   // cartões não.
   const insets = useContentInsets();
+  // Qual período já está desenhado. Ref, e não estado, para não entrar nas
+  // dependências de `load`.
+  const shown = useRef<GoalPeriod | null>(null);
 
   const load = useCallback(async () => {
     if (!session?.user) return;
-    setLoading(true);
+    // Esqueleto na primeira leitura e ao trocar de período. Numa releitura a
+    // lista certa já está na tela; ver `useReloadOnFocus`.
+    if (shown.current !== period) setLoading(true);
     const range = periodRange(period, toDateOnly(new Date()));
 
     const { data } = await supabase
@@ -78,12 +89,14 @@ export default function History() {
       .order('date', { ascending: false });
 
     setRows((data as DayRow[] | null) ?? []);
+    shown.current = period;
     setLoading(false);
   }, [period, session?.user?.id]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  // Voltar da tela do dia tem de trazer o dia corrigido. Esta aba fica montada
+  // por baixo dela, então sem isto o resumo do período continuava mostrando os
+  // valores de antes da correção.
+  useReloadOnFocus(load);
 
   /**
    * Which days already have something, for the month the picker is showing.
@@ -123,9 +136,7 @@ export default function History() {
   const routeDays = useRouteDays(range.start, range.end);
 
   const summary = useMemo(() => summariseRows(rows), [rows]);
-  const daysWithData = rows.filter(
-    (row) => row.gross_revenue > 0 || row.total_expenses > 0 || row.worked_seconds > 0,
-  ).length;
+  const daysWithData = rows.filter(hasEntries).length;
 
   function openDay(date: string) {
     router.push({ pathname: '/journey/day', params: { date } });
