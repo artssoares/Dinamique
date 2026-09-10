@@ -10,7 +10,7 @@ import {
 import { Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Recap, RecapMessage } from '@dinamique/recap';
-import { Button, darkTokens, Icon, IconButton, Text, useTheme } from '@dinamique/ui';
+import { Button, darkTokens, Icon, IconButton, Text, ThemeScope, useTheme } from '@dinamique/ui';
 import { FilmStage, type FilmStageHandle } from './FilmStage';
 import { useFilmVideo, type VideoPhase } from './useFilmVideo';
 
@@ -181,112 +181,120 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
       : null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: darkTokens.backgroundPrimary }}>
-      {recording ? (
-        <FilmStage key="export" ref={exportRef} recap={recap} mode="export" onMessage={handleExportMessage} />
-      ) : (
-        <Pressable
-          style={{ flex: 1 }}
-          accessibilityRole="button"
-          accessibilityLabel="Tocar o filme de novo"
-          onPress={() => previewRef.current?.play()}
+    // O que está debaixo dos controles é o mapa, não o fundo do aplicativo, e
+    // ele é escuro a qualquer hora do dia. Então esta parte da tela é escura
+    // mesmo para quem usa o aplicativo no claro: sem isso, o "Cancelar" da
+    // gravação era um texto quase preto por cima de uma imagem de satélite à
+    // noite. O tema do resto do aplicativo continua sendo o que a pessoa
+    // escolheu.
+    <ThemeScope scheme="dark">
+      <View style={{ flex: 1, backgroundColor: darkTokens.backgroundPrimary }}>
+        {recording ? (
+          <FilmStage key="export" ref={exportRef} recap={recap} mode="export" onMessage={handleExportMessage} />
+        ) : (
+          <Pressable
+            style={{ flex: 1 }}
+            accessibilityRole="button"
+            accessibilityLabel="Tocar o filme de novo"
+            onPress={() => previewRef.current?.play()}
+          >
+            {/* Not interactive: an iframe swallows every tap that lands on it,
+                and the Pressable around it is the control. */}
+            <FilmStage
+              key="preview"
+              ref={previewRef}
+              recap={playing}
+              mode="preview"
+              interactive={false}
+              onMessage={handlePreviewMessage}
+            />
+          </Pressable>
+        )}
+
+        <View
+          pointerEvents="box-none"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            paddingTop: insets.top + theme.spacing.xs,
+            paddingHorizontal: theme.spacing.md,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: theme.spacing.sm,
+          }}
         >
-          {/* Not interactive: an iframe swallows every tap that lands on it,
-              and the Pressable around it is the control. */}
-          <FilmStage
-            key="preview"
-            ref={previewRef}
-            recap={playing}
-            mode="preview"
-            interactive={false}
-            onMessage={handlePreviewMessage}
+          <IconButton
+            icon={onClose ? 'close' : 'chevronLeft'}
+            label={recording ? 'Cancelar a gravação' : 'Fechar'}
+            tone="surface"
+            onPress={() => (recording ? cancelRecording() : onClose?.())}
           />
-        </Pressable>
-      )}
-
-      <View
-        pointerEvents="box-none"
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          paddingTop: insets.top + theme.spacing.xs,
-          paddingHorizontal: theme.spacing.md,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: theme.spacing.sm,
-        }}
-      >
-        <IconButton
-          icon={onClose ? 'close' : 'chevronLeft'}
-          label={recording ? 'Cancelar a gravação' : 'Fechar'}
-          tone="surface"
-          onPress={() => (recording ? cancelRecording() : onClose?.())}
-        />
-        {!recording && warming ? <Pill text="Carregando o mapa" /> : null}
-      </View>
-
-      {recording ? <RecordingOverlay phase={video.phase} progress={video.progress} /> : null}
-
-      <View
-        pointerEvents="box-none"
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          paddingHorizontal: theme.spacing.lg,
-          paddingBottom: insets.bottom + theme.spacing.md,
-          gap: theme.spacing.sm,
-        }}
-      >
-        {video.error ? (
-          // The code goes on screen with the sentence. A driver reporting
-          // "nothing happened" cannot open a console, and this is what turns
-          // that report into something that can be fixed.
-          <Notice
-            icon="alert"
-            text={video.errorCode ? `${video.error} (${video.errorCode})` : video.error}
-          />
-        ) : !hasRoute ? (
-          // Saying why there is no map beats letting the person think it
-          // broke. It is also where GPS counting gets discovered.
-          <Notice
-            icon="info"
-            text="Sem trajeto nesta jornada. Ligue a contagem por GPS em Registrar para o próximo dia ter mapa."
-          />
-        ) : fileReady && !recording ? (
-          <Notice
-            icon="check"
-            text={
-              video.canShareSheet
-                ? 'Vídeo pronto. Toque para escolher onde postar.'
-                : 'Vídeo pronto. Este navegador não abre a tela de compartilhar, então ele baixa o arquivo.'
-            }
-          />
-        ) : null}
-
-        <View style={{ position: 'relative' }}>
-          <Button
-            label={primaryLabel}
-            size="lg"
-            fullWidth
-            iconName={recording || video.phase === 'sharing' ? undefined : 'arrowUpRight'}
-            loading={video.phase === 'sharing'}
-            disabled={recording || video.phase === 'sharing'}
-            onPress={primaryAction}
-          />
-          {webShareTap}
+          {!recording && warming ? <Pill text="Carregando o mapa" /> : null}
         </View>
 
-        {recording ? (
-          <Button label="Cancelar" variant="ghost" size="sm" fullWidth onPress={cancelRecording} />
-        ) : fileReady ? (
-          <Button label="Gravar de novo" variant="ghost" size="sm" fullWidth onPress={startRecording} />
-        ) : null}
+        {recording ? <RecordingOverlay phase={video.phase} progress={video.progress} /> : null}
+
+        <View
+          pointerEvents="box-none"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            paddingHorizontal: theme.spacing.lg,
+            paddingBottom: insets.bottom + theme.spacing.md,
+            gap: theme.spacing.sm,
+          }}
+        >
+          {video.error ? (
+            // The code goes on screen with the sentence. A driver reporting
+            // "nothing happened" cannot open a console, and this is what turns
+            // that report into something that can be fixed.
+            <Notice
+              icon="alert"
+              text={video.errorCode ? `${video.error} (${video.errorCode})` : video.error}
+            />
+          ) : !hasRoute ? (
+            // Saying why there is no map beats letting the person think it
+            // broke. It is also where GPS counting gets discovered.
+            <Notice
+              icon="info"
+              text="Sem trajeto nesta jornada. Ligue a contagem por GPS em Registrar para o próximo dia ter mapa."
+            />
+          ) : fileReady && !recording ? (
+            <Notice
+              icon="check"
+              text={
+                video.canShareSheet
+                  ? 'Vídeo pronto. Toque para escolher onde postar.'
+                  : 'Vídeo pronto. Este navegador não abre a tela de compartilhar, então ele baixa o arquivo.'
+              }
+            />
+          ) : null}
+
+          <View style={{ position: 'relative' }}>
+            <Button
+              label={primaryLabel}
+              size="lg"
+              fullWidth
+              iconName={recording || video.phase === 'sharing' ? undefined : 'arrowUpRight'}
+              loading={video.phase === 'sharing'}
+              disabled={recording || video.phase === 'sharing'}
+              onPress={primaryAction}
+            />
+            {webShareTap}
+          </View>
+
+          {recording ? (
+            <Button label="Cancelar" variant="ghost" size="sm" fullWidth onPress={cancelRecording} />
+          ) : fileReady ? (
+            <Button label="Gravar de novo" variant="ghost" size="sm" fullWidth onPress={startRecording} />
+          ) : null}
+        </View>
       </View>
-    </View>
+    </ThemeScope>
   );
 });
 
@@ -314,10 +322,10 @@ function Pill({ text }: { text: string }) {
         paddingVertical: theme.spacing.xs,
         paddingHorizontal: theme.spacing.sm,
         borderRadius: theme.radius.pill,
-        backgroundColor: darkTokens.surfacePrimary,
+        backgroundColor: theme.colors.surfacePrimary,
       }}
     >
-      <Text variant="captionStrong" style={{ color: darkTokens.textSecondary }}>
+      <Text variant="captionStrong" style={{ color: theme.colors.textSecondary }}>
         {text}
       </Text>
     </View>
@@ -332,14 +340,14 @@ function Notice({ icon, text }: { icon: 'alert' | 'info' | 'check'; text: string
         flexDirection: 'row',
         alignItems: 'center',
         gap: theme.spacing.xs,
-        backgroundColor: darkTokens.surfacePrimary,
+        backgroundColor: theme.colors.surfacePrimary,
         borderRadius: theme.radius.xl,
         paddingVertical: theme.spacing.sm,
         paddingHorizontal: theme.spacing.md,
       }}
     >
-      <Icon name={icon} size={16} color={darkTokens.textSecondary} />
-      <Text variant="caption" style={{ color: darkTokens.textSecondary, flex: 1 }}>
+      <Icon name={icon} size={16} color={theme.colors.textSecondary} />
+      <Text variant="caption" style={{ color: theme.colors.textSecondary, flex: 1 }}>
         {text}
       </Text>
     </View>
@@ -371,14 +379,14 @@ function RecordingOverlay({ phase, progress }: { phase: VideoPhase; progress: nu
           flexDirection: 'row',
           alignItems: 'center',
           gap: theme.spacing.xs,
-          backgroundColor: darkTokens.surfacePrimary,
+          backgroundColor: theme.colors.surfacePrimary,
           borderRadius: theme.radius.pill,
           paddingVertical: theme.spacing.xs,
           paddingHorizontal: theme.spacing.md,
         }}
       >
-        <View style={{ width: 8, height: 8, borderRadius: 999, backgroundColor: darkTokens.brandSecondary }} />
-        <Text variant="captionStrong" style={{ color: darkTokens.textPrimary, letterSpacing: 0.6 }}>
+        <View style={{ width: 8, height: 8, borderRadius: 999, backgroundColor: theme.colors.brandSecondary }} />
+        <Text variant="captionStrong" style={{ color: theme.colors.textPrimary, letterSpacing: 0.6 }}>
           {phase === 'preparing' ? 'PREPARANDO' : 'GRAVANDO'}
         </Text>
       </View>
@@ -388,7 +396,7 @@ function RecordingOverlay({ phase, progress }: { phase: VideoPhase; progress: nu
           height: 4,
           width: '70%',
           borderRadius: 999,
-          backgroundColor: darkTokens.borderSubtle,
+          backgroundColor: theme.colors.borderSubtle,
           overflow: 'hidden',
         }}
       >
@@ -396,7 +404,7 @@ function RecordingOverlay({ phase, progress }: { phase: VideoPhase; progress: nu
           style={{
             height: 4,
             borderRadius: 999,
-            backgroundColor: darkTokens.brandSecondary,
+            backgroundColor: theme.colors.brandSecondary,
             width: `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%`,
           }}
         />

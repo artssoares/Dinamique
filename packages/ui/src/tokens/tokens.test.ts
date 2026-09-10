@@ -283,3 +283,25 @@ describe('colour compositing', () => {
     expect(flatten('#0137F7', '#FFFFFF')).toBe('#0137f7');
   });
 });
+
+/**
+ * A tela do filme traz o próprio fundo: o mapa por satélite, escuro a qualquer
+ * hora do dia. Por isso ela é pintada com o tema escuro mesmo para quem usa o
+ * aplicativo no claro, via `ThemeScope` (§16).
+ */
+describe('film chrome on its own dark ground', () => {
+  const ground = darkTokens.backgroundPrimary;
+
+  it('lets a ghost button be read on the stage', () => {
+    // Texto e borda são o que um botão "ghost" desenha, e é ali que "Cancelar"
+    // vive durante a gravação.
+    expect(contrastRatio(darkTokens.textPrimary, ground)!).toBeGreaterThanOrEqual(WCAG_AA_NORMAL);
+    expect(contrastRatio(darkTokens.borderPrimary, ground)!).toBeGreaterThanOrEqual(1.5);
+  });
+
+  // O bug, escrito como número. Pintar esses controles com a paleta clara é o
+  // que punha um texto quase preto por cima de um mapa noturno.
+  it('measures why the light palette cannot be used there', () => {
+    expect(contrastRatio(lightTokens.textPrimary, ground)!).toBeLessThan(WCAG_AA_LARGE);
+  });
+});

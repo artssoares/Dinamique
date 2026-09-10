@@ -103,6 +103,19 @@ to be that vivid an orange. White measures 2.4:1 there and cannot carry a label.
 A fourth tone means a fourth token pair and a fourth contrast assertion. There
 is no generic "hero gradient" to reach for.
 
+### Content that brings its own surface
+
+`ThemeScope` pins a subtree to one scheme. It exists for the journey film,
+which plays over satellite imagery and is dark at every hour of the day: the
+controls on top of it are dark-theme controls even for a driver using the app
+in light mode. Without it, "Cancelar" during a recording was near-black type on
+a night-time map, and the token test now measures exactly that pair to say why.
+
+It changes what is painted, never what the driver picked in the settings, and
+it is the only sanctioned way to leave the active theme. A component reaching
+into `darkTokens` by hand is the same bug as a raw hex, and for the same reason:
+it stops following anything.
+
 ## Contrast, and what changed
 
 The muted grey was Neutral 400, which measures 2.86:1 on white: legible on a
@@ -201,7 +214,7 @@ biggest reason the interface looked homemade. Icons take their colour from the
 
 **Controls** – `Button` · `IconButton` · `Chip` · `SegmentedControl` ·
 `OptionCard` · `Field` · `AmountInput` · `Select` · `StepProgress` · `Stepper` ·
-`Calendar` · `DateField`
+`Calendar` · `DayStrip` · `DateField`
 
 Several carry product rules rather than only style:
 
@@ -220,6 +233,13 @@ Several carry product rules rather than only style:
   and like nothing here; it cannot mark which days already have data, which is
   the reason for opening it; and the web is a third control again. Future days
   render but do not select.
+- **`DayStrip`** is the same idea shrunk to one row, for a screen that is
+  about something else. The month grid answers "which day did I forget?" and
+  needs a sheet to open in; the strip answers "ontem" and "anteontem" without
+  opening anything, which is what the Home screen needed, because the reason a
+  forgotten Tuesday stays forgotten is that fixing it costs four taps. It ends
+  on today rather than on Sunday: on a Monday a calendar week is one day of
+  history and six greyed-out squares.
 - **`DateField`** is the calendar's everyday face: Hoje and Ontem as one-tap
   chips, the calendar behind "Outro dia", and the chosen day always spelled out
   in words, because someone about to save R$ 180 onto the wrong date should not

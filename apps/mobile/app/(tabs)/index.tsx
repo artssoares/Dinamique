@@ -23,6 +23,7 @@ import {
   type IconName,
 } from '@dinamique/ui';
 import { useSession } from '@/hooks/useSession';
+import { DayJump } from '@/features/day/DayJump';
 import { useToday } from '@/hooks/useToday';
 import { useActiveJourney } from '@/features/journey/useJourney';
 import { useJourneyStart } from '@/features/tracking/useJourneyStart';
@@ -211,6 +212,12 @@ export default function Today() {
                 onStart={() => void beginJourney()}
                 startRef={startTarget.ref}
               />
+            </Reveal>
+
+            {/* A semana à vista, logo depois dos atalhos: consertar um dia que
+                passou deixa de morar só dentro do Histórico. */}
+            <Reveal delay={105}>
+              <DayJump />
             </Reveal>
 
             <Reveal delay={140}>

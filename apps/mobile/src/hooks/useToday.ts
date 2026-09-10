@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { Cents, DateOnly } from '@dinamique/types';
 import {
   computeGoalProgress,
@@ -9,6 +9,7 @@ import {
 } from '@dinamique/business-logic';
 import { startOfWeek, toDateOnly } from '@dinamique/utils';
 import { supabase } from '../lib/supabase';
+import { useReloadOnFocus } from './useReloadOnFocus';
 import { useSession } from './useSession';
 
 /**
@@ -144,9 +145,10 @@ export function useToday(): { data: TodayData | null; loading: boolean; refresh:
     setLoading(false);
   }, [session?.user?.id]);
 
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  // Ao voltar o foco, não só ao montar: um gasto lançado num dia desta semana
+  // muda o cartão "Esta semana", e a Home fica montada por baixo da tela do
+  // dia.
+  useReloadOnFocus(refresh);
 
   return { data, loading, refresh };
 }

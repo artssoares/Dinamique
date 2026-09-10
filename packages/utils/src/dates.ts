@@ -24,6 +24,22 @@ export function addDays(value: DateOnly, days: number): DateOnly {
   return toDateOnly(date);
 }
 
+/**
+ * The last `count` days ending on `to`, oldest first.
+ *
+ * For the strip of recent days on the Home screen. Ending on the reference day
+ * rather than on Sunday on purpose: on a Monday a calendar week shows one day
+ * of history and six greyed-out squares, which is the opposite of what someone
+ * opening the app to fix Friday needs.
+ */
+export function lastDays(to: DateOnly, count: number): DateOnly[] {
+  const days: DateOnly[] = [];
+  for (let offset = count - 1; offset >= 0; offset -= 1) {
+    days.push(addDays(to, -offset));
+  }
+  return days;
+}
+
 export function daysBetween(from: DateOnly, to: DateOnly): number {
   const a = fromDateOnly(from).getTime();
   const b = fromDateOnly(to).getTime();

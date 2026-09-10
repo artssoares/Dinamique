@@ -31,5 +31,6 @@ export * from './Stepper';
 export * from './OptionCard';
 export * from './Sheet';
 export * from './Calendar';
+export * from './DayStrip';
 export * from './DateField';
 export * from './Reveal';

@@ -5,6 +5,7 @@ import {
   elapsedDays,
   endOfMonth,
   friendlyDayLabel,
+  lastDays,
   periodRange,
   rangeLengthDays,
   shortDateLabel,
@@ -65,5 +66,30 @@ describe('friendlyDayLabel', () => {
 describe('shortDateLabel', () => {
   it('pads the day and abbreviates the month', () => {
     expect(shortDateLabel('2026-09-04')).toBe('04 set');
+  });
+});
+
+describe('lastDays', () => {
+  it('ends on the reference day and runs oldest first', () => {
+    expect(lastDays('2026-09-10', 7)).toEqual([
+      '2026-09-04',
+      '2026-09-05',
+      '2026-09-06',
+      '2026-09-07',
+      '2026-09-08',
+      '2026-09-09',
+      '2026-09-10',
+    ]);
+  });
+
+  // A faixa da Home não pode encolher na virada do mês: sete dias são sete
+  // dias em 1º de setembro como em qualquer outro dia.
+  it('crosses a month boundary without losing a day', () => {
+    expect(lastDays('2026-09-01', 3)).toEqual(['2026-08-30', '2026-08-31', '2026-09-01']);
+  });
+
+  it('gives a single day for a count of one, and nothing for zero', () => {
+    expect(lastDays('2026-09-10', 1)).toEqual(['2026-09-10']);
+    expect(lastDays('2026-09-10', 0)).toEqual([]);
   });
 });
