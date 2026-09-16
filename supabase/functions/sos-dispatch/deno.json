@@ -1,0 +1,6 @@
+{
+  "//": "Esta pasta roda em Deno, não em Node. O tsconfig dos apps a exclui de propósito.",
+  "imports": {
+    "@supabase/supabase-js": "jsr:@supabase/supabase-js@2"
+  }
+}

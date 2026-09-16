@@ -613,7 +613,15 @@ begin
       'assert', 'login_as',
       -- Ações do próprio usuário: resgatar um código (com todo o antifraude
       -- rodando dentro) e marcar o próprio atendimento como lido.
-      'redeem_code', 'mark_ticket_read'
+      'redeem_code', 'mark_ticket_read',
+      -- O SOS. São as quatro portas que o motorista precisa abrir por conta
+      -- própria: publicar a própria posição, pedir socorro, encerrar e
+      -- registrar o alarme falso, e cada uma verifica consentimento, dono e
+      -- limite por dentro. A busca por quem está perto NÃO está aqui, de
+      -- propósito: ela recebe um ponto qualquer, e responder "quantos
+      -- motoristas há em volta deste ponto" para qualquer ponto é um mapa da
+      -- base montado uma consulta por vez.
+      'sos_share_location', 'sos_trigger', 'sos_close', 'sos_log_aborted'
     )
     and has_function_privilege('authenticated', p.oid, 'EXECUTE');
 
@@ -1060,5 +1068,298 @@ begin
 
   raise notice '';
   raise notice 'TESTES DE DIA ANTERIOR PASSARAM';
+end;
+$$;
+
+-- ============================================================================
+-- Botão de emergência e rede de alerta entre motoristas.
+--
+-- As afirmações abaixo são, uma a uma, as promessas que a tela de
+-- consentimento faz ao motorista. Se alguma delas quebrar, a função tem de
+-- sair do ar até voltar a valer.
+--
+-- Três pontos em São Paulo: quem pede socorro, alguém a ~1 km e alguém a
+-- ~22 km. As distâncias são reais: é o `ST_DWithin` sobre `geography` que
+-- está sendo afirmado, não uma aritmética nossa.
+-- ============================================================================
+do $$
+declare
+  v_pede   uuid := gen_random_uuid();   -- quem dispara
+  v_perto  uuid := gen_random_uuid();   -- na rede, a 1,1 km
+  v_longe  uuid := gen_random_uuid();   -- na rede, a 22 km
+  v_fora   uuid := gen_random_uuid();   -- ao lado, mas não entrou na rede
+  v_alerta uuid;
+  v_result jsonb;
+begin
+  insert into auth.users (id, email, raw_user_meta_data) values
+    (v_pede,  'sos.pede@example.com',  '{"full_name":"Paulo Pede"}'::jsonb),
+    (v_perto, 'sos.perto@example.com', '{"full_name":"Pedro Perto"}'::jsonb),
+    (v_longe, 'sos.longe@example.com', '{"full_name":"Lara Longe"}'::jsonb),
+    (v_fora,  'sos.fora@example.com',  '{"full_name":"Fabio Fora"}'::jsonb);
+
+  -- ------------------------------------------------- sem consentimento ----
+  perform login_as(v_pede);
+  begin
+    perform sos_trigger(-23.5505, -46.6333);
+    perform assert(false, 'disparar sem consentimento deveria ser recusado');
+  exception when raise_exception then
+    perform assert(sqlerrm = 'sos_consent_required',
+      'sem consentimento a função recusa, e a tela não decide isso');
+  end;
+
+  -- Publicar posição sem estar na rede não grava nada, e diz que não gravou em
+  -- vez de estourar: é assim que a tela sabe não prometer compartilhamento.
+  perform assert(sos_share_location(-23.5505, -46.6333) = false,
+    'quem não entrou na rede não tem posição publicada');
+  perform assert((select count(*) from driver_locations where user_id = v_pede) = 0,
+    'e nada foi gravado mesmo assim');
+  reset role;
+
+  -- ---------------------------------------------- a rede se posiciona -----
+  perform login_as(v_perto);
+  update user_preferences
+     set sos_consent_at = now(), sos_network_opt_in = true,
+         sos_vehicle_colour = 'Prata', sos_plate_prefix = 'ABC'
+   where user_id = v_perto;
+  perform assert(sos_share_location(-23.5605, -46.6333, 12) = true,
+    'quem entrou na rede publica a própria posição');
+  reset role;
+
+  perform login_as(v_longe);
+  update user_preferences set sos_consent_at = now(), sos_network_opt_in = true
+   where user_id = v_longe;
+  perform sos_share_location(-23.7505, -46.6333, 12);
+  reset role;
+
+  -- Este aceitou o SOS para si, mas NÃO quis receber alerta de ninguém.
+  perform login_as(v_fora);
+  update user_preferences set sos_consent_at = now(), sos_network_opt_in = false
+   where user_id = v_fora;
+  perform assert(sos_share_location(-23.5510, -46.6333) = false,
+    'quem não participa da rede não é encontrável, nem publicando');
+  reset role;
+
+  -- ----------------------------------------------------- ninguém espia ----
+  perform login_as(v_pede);
+  perform assert((select count(*) from driver_locations) = 0,
+    'a posição de outro motorista não é legível por ninguém');
+  reset role;
+
+  -- -------------------------------------------------------- o disparo -----
+  perform login_as(v_pede);
+  update user_preferences
+     set sos_consent_at = now(), sos_vehicle_colour = 'Preto', sos_plate_prefix = 'XYZ'
+   where user_id = v_pede;
+
+  v_result := sos_trigger(-23.5505, -46.6333, 15);
+  v_alerta := (v_result ->> 'alert_id')::uuid;
+
+  perform assert((v_result ->> 'notified')::integer = 1,
+    'o alerta avisa quem está dentro de 5 km e mais ninguém: ' || (v_result ->> 'notified'));
+  perform assert((v_result ->> 'radius_m')::integer = 5000,
+    'o raio da rede é de 5 km');
+  perform assert(
+    (select plate_prefix from sos_alerts where id = v_alerta) = 'XYZ'
+    and (select vehicle_colour from sos_alerts where id = v_alerta) = 'Preto',
+    'o alerta carrega a cor e as três letras da placa, nunca a placa inteira');
+
+  -- Quem disparou sabe QUANTOS foram avisados. Quem eles são é a lista de quem
+  -- estava por perto, e isso não é dele.
+  perform assert((select notified_count from sos_alerts where id = v_alerta) = 1,
+    'o dono do alerta vê quantas pessoas foram avisadas');
+  perform assert((select count(*) from sos_alert_recipients) = 0,
+    'e não vê quem elas são');
+  reset role;
+
+  -- O leque de destinatários, conferido por fora do RLS: aqui o que está sendo
+  -- afirmado é o raio, não quem consegue lê-lo.
+  perform assert(
+    (select count(*) from sos_alert_recipients where alert_id = v_alerta and user_id = v_perto) = 1,
+    'o motorista a 1 km foi avisado');
+  perform assert(
+    (select count(*) from sos_alert_recipients where alert_id = v_alerta and user_id = v_longe) = 0,
+    'o motorista a 22 km não foi avisado');
+  perform assert(
+    (select count(*) from sos_alert_recipients where alert_id = v_alerta and user_id = v_fora) = 0,
+    'quem não entrou na rede não foi avisado, mesmo estando ao lado');
+  perform assert(
+    (select count(*) from user_notifications
+     where user_id = v_perto and deep_link = '/sos/received') = 1,
+    'quem foi avisado recebe a notificação dentro do aplicativo');
+
+  -- ------------------------------------- o que quem recebeu consegue ler ---
+  perform login_as(v_perto);
+  perform assert((select count(*) from sos_alerts where id = v_alerta) = 1,
+    'quem foi avisado lê o alerta enquanto ele está ativo');
+  reset role;
+
+  -- Encerrar fecha a janela de leitura e para de publicar a posição no mesmo
+  -- movimento, não no próximo batimento da tela.
+  perform login_as(v_pede);
+  perform assert(sos_close(v_alerta) = true, 'o dono encerra o próprio alerta');
+  perform assert(sos_close(gen_random_uuid()) = false, 'não se encerra alerta que não é seu');
+  perform assert((select count(*) from sos_alerts where id = v_alerta) = 1,
+    'o dono continua vendo o próprio histórico de alertas');
+  reset role;
+
+  perform login_as(v_perto);
+  perform assert((select count(*) from sos_alerts where id = v_alerta) = 0,
+    'alerta encerrado deixa de ser legível por quem foi avisado');
+  reset role;
+
+  -- --------------------------------------------- expiração sem ninguém ----
+  -- A promessa dos 30 minutos vale mesmo se o celular do motorista apagou no
+  -- meio do alerta: quem a cumpre é a função agendada, não a tela.
+  --
+  -- Encerrar um alerta NÃO devolve o direito de disparar outro na hora: um
+  -- alerta encerrado continua contando para o intervalo de dez minutos, senão
+  -- o limite seria contornável encerrando e disparando de novo. Por isso o
+  -- primeiro é envelhecido antes do segundo.
+  update sos_alerts set created_at = created_at - interval '11 minutes'
+   where user_id = v_pede;
+
+  perform login_as(v_perto);
+  perform sos_share_location(-23.5605, -46.6333);
+  reset role;
+
+  perform login_as(v_pede);
+  v_alerta := (sos_trigger(-23.5505, -46.6333) ->> 'alert_id')::uuid;
+  reset role;
+
+  update sos_alerts set expires_at = now() - interval '1 minute' where id = v_alerta;
+  update driver_locations set updated_at = now() - interval '2 hours';
+
+  perform sos_expire_alerts();
+  perform assert((select status from sos_alerts where id = v_alerta) = 'expired',
+    'o alerta expira sozinho passados os 30 minutos');
+  perform assert((select count(*) from driver_locations) = 0,
+    'presença velha é apagada junto, para ninguém ser avisado por onde passou');
+
+  perform login_as(v_perto);
+  perform assert((select count(*) from sos_alerts where id = v_alerta) = 0,
+    'e quem foi avisado deixa de ler o alerta expirado');
+  reset role;
+
+  perform login_as(v_pede);
+  begin
+    perform sos_expire_alerts();
+    perform assert(false, 'a expiração não deveria ser chamável pelo aplicativo');
+  exception when insufficient_privilege then
+    perform assert(true, 'a expiração de alertas não é chamável pelo aplicativo');
+  end;
+  reset role;
+
+  -- ---------------------------------------------------------- limites -----
+  -- Por último, porque envelhecer os registros para testar o limite diário
+  -- atrapalharia qualquer coisa afirmada depois.
+  perform login_as(v_pede);
+  begin
+    perform sos_trigger(-23.5505, -46.6333);
+    perform assert(false, 'dois alertas em dez minutos deveriam ser recusados');
+  exception when raise_exception then
+    perform assert(sqlerrm = 'sos_rate_limited',
+      'o intervalo mínimo entre alertas é verificado no banco');
+  end;
+
+  -- O alarme falso abortado na contagem de cinco segundos: fica registrado
+  -- para auditoria e não consome limite nenhum.
+  perform sos_log_aborted(-23.5505, -46.6333);
+  perform assert(
+    (select count(*) from sos_alerts
+     where user_id = v_pede and status = 'cancelled' and cancelled_at is not null) = 1,
+    'o alerta cancelado antes de disparar fica registrado');
+  reset role;
+
+  -- Um disparo de demonstração não acorda ninguém e não gasta limite: quem
+  -- testa a função para entender como ela funciona e é assaltado oito minutos
+  -- depois não pode ser recusado por causa do teste.
+  perform login_as(v_pede);
+  perform assert(
+    (sos_trigger(-23.5505, -46.6333, null, true) ->> 'notified')::integer = 0,
+    'um disparo de demonstração não avisa ninguém');
+  begin
+    perform sos_trigger(-23.5505, -46.6333);
+    perform assert(false, 'o limite continua valendo para o disparo de verdade');
+  exception when raise_exception then
+    perform assert(sqlerrm = 'sos_rate_limited',
+      'a demonstração não gastou o limite, quem gastou foi o alerta de verdade');
+  end;
+  reset role;
+
+  -- Ela existe no registro, marcada como demonstração, e não entra na contagem.
+  perform assert(
+    (select count(*) from sos_alerts where user_id = v_pede and is_demo) = 1,
+    'o disparo de demonstração fica registrado como demonstração');
+
+  -- A janela em volta da meia-noite local é a única em que isto não pode ser
+  -- afirmado: não existe como ter três alertas de hoje com mais de dez minutos
+  -- de idade às 00:05. É uma propriedade da regra, não do teste.
+  if (now() at time zone 'America/Sao_Paulo')::time > time '00:30' then
+    update sos_alerts set created_at = created_at - interval '11 minutes'
+     where user_id = v_pede;
+
+    -- O terceiro passa: dos registros de hoje, dois valem (encerrado e
+    -- expirado); o cancelado e o de demonstração não contam. Se qualquer um
+    -- dos dois contasse, esta chamada já falharia aqui.
+    perform login_as(v_pede);
+    perform sos_trigger(-23.5505, -46.6333);
+    reset role;
+
+    update sos_alerts set created_at = created_at - interval '11 minutes'
+     where user_id = v_pede;
+
+    perform login_as(v_pede);
+    begin
+      perform sos_trigger(-23.5505, -46.6333);
+      perform assert(false, 'o quarto alerta do dia deveria ser recusado');
+    exception when raise_exception then
+      perform assert(sqlerrm = 'sos_daily_limit',
+        'três alertas por dia é o limite, e um cancelamento não gasta nenhum deles');
+    end;
+    reset role;
+  else
+    raise notice 'SKIP  limite diário (a execução caiu na virada do dia local)';
+  end if;
+
+  -- --------------------------------------------- contatos de emergência ---
+  perform login_as(v_pede);
+  insert into emergency_contacts (user_id, slot, name, phone) values
+    (v_pede, 1, 'Mãe',   '11999990001'),
+    (v_pede, 2, 'Irmão', '11999990002'),
+    (v_pede, 3, 'Amigo', '11999990003');
+
+  begin
+    insert into emergency_contacts (user_id, slot, name, phone)
+    values (v_pede, 4, 'Quarto', '11999990004');
+    perform assert(false, 'o quarto contato deveria ser recusado');
+  exception when check_violation then
+    perform assert(true, 'o banco recusa o quarto contato de emergência');
+  end;
+
+  begin
+    insert into emergency_contacts (user_id, slot, name, phone)
+    values (v_pede, 1, 'Repetido', '11999990005');
+    perform assert(false, 'dois contatos no mesmo lugar deveriam ser recusados');
+  exception when unique_violation then
+    perform assert(true, 'um lugar da lista guarda um contato só');
+  end;
+  reset role;
+
+  perform login_as(v_perto);
+  perform assert((select count(*) from emergency_contacts) = 0,
+    'o telefone da família de outra pessoa não é legível');
+  reset role;
+
+  -- O administrador também não. É o telefone de um terceiro que nunca usou o
+  -- aplicativo e nunca concordou com nada.
+  perform assert(
+    (select count(*) from pg_policy p
+     join pg_class c on c.oid = p.polrelid
+     where c.relname = 'emergency_contacts'
+       and pg_get_expr(p.polqual, p.polrelid) like '%is_admin%') = 0,
+    'nenhuma política de contato de emergência abre exceção para administrador');
+
+  raise notice '';
+  raise notice 'TESTES DE SOS PASSARAM';
 end;
 $$;

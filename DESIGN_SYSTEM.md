@@ -322,6 +322,31 @@ the user's own photo on the right. The photo is the largest, right-most element
 because "that is me, and this is my account" is the one thing a header has to
 communicate without a label.
 
+## The emergency button
+
+It is a header icon, next to the mark, and that placement is the result of
+measuring rather than of taste. The brief asked for a discreet floating button
+in the bottom corner, above the navigation, "without covering content or
+existing buttons", and in this app those two conditions cannot both hold. The
+tab bar already floats there, 68dp tall plus its inset, and `Screen` reserves
+exactly that much under every page. Anything floating above the bar lands in
+the next 40dp, which is content, and on several screens is a pinned primary
+button. So the brief's own fallback applies: an icon in the header, in the
+pattern of the ones already there.
+
+It joins the **left** group, beside the mark. The header row is a
+`space-between` of two groups, so a control added on the left grows into the
+empty middle and displaces nothing; added on the right it would push the bell
+and the photo 52dp sideways.
+
+Visually it is the header `IconButton` in everything but colour: 44dp, pill
+radius, the same press scale, `dangerSubtle` behind a `dangerText` icon, the
+red the app already uses for expense and error, no new token. It is not
+literally `IconButton` because it needs the three-second hold and the progress
+ring around it, and the ring is why the component exists rather than a prop.
+While an alert is live the fill goes solid `danger`: at that point being
+discreet is the wrong job.
+
 ## The tour
 
 Coach marks, not a card in the corner. The screen dims, the control the step

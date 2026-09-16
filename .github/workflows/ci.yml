@@ -20,7 +20,14 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16
+        # `postgis/postgis` e não `postgres`: é a mesma imagem oficial do
+        # Postgres 16 com os arquivos da extensão PostGIS dentro. A migration do
+        # SOS roda `create extension postgis`, como roda na Supabase, e numa
+        # imagem sem os arquivos de controle ela falha antes de criar nada.
+        # Trocar a imagem é o que mantém o teste rodando o mesmo comando que a
+        # produção. O contrário seria pular a única parte do schema que a
+        # rede de alerta depende.
+        image: postgis/postgis:16-3.4
         env:
           POSTGRES_PASSWORD: postgres
         options: >-
