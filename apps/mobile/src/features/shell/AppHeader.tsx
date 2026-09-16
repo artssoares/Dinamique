@@ -7,6 +7,7 @@ import { useSession } from '@/hooks/useSession';
 import { useNotificationCounts } from '@/hooks/useNotifications';
 import { avatarUrl } from '@/features/profile/avatar';
 import { useTourTarget } from '@/features/tour/TourProvider';
+import { SosButton } from '@/features/safety/SosButton';
 
 export interface AppHeaderProps {
   /** Greeting line. Omit on screens that carry their own title. */
@@ -28,6 +29,11 @@ export interface AppHeaderProps {
  * There is no menu button. There was one, and it opened the same place the
  * tab bar's third dot already opens; two controls for one destination is one
  * too many, and the space belongs to the mark.
+ *
+ * The one thing added since: the emergency button, beside the mark. It sits in
+ * the LEFT group on purpose. See `SosButton` for why that is the only
+ * placement in this app that displaces nothing. It renders nothing at all
+ * outside the safety provider, and nothing on the right moved to make room.
  */
 export function AppHeader({ greeting, title, subtitle, onBellPress }: AppHeaderProps) {
   const theme = useTheme();
@@ -66,7 +72,15 @@ export function AppHeader({ greeting, title, subtitle, onBellPress }: AppHeaderP
             justifyContent: 'space-between',
           }}
         >
-          <BrandMark size="md" />
+          {/* O grupo da esquerda cresce para dentro do espaço vazio do meio, e
+              é por isso que o botão de emergência entra AQUI e não ao lado do
+              sino: num `space-between` de dois grupos, somar um ícone à
+              esquerda não move nem um pixel do que está ancorado na direita.
+              Somar à direita empurraria sino e foto 52dp para o lado. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
+            <BrandMark size="md" />
+            <SosButton />
+          </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
             <View ref={bellTarget.ref} collapsable={false}>

@@ -18,6 +18,7 @@ Schema, security policies, server-side business functions and read models.
 | `…819000200_vehicle_catalogue_expansion` | the makes and models drivers actually own |
 | `…904000100_vehicle_catalogue_versions` | a version, and so a reference consumption, for every one of them |
 | `…909000100_vehicle_catalogue_depth` | the models each make actually sells, and more years per model |
+| `…916000100_sos_safety_network` | PostGIS, emergency contacts, driver presence, SOS alerts and their limits |
 
 ## Invariants the schema enforces
 
@@ -41,6 +42,11 @@ These are constraints and policies, not conventions – code cannot violate them
 supabase start          # or point PGHOST/PGPORT at any Postgres
 pnpm --filter @dinamique/database test
 ```
+
+The Postgres it points at needs **PostGIS available**, because the SOS
+migration runs `create extension postgis` exactly as it does on Supabase. A
+plain `postgres:16` image has no extension files and fails there; CI uses
+`postgis/postgis:16-3.4`, and `supabase start` ships PostGIS already.
 
 `test/supabase_shim.sql` reproduces the `auth` schema for a plain Postgres. It
 is a local test fixture and is never applied to a Supabase project.

@@ -48,6 +48,19 @@ export const ANALYTICS_EVENTS = [
   'promotion_code_used',
   'influencer_application_submitted',
   'influencer_approved',
+  // Botão de emergência. O disparo e o cancelamento são contados porque a
+  // proporção entre os dois é a única medida de alarme falso que existe, e
+  // porque uma função de segurança que ninguém usa é uma função que não está
+  // onde deveria estar. Nenhum deles carrega coordenada.
+  'sos_consent_granted',
+  'sos_consent_revoked',
+  'sos_network_joined',
+  'sos_network_left',
+  'sos_alert_triggered',
+  'sos_alert_aborted',
+  'sos_alert_ended',
+  'sos_alert_received',
+  'sos_emergency_call',
 ] as const;
 
 export type AnalyticsEvent = (typeof ANALYTICS_EVENTS)[number];

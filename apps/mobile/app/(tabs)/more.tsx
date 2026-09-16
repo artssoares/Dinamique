@@ -142,6 +142,13 @@ export default function More() {
           icon: 'moon',
         },
         {
+          label: 'Botão de emergência',
+          description: 'SOS, contatos e rede de alerta',
+          href: '/sos',
+          icon: 'shield',
+          tone: 'danger',
+        },
+        {
           label: 'Trajeto e privacidade',
           description: 'GPS, compartilhamento e o que guardamos',
           href: '/settings/route',

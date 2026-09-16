@@ -13,6 +13,8 @@ import { OfflineBanner } from '@/features/offline/OfflineBanner';
 import { Tour } from '@/features/tour/Tour';
 import { TourProvider } from '@/features/tour/TourProvider';
 import { JourneyProvider } from '@/features/journey/useJourney';
+import { SafetyProvider } from '@/features/safety/useSafety';
+import { SosFlow } from '@/features/safety/SosFlow';
 import {
   GLOBAL_TAB_BAR_SPACE,
   GlobalTabBar,
@@ -92,6 +94,12 @@ function RootNavigator() {
           renders nothing at all inside the tab group, where the navigator
           draws its own. */}
       <GlobalTabBar />
+
+      {/* A contagem regressiva do SOS, acima de tudo: o botão que a abre vive
+          no cabeçalho de cinco telas, e a folha tem de aparecer por cima da
+          que estiver na frente. Enquanto ninguém segura o botão, não desenha
+          nada. */}
+      <SosFlow />
     </>
   );
 }
@@ -120,10 +128,16 @@ function ThemedApp() {
       {/* One journey state for the whole app: starting one on Registrar has
           to be visible on Home without a reload. */}
       <JourneyProvider>
-        <TourProvider>
-          <RootNavigator />
-          <Tour />
-        </TourProvider>
+        {/* Um estado de emergência para o aplicativo inteiro: o botão está no
+            cabeçalho, a contagem é uma folha global e o alerta ativo é outra
+            tela. Três lugares perguntando "tem alerta no ar?" por conta
+            própria dariam três respostas. */}
+        <SafetyProvider>
+          <TourProvider>
+            <RootNavigator />
+            <Tour />
+          </TourProvider>
+        </SafetyProvider>
       </JourneyProvider>
     </ThemeProvider>
   );

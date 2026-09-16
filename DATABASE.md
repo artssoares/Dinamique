@@ -31,6 +31,7 @@ No `numeric` currency and no float distances anywhere. `10.8 km/l` is stored as
 | `…000600_functions_and_views` | signup, `redeem_code`, `mark_ticket_read`, read-model views |
 | `…000700_reference_data` | production reference data |
 | `20260821000100_journey_gps_routes` | `journey_routes`, GPS columns on `journeys`, route preferences, retention |
+| `20260916000100_sos_safety_network` | PostGIS, `emergency_contacts`, `driver_locations`, `sos_alerts`, the SOS functions |
 
 Order matters twice: `is_admin()`/`has_admin_role()` are SQL-language functions
 whose bodies validate at creation, so they must come after `admin_users`; and
@@ -169,3 +170,44 @@ hour. It is treated accordingly.
   count as hiding anything. The trim fails closed: a route too short or too
   tangled to trim is not shareable at all, rather than shareable with its
   endpoints intact.
+
+### The SOS tables
+
+`driver_locations`, `sos_alerts`, `sos_alert_recipients` and
+`emergency_contacts` are the other place where the schema stores where somebody
+is. The rules, all asserted in `test/rls_test.sql`:
+
+- **Consent gates the feature, in the function.** `sos_trigger` raises
+  `sos_consent_required` while `user_preferences.sos_consent_at` is null. The
+  screen shows the consent text; the database is what refuses.
+- **Nobody reads another user's position.** `driver_locations` has one policy,
+  `user_id = auth.uid()`, with no admin exception. The proximity search is
+  `sos_nearby_drivers`, a `security definer` function that returns user ids and
+  distances and never a coordinate, and it is not executable by
+  `authenticated`, because answering "how many drivers are around this point"
+  for an arbitrary point is a map of the user base built one query at a time.
+- **An alert is readable by the people it woke, while it is live.** The policy
+  on `sos_alerts` is owner, admin, or `status = 'active' and expires_at > now()`
+  and a matching `sos_alert_recipients` row. Ending, cancelling or expiring the
+  alert closes that window; the row itself stays, because it is the audit
+  record.
+- **The recipient list is not the owner's.** `sos_alerts.notified_count` tells
+  the driver how many people were reached. Who they are is the list of who was
+  nearby, and no policy gives it to them. (It is also what made the first
+  version of the two policies recurse into each other. See the comment in the
+  migration.)
+- **Emergency contacts are readable by their owner alone.** No `is_admin()`
+  clause, unlike every other user-owned table: it is a third party's phone
+  number, and that person never used the app or agreed to anything. Asserted,
+  so a later copy-paste of the usual policy shape fails the test.
+- **Thirty minutes, enforced without the app.** `sos_expire_alerts()` flips
+  live alerts past `expires_at` to `expired` and deletes stale presence rows. It
+  is service-role only and scheduled with `pg_cron`, so the promise holds even
+  if the driver's phone died mid-alert.
+- **The limits are the database's.** One alert per 10 minutes, three per
+  calendar day in `America/Sao_Paulo`, counted inside `sos_trigger`. Alerts
+  cancelled during the five-second countdown are recorded and count towards
+  neither limit.
+- **Only three letters of the plate exist.** `user_preferences.sos_plate_prefix`
+  is `check (~ '^[A-Z]{3}$')`. It is not a mask over a stored plate: the rest
+  was never stored.

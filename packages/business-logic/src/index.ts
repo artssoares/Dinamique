@@ -12,3 +12,4 @@ export * from './periods';
 export * from './plans';
 export * from './support';
 export * from './tracking';
+export * from './safety';

@@ -289,3 +289,50 @@ the team (`new`, `awaiting_agent`, `in_progress`) drive the unanswered counter.
 
 Time to first response and time to resolution exclude unanswered tickets from
 the average rather than counting them as zero.
+
+## Botão de emergência (SOS)
+
+A função existe para um risco real (assalto, sequestro, ameaça durante uma
+corrida) e por isso ela é a única no aplicativo em que a ação principal não é
+nossa: é a ligação para o **190**. Tudo o que o Dinamique faz em volta é
+complemento, inclusive quando funciona perfeitamente.
+
+**Disparar exige intenção.** Três segundos de dedo no botão, com um anel de
+progresso em volta; soltar antes cancela. Depois do disparo, cinco segundos de
+contagem com "Cancelar" ocupando a largura da tela. As duas barreiras existem
+para o mesmo problema: um alarme falso gasta o tempo da polícia e a confiança
+de quem recebe o alerta.
+
+**Ao ativar, nesta ordem:** abrir a discagem do 190, avisar os contatos de
+emergência com a localização, e avisar os motoristas do Dinamique num raio de
+5 km. A ordem é a da importância, não a da conveniência.
+
+**Quando ninguém está no raio, isso é dito.** Zero motoristas por perto é uma
+resposta, não uma falha, e a tela não mostra uma lista vazia: ela diz que
+ninguém foi avisado e mantém o 190 e os contatos como a ação principal, que
+nesse caso é a única.
+
+**O que o alerta recebido carrega:** distância aproximada, a localização, o
+modelo e a cor do carro, e **só as três primeiras letras da placa** (a placa
+inteira não é armazenada). Mais a orientação fixa, palavra por palavra:
+
+> Não se aproxime. Ligue 190 e informe a localização.
+
+**O que ele nunca carrega:** um botão de ir ao local, uma rota até lá, um
+"ajudar", ou qualquer forma de contato com quem pediu socorro. Isso não é uma
+lacuna a preencher depois: é a funcionalidade. Quem chega junto vira a segunda
+vítima e a polícia passa a atender duas ocorrências em vez de uma. O único
+botão de ação no cartão é "Ligar 190"; o segundo, secundário, abre o endereço no
+mapa do próprio celular, porque o que o 190 precisa ouvir é o nome da rua.
+
+**Antiabuso, verificado no banco:** um alerta a cada 10 minutos, três por dia
+por usuário (dia local, `America/Sao_Paulo`). Cancelar durante a contagem fica
+registrado e não gasta nenhum dos dois limites. Cada disparo grava quem, quando,
+onde e se foi cancelado.
+
+**Consentimento e localização.** Sem a tela de consentimento aceita, a função
+fica desligada, e quem recusa o disparo é a função do banco, não a tela. A
+localização só é compartilhada enquanto o alerta está ativo, e para ao encerrar
+ou depois de 30 minutos, automaticamente, mesmo que o celular tenha morrido.
+Participar da rede (receber alertas de outros) é uma segunda escolha, separada:
+dá para querer o botão para si e não querer receber o de ninguém.
