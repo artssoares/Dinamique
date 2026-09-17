@@ -61,6 +61,7 @@ export const ANALYTICS_EVENTS = [
   'sos_alert_ended',
   'sos_alert_received',
   'sos_emergency_call',
+  'account_deleted',
 ] as const;
 
 export type AnalyticsEvent = (typeof ANALYTICS_EVENTS)[number];

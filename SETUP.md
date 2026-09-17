@@ -36,14 +36,14 @@ Para remover depois: `select demo_teardown();`
 
 ## 2. Aplicativo (Vercel)
 
-No projeto **dinamique-app**, em **Settings → Environment Variables**:
+No projeto **dinamique-mobile**, em **Settings → Environment Variables**:
 
 | Variável | Valor |
 | --- | --- |
 | `EXPO_PUBLIC_SUPABASE_URL` | a Project URL |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | a chave anon |
-| `EXPO_PUBLIC_BILLING_URL` | a URL do painel (etapa 3) |
-| `EXPO_PUBLIC_ARCGIS_API_KEY` | a chave do mapa (etapa 6) — pode ficar vazia |
+| `EXPO_PUBLIC_BILLING_URL` | `https://app.dinamique.com.br/admin` |
+| `EXPO_PUBLIC_ARCGIS_API_KEY` | a chave do mapa (etapa 6), pode ficar vazia |
 
 Depois, **Deployments → Redeploy**. Sem essas variáveis o aplicativo mostra a
 tela de instalação em vez de quebrar.
@@ -52,14 +52,17 @@ tela de instalação em vez de quebrar.
 
 ## 3. Painel administrativo (Vercel)
 
-No projeto **dinamiqueoficial**, as mesmas chaves com outro prefixo:
+O painel responde em **`app.dinamique.com.br/admin`**, o mesmo domínio do
+aplicativo. Como isso funciona está em [`ADMIN.md`](./ADMIN.md).
+
+No projeto **dinamique-admin**, as mesmas chaves com outro prefixo:
 
 | Variável | Valor |
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | a Project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | a chave anon |
 | `SUPABASE_SERVICE_ROLE_KEY` | a chave service_role – marque como **Sensitive** |
-| `NEXT_PUBLIC_APP_URL` | a URL do aplicativo (etapa 2) |
+| `NEXT_PUBLIC_APP_URL` | `https://app.dinamique.com.br` |
 
 ### Virar administrador
 
@@ -81,7 +84,7 @@ select id, 'superadmin' from profiles where email = 'seu@email.com';
    - `STRIPE_WEBHOOK_SECRET` (sai do passo 4)
 3. No painel, em **Assinaturas**, clique em *Publicar preços no Stripe*.
 4. No Stripe, em **Developers → Webhooks**, adicione o endpoint
-   `https://SEU-PAINEL/api/billing/webhook` com os eventos
+   `https://app.dinamique.com.br/admin/api/billing/webhook` com os eventos
    `customer.subscription.*`, `checkout.session.completed`, `invoice.paid` e
    `invoice.payment_failed`. Copie o segredo gerado.
 
@@ -164,6 +167,7 @@ sem estragar nada.
 | [`supabase/correcao-cadastro.sql`](./supabase/correcao-cadastro.sql) | Faz o cadastro funcionar quando as extensões do Postgres estão no schema `extensions`, como na Supabase. Já está dentro do `setup.sql`. | Se você rodou o `setup.sql` antes de 18/08. |
 | [`supabase/testar-cadastro.sql`](./supabase/testar-cadastro.sql) | Diz se o cadastro está funcionando, sem criar nada. | Quando o cadastro falhar. |
 | [`supabase/virar-admin.sql`](./supabase/virar-admin.sql) | Transforma a sua conta em administrador do painel. | Depois de criar sua conta no aplicativo. |
+| [`supabase/excluir-conta.sql`](./supabase/excluir-conta.sql) | Cria a função que apaga a própria conta, exigência da App Store e da LGPD. Já está dentro do `setup.sql`. | Se você rodou o `setup.sql` antes de 17/09. |
 
 O `virar-admin.sql` procura pelo e-mail do cadastro – troque o e-mail dentro do
 arquivo se você usou outro.
@@ -179,9 +183,12 @@ cp apps/mobile/.env.example apps/mobile/.env      # preencha as duas chaves
 cp apps/admin/.env.example apps/admin/.env.local  # preencha as três
 
 pnpm mobile   # aplicativo (iOS, Android e web)
-pnpm admin    # painel em http://localhost:3000
+pnpm admin    # painel em http://localhost:3000/admin
 ```
 
-Para publicar nas lojas, o caminho é o EAS Build da Expo – o projeto já está
-configurado para isso (`apps/mobile/app.json`), mas o envio para App Store e
-Google Play exige as contas de desenvolvedor.
+---
+
+## Publicar na App Store e na Google Play
+
+O passo a passo inteiro, das contas de desenvolvedor ao envio, está em
+[`LOJAS.md`](./LOJAS.md). Não é preciso ter um Mac: quem compila é a Expo.

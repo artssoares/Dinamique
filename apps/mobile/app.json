@@ -2,7 +2,7 @@
   "expo": {
     "name": "Dinamique",
     "slug": "dinamique",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "dinamique",
     "userInterfaceStyle": "automatic",
@@ -19,21 +19,32 @@
       "infoPlist": {
         "UIBackgroundModes": [
           "location"
-        ]
+        ],
+        "CFBundleLocalizations": [
+          "pt-BR"
+        ],
+        "CFBundleDevelopmentRegion": "pt-BR",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "config": {
+        "usesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.dinamique.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+        "backgroundColor": "#0137F7"
       },
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION"
+        "FOREGROUND_SERVICE_LOCATION",
+        "CAMERA",
+        "POST_NOTIFICATIONS",
+        "INTERNET"
       ]
     },
     "web": {
@@ -52,10 +63,25 @@
           "isAndroidForegroundServiceEnabled": true
         }
       ],
-      "@maplibre/maplibre-react-native"
+      "@maplibre/maplibre-react-native",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O Dinamique usa suas fotos só para você escolher a imagem do seu perfil.",
+          "cameraPermission": "O Dinamique usa a câmera só para você tirar a foto do seu perfil."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#0137F7"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "primaryColor": "#0137F7"
   }
 }

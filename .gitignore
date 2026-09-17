@@ -50,3 +50,10 @@ ios/
 
 # Saída do `expo export` usada na verificação do CI.
 .web-export/
+
+# Credenciais das lojas. NUNCA no repositório.
+google-play-key.json
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
