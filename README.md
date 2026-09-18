@@ -19,7 +19,7 @@ plan and exactly where each area stands.
 | Database (`packages/database`) | 42 tables, 105 RLS policies, 29 behaviour assertions |
 | Design system (`packages/ui`) | tokens + icon set + 27 components, contrast asserted in both themes |
 | Mobile app (`apps/mobile`) | auth, onboarding, Home, journeys, entries, history, insights, support, referrals, influencer |
-| Admin (`apps/admin`) | dashboard, support inbox, users, influencers, referrals, codes, audit log |
+| Admin (`apps/admin`) | dashboard, support inbox, users, influencers, referrals, codes, audit log, em `/admin` |
 
 ## Requirements
 
@@ -31,7 +31,12 @@ plan and exactly where each area stands.
 ## Colocar no ar
 
 Veja [`SETUP.md`](./SETUP.md) – instalação do banco em um passo, depois as
-variáveis de ambiente.
+variáveis de ambiente. Para publicar nas lojas, [`LOJAS.md`](./LOJAS.md).
+
+| Onde | Endereço |
+| --- | --- |
+| Aplicativo (web) | `app.dinamique.com.br` |
+| Painel administrativo | `app.dinamique.com.br/admin` |
 
 ### Onde testar
 
@@ -138,6 +143,7 @@ pnpm admin       # Next.js dev server
 | [`ADMIN.md`](./ADMIN.md) | papéis, áreas, deploy na Vercel |
 | [`EXPORTS.md`](./EXPORTS.md) | formatos, regras herdadas do app |
 | [`BILLING.md`](./BILLING.md) | Stripe, planos, webhook, desconto de indicação |
+| [`LOJAS.md`](./LOJAS.md) | publicar na App Store e na Google Play, passo a passo |
 
 ## Two rules the codebase enforces structurally
 

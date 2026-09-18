@@ -69,16 +69,73 @@ viria do formulário e qualquer tabela do banco ficaria alcançável.
 A importação de veículos usa `import_vehicle()`, que valida tipo, combustível e
 consumo e devolve erro legível por linha em vez de estourar.
 
+## Onde o painel mora
+
+O painel é servido em **`app.dinamique.com.br/admin`**, o mesmo domínio do
+aplicativo, um endereço a menos para lembrar.
+
+São dois projetos diferentes na Vercel, e a Vercel não sabe apontar um caminho
+de um domínio para outro projeto. Quem faz a costura é um rewrite declarado em
+`apps/mobile/vercel.json`: tudo que chega em `/admin/...` é buscado no projeto
+do painel e devolvido pelo domínio do aplicativo.
+
+Para isso o Next precisa gerar todas as suas URLs já com o prefixo, e é o que
+`basePath: '/admin'` faz em `apps/admin/next.config.mjs`. Sem ele o navegador
+pediria `/_next/...` ao aplicativo, que não tem esses arquivos, e o painel
+carregaria sem estilo e sem JavaScript.
+
+Três arquivos precisam concordar sobre o caminho, e `src/lib/base-path.test.ts`
+falha no build se algum se afastar dos outros:
+
+| Arquivo | O que declara |
+| --- | --- |
+| `apps/admin/next.config.mjs` | `basePath` |
+| `apps/admin/src/lib/base-path.ts` | a constante `BASE_PATH` |
+| `apps/mobile/vercel.json` | o rewrite `/admin/:path*` |
+
+O código continua escrevendo `/login` e `/usuarios`: `redirect()`, `<Link>` e
+`useRouter()` acrescentam o prefixo sozinhos.
+
+Uma consequência a lembrar: o webhook do Stripe passa a ser
+`https://app.dinamique.com.br/admin/api/billing/webhook`.
+
+### Por que o rewrite aponta para `dinamique-admin-git-main-...`
+
+O destino natural seria `dinamique-admin.vercel.app`, e ele está errado aqui.
+A branch de produção do projeto do painel na Vercel ainda é a default antiga do
+repositório, então **nenhum deploy vindo da `main` é marcado como produção**:
+todos saem como preview, e `dinamique-admin.vercel.app` continua servindo o
+build de agosto. Um rewrite para lá entregaria um painel sem `basePath`, ou
+seja, sem CSS e sem JavaScript.
+
+`dinamique-admin-git-main-dinamique1.vercel.app` é o alias de branch: ele
+aponta sempre para o último deploy da `main`, hoje e também depois que a branch
+de produção for corrigida. É o endereço certo nos dois casos.
+
+Quando alguém acertar a branch de produção do projeto (Vercel, projeto
+dinamique-admin, Settings, Git, Production Branch, `main`), o alias continua
+valendo e não há nada a mudar aqui.
+
 ## Deploy na Vercel
 
 | Configuração | Valor |
 | --- | --- |
-| Root Directory | `apps/admin` |
+| Root Directory | raiz do repositório |
 | Framework | Next.js |
-| Build Command | `cd ../.. && pnpm --filter @dinamique/admin build` |
-| Install Command | `pnpm install` |
-| Output | `.next` (padrão) |
+| Build Command | `pnpm --filter @dinamique/admin build` |
+| Install Command | `pnpm install --frozen-lockfile` |
+| Output | `apps/admin/.next` |
 
 Variáveis: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` e
 `SUPABASE_SERVICE_ROLE_KEY` – esta última marcada como sensível e **não**
 exposta a deploys de preview de terceiros.
+
+A autenticação da Vercel está desligada neste projeto, e precisa continuar
+assim: ela responde 401 a toda requisição sem uma sessão da Vercel, inclusive à
+do rewrite, e o painel sumiria por trás de uma tela de login que não é a nossa.
+Ligá-la de volta derruba `app.dinamique.com.br/admin`.
+
+O que guarda o painel é o login dele: o `requireAdmin()` no começo de cada
+página e de cada Server Action, e o RLS por baixo. Nenhuma página do painel
+mostra qualquer coisa antes de checar o papel em `admin_users`, e a chave de
+serviço nunca sai do servidor.

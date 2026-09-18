@@ -33,3 +33,20 @@ Taken from the logo and encoded in `packages/ui/src/tokens/palette.ts`:
 
 Both are the `500` step of a ten-step ramp; every other step is a tint or shade
 of the same hue, never an independently chosen colour.
+
+## Os ícones do aplicativo
+
+`apps/mobile/assets/` guarda o ícone da loja, o ícone adaptativo do Android, a
+tela de abertura, o favicon e o ícone de notificação. Nenhum deles é
+desenhado: todos saem do `logo.png` e do `logo-negativo.png` desta pasta, por
+recorte e escala.
+
+O ícone quadrado é o `d.` do próprio logotipo, recortado pixel por pixel do
+arquivo oficial. Um logotipo deitado não cabe num quadrado, e a alternativa
+seria redesenhar a marca, que é justamente o que este repositório não faz.
+
+Para refazer os cinco arquivos depois de trocar o logotipo:
+
+```bash
+node assets/brand/make-app-icons.mjs assets/brand apps/mobile/assets
+```
