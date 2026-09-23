@@ -19,7 +19,7 @@ plan and exactly where each area stands.
 | Database (`packages/database`) | 42 tables, 105 RLS policies, 29 behaviour assertions |
 | Design system (`packages/ui`) | tokens + icon set + 27 components, contrast asserted in both themes |
 | Mobile app (`apps/mobile`) | auth, onboarding, Home, journeys, entries, history, insights, support, referrals, influencer |
-| Admin (`apps/admin`) | dashboard, support inbox, users, influencers, referrals, codes, audit log, em `/admin` |
+| Admin (`apps/admin`) | dashboard, support inbox, users, influencers, referrals, codes, audit log |
 
 ## Requirements
 
@@ -36,7 +36,7 @@ variáveis de ambiente. Para publicar nas lojas, [`LOJAS.md`](./LOJAS.md).
 | Onde | Endereço |
 | --- | --- |
 | Aplicativo (web) | `app.dinamique.com.br` |
-| Painel administrativo | `app.dinamique.com.br/admin` |
+| Painel administrativo | fora do ar, ver [`ADMIN.md`](./ADMIN.md) |
 
 ### Onde testar
 

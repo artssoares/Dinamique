@@ -47,21 +47,25 @@ Two Vercel projects, and only these two. There is no `dinamique-app`.
 
 | Project | Address | Publishes |
 | --- | --- | --- |
-| `dinamique-mobile` | https://app.dinamique.com.br | `main` |
-| `dinamique-admin` | https://app.dinamique.com.br/admin | `main`, through a rewrite |
+| `dinamique1/dinamique-mobile` | https://app.dinamique.com.br | the app, from `main` |
+| `feed-on-track/dinamique` | not reachable from this token | the admin panel |
 
 The app lives on its own domain, not on a `.vercel.app` address. Hand over that
 domain, not a branch preview: per-branch previews exist for reviewing a pull
 request and change every time.
 
-Both addresses are the same domain on purpose. The admin panel is a second
-Vercel project, and Vercel cannot point a path of one domain at another
-project, so `apps/mobile/vercel.json` rewrites `/admin/...` into it and
-`basePath` in `apps/admin/next.config.mjs` makes Next generate its URLs with
-the prefix. `ADMIN.md` has the full picture, including why the rewrite targets
-`dinamique-admin-git-main-dinamique1.vercel.app` and not the short
-`.vercel.app` address: that one still serves the production deployment from
-the stale default branch below.
+**`dinamique1/dinamique-admin` does not publish the admin panel.** The name
+lies. Opening `dinamique-admin-git-main-dinamique1.vercel.app/` returns the
+Expo bundle, tab bar and SOS button included: it is a second copy of the app.
+Checked on 23 September, after a rewrite pointed at it by its name and produced
+`508 INFINITE_LOOP_DETECTED`, the app proxying to itself. The name of a project
+is not evidence of what it publishes; opening the URL is.
+
+The admin panel is built by `feed-on-track/dinamique`, in a Vercel scope this
+repository's usual token cannot read, and its deployments have been failing
+since at least 16 September: the `Vercel – dinamique` check was already red on
+#33. There is no admin panel in the air right now, and `ADMIN.md` lists what
+serving it at `app.dinamique.com.br/admin` would take.
 
 The two projects sit in different Vercel scopes, `dinamique1/dinamique-mobile`
 (root `apps/mobile`) and `feed-on-track/dinamique`, which is why listing
