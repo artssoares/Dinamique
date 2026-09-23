@@ -43,7 +43,10 @@ create or replace function delete_my_account()
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+-- `extensions` junto de `public`: é onde a Supabase instala pgcrypto e citext,
+-- e uma função cega para esse schema quebra ao encostar em qualquer coluna
+-- `citext`, como `profiles.email`.
+set search_path = public, extensions
 as $$
 declare
   v_user_id  uuid := auth.uid();
@@ -76,9 +79,18 @@ begin
   -- Os arquivos não estão em nenhuma tabela nossa, então o cascade não os
   -- alcança. O caminho sempre começa pelo id do usuário: é a mesma regra que
   -- as políticas do storage usam para decidir quem grava onde.
-  delete from storage.objects
-  where bucket_id in ('avatars', 'support-attachments')
-    and (storage.foldername(name))[1] = v_user_id::text;
+  --
+  -- Num bloco próprio porque `storage.objects` pertence a outro papel na
+  -- Supabase. Se um dia essa permissão mudar, a foto fica para trás, e isso é
+  -- ruim; a conta não ser apagada seria pior, e é o que a loja e a lei
+  -- cobram. A falha é anunciada para não passar em silêncio.
+  begin
+    delete from storage.objects
+    where bucket_id in ('avatars', 'support-attachments')
+      and (storage.foldername(name))[1] = v_user_id::text;
+  exception when insufficient_privilege or undefined_table then
+    raise warning 'delete_my_account: arquivos de % não puderam ser apagados', v_user_id;
+  end;
 
   -- A linha de origem. `profiles` referencia `auth.users` com cascade, e todo
   -- o resto referencia `profiles`, então isto apaga a conta inteira.

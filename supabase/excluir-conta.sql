@@ -43,7 +43,10 @@ create or replace function delete_my_account()
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+-- `extensions` junto de `public`: é onde a Supabase instala pgcrypto e citext,
+-- e uma função cega para esse schema quebra ao encostar em qualquer coluna
+-- `citext`, como `profiles.email`.
+set search_path = public, extensions
 as $$
 declare
   v_user_id  uuid := auth.uid();
