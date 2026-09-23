@@ -621,7 +621,13 @@ begin
       -- propósito: ela recebe um ponto qualquer, e responder "quantos
       -- motoristas há em volta deste ponto" para qualquer ponto é um mapa da
       -- base montado uma consulta por vez.
-      'sos_share_location', 'sos_trigger', 'sos_close', 'sos_log_aborted'
+      'sos_share_location', 'sos_trigger', 'sos_close', 'sos_log_aborted',
+      -- Excluir a própria conta. A App Store exige que o botão esteja dentro
+      -- do aplicativo (5.1.1(v)) e a LGPD dá o mesmo direito, então esta porta
+      -- tem de abrir para o usuário logado. Ela não recebe id nenhum: age
+      -- sempre sobre `auth.uid()`, e por isso não há a quem ela possa apagar
+      -- além de quem a chamou.
+      'delete_my_account'
     )
     and has_function_privilege('authenticated', p.oid, 'EXECUTE');
 
@@ -644,6 +650,12 @@ begin
   perform assert(
     not has_function_privilege('anon', 'mark_ticket_read(uuid)'::regprocedure, 'EXECUTE'),
     'marcar atendimento como lido exige login');
+  perform assert(
+    has_function_privilege('authenticated', 'delete_my_account()'::regprocedure, 'EXECUTE'),
+    'o usuário logado continua podendo excluir a própria conta');
+  perform assert(
+    not has_function_privilege('anon', 'delete_my_account()'::regprocedure, 'EXECUTE'),
+    'excluir conta exige login');
 
   -- O cadastro depende do gatilho em auth.users: se o papel de autenticação
   -- da Supabase existir, ele precisa continuar podendo executá-lo.
@@ -1361,5 +1373,97 @@ begin
 
   raise notice '';
   raise notice 'TESTES DE SOS PASSARAM';
+end;
+$$;
+
+-- ============================================================================
+-- Excluir a própria conta
+--
+-- A função é a única do schema que apaga uma conta inteira, então o que ela
+-- NÃO apaga importa tanto quanto o que apaga. Os dois lados são afirmados
+-- aqui: some tudo de quem pediu, e não encosta em mais ninguém.
+-- ============================================================================
+do $$
+declare
+  v_sai    uuid := gen_random_uuid();
+  v_fica   uuid := gen_random_uuid();
+  v_result jsonb;
+begin
+  insert into auth.users (id, email, raw_user_meta_data)
+  values (v_sai,  'sai@example.com',  '{"full_name": "Quem Sai"}'::jsonb),
+         (v_fica, 'fica@example.com', '{"full_name": "Quem Fica"}'::jsonb);
+
+  insert into revenues (user_id, date, amount) values
+    (v_sai,  current_date, 12345),
+    (v_fica, current_date, 54321);
+
+  -- Cobrança em aberto no Stripe. É o único rastro que precisa sobreviver:
+  -- a conta some daqui e a assinatura continua lá, cobrando.
+  insert into billing_customers (user_id, stripe_customer_id)
+  values (v_sai, 'cus_exclusao_teste');
+  insert into subscriptions
+    (user_id, plan, source, stripe_subscription_id, billing_status)
+  values (v_sai, 'pro', 'subscription', 'sub_exclusao_teste', 'active');
+
+  -- Um arquivo na pasta do usuário, que nenhum cascade alcança.
+  insert into storage.objects (bucket_id, name)
+  values ('avatars', v_sai::text || '/foto.jpg');
+
+  -- Sem sessão, não apaga nada. A função lê `auth.uid()` e nunca um id vindo
+  -- de fora, então esta é a única forma de chamá-la sem dono.
+  perform set_config('request.jwt.claim.sub', '', true);
+  v_result := delete_my_account();
+  perform assert(v_result ->> 'reason' = 'not_authenticated',
+    'excluir conta sem sessão é recusado');
+  perform assert((select count(*) from profiles where id = v_sai) = 1,
+    'a recusa não apagou nada');
+
+  perform login_as(v_sai);
+  v_result := delete_my_account();
+  reset role;
+
+  perform assert(v_result ->> 'ok' = 'true',
+    'o usuário exclui a própria conta');
+  perform assert((select count(*) from auth.users where id = v_sai) = 0,
+    'a conta some de auth.users');
+  perform assert((select count(*) from profiles where id = v_sai) = 0,
+    'o perfil some junto');
+  perform assert((select count(*) from revenues where user_id = v_sai) = 0,
+    'os ganhos somem pelo cascade');
+  perform assert(
+    (select count(*) from storage.objects where name like v_sai::text || '/%') = 0,
+    'os arquivos da pasta do usuário somem junto');
+
+  -- E nada além disso.
+  perform assert((select count(*) from auth.users where id = v_fica) = 1,
+    'a conta de outra pessoa continua de pé');
+  perform assert((select count(*) from revenues where user_id = v_fica) = 1,
+    'os ganhos de outra pessoa continuam lá');
+
+  perform assert(
+    (select count(*) from account_deletions
+     where stripe_subscription_id = 'sub_exclusao_teste'
+       and stripe_customer_id = 'cus_exclusao_teste'
+       and had_active_billing) = 1,
+    'a assinatura a encerrar no Stripe fica registrada');
+
+  -- A tabela de pendências não é um arquivo de ex-usuários: ela não tem
+  -- coluna para nome, e-mail ou id de usuário, e isto falha se alguém criar
+  -- uma.
+  perform assert(
+    (select count(*) from information_schema.columns
+     where table_schema = 'public'
+       and table_name = 'account_deletions'
+       and column_name in ('user_id', 'email', 'name', 'phone')) = 0,
+    'o registro de exclusão não guarda dado pessoal');
+
+  -- Nem o usuário logado lê essa tabela: ela existe para a service role.
+  perform login_as(v_fica);
+  perform assert((select count(*) from account_deletions) = 0,
+    'a lista de pendências de cobrança não é legível pelo usuário');
+  reset role;
+
+  raise notice '';
+  raise notice 'TESTES DE EXCLUSÃO DE CONTA PASSARAM';
 end;
 $$;

@@ -188,6 +188,24 @@ export default function SignUp() {
             </Text>
           </Link>
         </View>
+
+        {/* As duas lojas pedem que os documentos estejam à mão antes do
+            cadastro, não escondidos depois dele. */}
+        <Text variant="caption" color="muted" align="center">
+          Ao criar a conta você concorda com os{' '}
+          <Link href="/legal/termos">
+            <Text variant="captionStrong" color="brand">
+              Termos de Uso
+            </Text>
+          </Link>{' '}
+          e com a{' '}
+          <Link href="/legal/privacidade">
+            <Text variant="captionStrong" color="brand">
+              Política de Privacidade
+            </Text>
+          </Link>
+          .
+        </Text>
       </View>
     </Screen>
   );

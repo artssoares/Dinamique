@@ -46,15 +46,19 @@ function RootNavigator() {
     const group = segments[0];
     const inAuth = group === '(auth)';
     const inOnboarding = group === 'onboarding';
+    // A política de privacidade e os termos abrem sem conta: as duas lojas
+    // exigem uma URL pública, e quem ainda não se cadastrou é exatamente quem
+    // precisa lê-los antes.
+    const inLegal = group === 'legal';
 
     if (!session) {
-      if (!inAuth) router.replace('/(auth)/sign-in');
+      if (!inAuth && !inLegal) router.replace('/(auth)/sign-in');
       return;
     }
 
     const needsOnboarding = profile !== null && profile.onboardingCompletedAt === null;
 
-    if (needsOnboarding && !inOnboarding) {
+    if (needsOnboarding && !inOnboarding && !inLegal) {
       router.replace('/onboarding');
     } else if (!needsOnboarding && (inAuth || inOnboarding)) {
       router.replace('/(tabs)');
@@ -87,6 +91,7 @@ function RootNavigator() {
           <Stack.Screen name="onboarding" />
           <Stack.Screen name="support" options={{ presentation: 'card' }} />
           <Stack.Screen name="assinatura" options={{ presentation: 'card' }} />
+          <Stack.Screen name="legal" options={{ presentation: 'card' }} />
         </Stack>
       </BottomInsetProvider>
 

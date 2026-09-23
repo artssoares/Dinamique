@@ -157,6 +157,19 @@ export default function More() {
         { label: 'Exportar meus dados', href: '/export', icon: 'download' },
       ],
     },
+    {
+      title: 'Privacidade',
+      items: [
+        {
+          label: 'Conta e privacidade',
+          description: 'Seus direitos e a exclusão da conta',
+          href: '/settings/conta',
+          icon: 'shield',
+        },
+        { label: 'Política de Privacidade', href: '/legal/privacidade', icon: 'info' },
+        { label: 'Termos de Uso', href: '/legal/termos', icon: 'info' },
+      ],
+    },
   ];
 
   return (
