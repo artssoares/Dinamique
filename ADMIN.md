@@ -69,52 +69,48 @@ viria do formulário e qualquer tabela do banco ficaria alcançável.
 A importação de veículos usa `import_vehicle()`, que valida tipo, combustível e
 consumo e devolve erro legível por linha em vez de estourar.
 
-## Onde o painel mora
+## Onde o painel mora, e por que `/admin` ainda não existe
 
-O painel é servido em **`app.dinamique.com.br/admin`**, o mesmo domínio do
-aplicativo, um endereço a menos para lembrar.
+A intenção é servir o painel em `app.dinamique.com.br/admin`, o mesmo domínio
+do aplicativo. A tentativa de 23/09 foi desfeita, e o que ela descobriu vale
+mais do que o que ela entregou.
 
-São dois projetos diferentes na Vercel, e a Vercel não sabe apontar um caminho
-de um domínio para outro projeto. Quem faz a costura é um rewrite declarado em
-`apps/mobile/vercel.json`: tudo que chega em `/admin/...` é buscado no projeto
-do painel e devolvido pelo domínio do aplicativo.
+### Os três projetos da Vercel, e o que cada um publica de verdade
 
-Para isso o Next precisa gerar todas as suas URLs já com o prefixo, e é o que
-`basePath: '/admin'` faz em `apps/admin/next.config.mjs`. Sem ele o navegador
-pediria `/_next/...` ao aplicativo, que não tem esses arquivos, e o painel
-carregaria sem estilo e sem JavaScript.
+| Projeto | Publica | Conferido |
+| --- | --- | --- |
+| `dinamique1/dinamique-mobile` | o aplicativo, em `app.dinamique.com.br` | sim |
+| `dinamique1/dinamique-admin` | **o aplicativo também**, apesar do nome | sim, 23/09 |
+| `feed-on-track/dinamique` | o painel | é o único que roda `@dinamique/admin` |
 
-Três arquivos precisam concordar sobre o caminho, e `src/lib/base-path.test.ts`
-falha no build se algum se afastar dos outros:
+O nome `dinamique-admin` mente. Abrir
+`dinamique-admin-git-main-dinamique1.vercel.app/` devolve o pacote do Expo, com
+a barra de abas e o botão de emergência: é uma segunda cópia do aplicativo, não
+o painel. Quem constrói o painel é `feed-on-track/dinamique`, num escopo
+diferente da Vercel.
 
-| Arquivo | O que declara |
-| --- | --- |
-| `apps/admin/next.config.mjs` | `basePath` |
-| `apps/admin/src/lib/base-path.ts` | a constante `BASE_PATH` |
-| `apps/mobile/vercel.json` | o rewrite `/admin/:path*` |
+### O laço, e o que ele ensina
 
-O código continua escrevendo `/login` e `/usuarios`: `redirect()`, `<Link>` e
-`useRouter()` acrescentam o prefixo sozinhos.
+O rewrite de `/admin/...` foi apontado para `dinamique-admin`, pelo nome. Como
+esse projeto é o próprio aplicativo, ele recebia a requisição, aplicava o mesmo
+rewrite e a devolvia para si: `508 INFINITE_LOOP_DETECTED`. O nome de um
+projeto não é prova do que ele publica. A prova é abrir a URL.
 
-Uma consequência a lembrar: o webhook do Stripe passa a ser
-`https://app.dinamique.com.br/admin/api/billing/webhook`.
+### O que falta para `/admin` funcionar
 
-### Por que o rewrite aponta para `dinamique-admin-git-main-...`
+1. O deploy do painel voltar a passar. `feed-on-track/dinamique` falha desde
+   pelo menos 16/09 (o check `Vercel – dinamique` já estava vermelho no #33,
+   antes de qualquer mudança desta leva), então hoje não existe painel no ar
+   para onde apontar.
+2. Saber o endereço desse projeto, ou ter acesso ao escopo `feed-on-track`.
+3. Só então: `basePath: '/admin'` em `next.config.mjs` e o rewrite
+   `/admin/:path*` em `apps/mobile/vercel.json`, apontando para o alias de
+   branch do painel. Os dois andam juntos, porque sem o `basePath` o navegador
+   pede `/_next/...` ao aplicativo, que não tem esses arquivos.
 
-O destino natural seria `dinamique-admin.vercel.app`, e ele está errado aqui.
-A branch de produção do projeto do painel na Vercel ainda é a default antiga do
-repositório, então **nenhum deploy vindo da `main` é marcado como produção**:
-todos saem como preview, e `dinamique-admin.vercel.app` continua servindo o
-build de agosto. Um rewrite para lá entregaria um painel sem `basePath`, ou
-seja, sem CSS e sem JavaScript.
-
-`dinamique-admin-git-main-dinamique1.vercel.app` é o alias de branch: ele
-aponta sempre para o último deploy da `main`, hoje e também depois que a branch
-de produção for corrigida. É o endereço certo nos dois casos.
-
-Quando alguém acertar a branch de produção do projeto (Vercel, projeto
-dinamique-admin, Settings, Git, Production Branch, `main`), o alias continua
-valendo e não há nada a mudar aqui.
+Enquanto isso, `EXPO_PUBLIC_BILLING_URL` fica sem valor de propósito. O
+aplicativo já trata a ausência: a tela de plano diz que a assinatura não está
+disponível, em vez de falhar contra um endereço morto.
 
 ## Deploy na Vercel
 

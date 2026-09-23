@@ -42,7 +42,7 @@ No projeto **dinamique-mobile**, em **Settings → Environment Variables**:
 | --- | --- |
 | `EXPO_PUBLIC_SUPABASE_URL` | a Project URL |
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | a chave anon |
-| `EXPO_PUBLIC_BILLING_URL` | `https://app.dinamique.com.br/admin` |
+| `EXPO_PUBLIC_BILLING_URL` | a URL do painel, quando existir uma |
 | `EXPO_PUBLIC_ARCGIS_API_KEY` | a chave do mapa (etapa 6), pode ficar vazia |
 
 Depois, **Deployments → Redeploy**. Sem essas variáveis o aplicativo mostra a
@@ -52,10 +52,11 @@ tela de instalação em vez de quebrar.
 
 ## 3. Painel administrativo (Vercel)
 
-O painel responde em **`app.dinamique.com.br/admin`**, o mesmo domínio do
-aplicativo. Como isso funciona está em [`ADMIN.md`](./ADMIN.md).
+O painel ainda não tem endereço no ar. Qual projeto da Vercel o publica, e o
+que falta para ele responder em `app.dinamique.com.br/admin`, está em
+[`ADMIN.md`](./ADMIN.md).
 
-No projeto **dinamique-admin**, as mesmas chaves com outro prefixo:
+No projeto do painel, as mesmas chaves com outro prefixo:
 
 | Variável | Valor |
 | --- | --- |
@@ -84,7 +85,7 @@ select id, 'superadmin' from profiles where email = 'seu@email.com';
    - `STRIPE_WEBHOOK_SECRET` (sai do passo 4)
 3. No painel, em **Assinaturas**, clique em *Publicar preços no Stripe*.
 4. No Stripe, em **Developers → Webhooks**, adicione o endpoint
-   `https://app.dinamique.com.br/admin/api/billing/webhook` com os eventos
+   `https://SEU-PAINEL/api/billing/webhook` com os eventos
    `customer.subscription.*`, `checkout.session.completed`, `invoice.paid` e
    `invoice.payment_failed`. Copie o segredo gerado.
 
