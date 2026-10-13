@@ -47,16 +47,27 @@ function chunk(type, data) {
   const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(body));
   return Buffer.concat([len, body, crc]);
 }
-function encodePng(width, height, rgba) {
-  const stride = width * 4;
+/**
+ * Escreve o PNG. `alpha: false` grava sem canal de transparência, em tipo de
+ * cor 2 (RGB, 24 bits), porque o gráfico de destaque da Google Play é recusado
+ * quando chega com alfa; todo o resto sai em tipo 6 (RGBA, 32 bits), que é o
+ * que a loja exige do ícone e o que o aplicativo precisa nos recortes.
+ */
+function encodePng(width, height, rgba, { alpha = true } = {}) {
+  const channels = alpha ? 4 : 3;
+  const stride = width * channels;
   const raw = Buffer.alloc((stride + 1) * height);
   for (let y = 0; y < height; y++) {
     raw[y * (stride + 1)] = 0;
-    rgba.copy(raw, y * (stride + 1) + 1, y * stride, (y + 1) * stride);
+    for (let x = 0; x < width; x++) {
+      const from = (y * width + x) * 4;
+      const to = y * (stride + 1) + 1 + x * channels;
+      for (let k = 0; k < channels; k++) raw[to + k] = rgba[from + k];
+    }
   }
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width, 0); ihdr.writeUInt32BE(height, 4);
-  ihdr[8] = 8; ihdr[9] = 6;
+  ihdr[8] = 8; ihdr[9] = alpha ? 6 : 2;
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk('IHDR', ihdr),
@@ -357,7 +368,7 @@ function compose({ size, background, source, d, dot, markHeight }) {
  * abertura, que é quadrada, e para o gráfico de destaque da Google Play, que
  * é 1024x500.
  */
-function wordmark({ size, height, background, field: f, box, width }) {
+function wordmark({ size, height, background, field: f, box, width, alpha = true }) {
   const W = size;
   const H = height ?? size;
   const canvas = Buffer.alloc(W * H * 4);
@@ -385,7 +396,7 @@ function wordmark({ size, height, background, field: f, box, width }) {
       canvas[i + 3] = Math.min(255, Math.round(canvas[i + 3] + a));
     }
   }
-  return encodePng(W, H, canvas);
+  return encodePng(W, H, canvas, { alpha });
 }
 
 // ------------------------------------------------------------------ saída ---
@@ -459,9 +470,13 @@ if (storeDir) {
   // Gráfico de destaque: 1024x500, o logotipo inteiro sobre o azul da marca.
   // Sem texto extra de propósito: a Google corta esta imagem em proporções
   // diferentes conforme a tela, e o que fica fora do centro se perde.
+  //
+  // Sai sem alfa: a Google aceita o destaque só em JPEG ou PNG de 24 bits. A
+  // imagem já é opaca de ponta a ponta, então o canal era peso morto que fazia
+  // o arquivo ser recusado no envio da ficha.
   writeFileSync(`${storeDir}/play-feature-graphic-1024x500.png`, wordmark({
     size: 1024, height: 500, background: BLUE,
-    field: negative.field, box: negative.all, width: 0.56,
+    field: negative.field, box: negative.all, width: 0.56, alpha: false,
   }));
 }
 

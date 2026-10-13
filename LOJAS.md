@@ -246,8 +246,8 @@ formulários. Um link quebrado é motivo de recusa automática.
 
 | Imagem | Onde | Tamanho |
 | --- | --- | --- |
-| Ícone | Google Play | 512 × 512 PNG |
-| Gráfico de destaque | Google Play | 1024 × 500 |
+| Ícone | Google Play | 512 × 512 PNG de 32 bits, com alfa |
+| Gráfico de destaque | Google Play | 1024 × 500 PNG de 24 bits, sem alfa |
 | Capturas de celular | Google Play | mínimo 2, até 8 |
 | Capturas de iPhone | App Store | 1290 × 2796 ou 1320 × 2868, de 3 a 10 |
 | Capturas de iPad | App Store | só se `supportsTablet` continuar `true` |
