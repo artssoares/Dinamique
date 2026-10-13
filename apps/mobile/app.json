@@ -2,6 +2,7 @@
   "expo": {
     "name": "Dinamique",
     "slug": "dinamique",
+    "owner": "dinamique",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "dinamique",
@@ -82,6 +83,11 @@
     "experiments": {
       "typedRoutes": true
     },
-    "primaryColor": "#0050FF"
+    "primaryColor": "#0050FF",
+    "extra": {
+      "eas": {
+        "projectId": "cee0581d-bac4-48fb-a2e7-2b7faed041f2"
+      }
+    }
   }
 }
