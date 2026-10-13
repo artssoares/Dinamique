@@ -1,13 +1,30 @@
 /**
  * Gera o ícone, a tela de abertura e o ícone de notificação a partir do
  * logotipo oficial. Nada aqui redesenha a marca: o "d." é recortado do próprio
- * arquivo, pixel por pixel, e só é posicionado e escalado.
+ * arquivo e só é posicionado e escalado.
+ *
+ * Por que não é uma interpolação simples. O `logo.png` tem 1168x213 e o alfa
+ * dele é BINÁRIO: 94787 pixels opacos, 153997 transparentes, zero meio-tom.
+ * São degraus duros, sem antisserrilhado. O ícone da loja precisa do "d" a
+ * 3,5 vezes esse tamanho, e ampliar degrau com interpolação bilinear só
+ * transforma escada em borda borrada e ondulada.
+ *
+ * Então a forma é reconstruída por CAMPO DE DISTÂNCIA. Para cada pixel da
+ * origem é calculada a distância até a borda mais próxima, com sinal:
+ * negativa dentro, positiva fora. Distância interpola bem, ao contrário de
+ * uma máscara, então o campo é amostrado no tamanho final e só ali vira
+ * cobertura, com a transição ocupando exatamente um pixel de destino. O
+ * resultado tem a borda lisa em qualquer escala, e a letra continua sendo a
+ * do arquivo oficial.
  */
 import { deflateSync, inflateSync } from 'node:zlib';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 
 const BLUE = [0x01, 0x37, 0xf7];
 const WHITE = [0xff, 0xff, 0xff];
+
+/** Quanto do degrau do arquivo original é alisado, em pixels da origem. */
+const SMOOTH_SIGMA = Number(process.env.DINAMIQUE_SMOOTH ?? 2.0);
 
 // ------------------------------------------------------------------ PNG ----
 const table = (() => {
@@ -118,22 +135,171 @@ function bounds(img, x0, x1) {
   return { top, bottom };
 }
 
-/** Amostra bilinear do recorte, em coordenadas do recorte (0..1). */
-function sample(img, box, u, v) {
-  const fx = box.x0 + u * (box.x1 - box.x0);
-  const fy = box.y0 + v * (box.y1 - box.y0);
-  const x = Math.floor(fx), y = Math.floor(fy);
-  if (x < 0 || y < 0 || x >= img.width - 1 || y >= img.height - 1) return [0, 0, 0, 0];
-  const dx = fx - x, dy = fy - y;
-  const out = [0, 0, 0, 0];
-  for (let k = 0; k < 4; k++) {
-    const p00 = img.data[(y * img.width + x) * 4 + k];
-    const p10 = img.data[(y * img.width + x + 1) * 4 + k];
-    const p01 = img.data[((y + 1) * img.width + x) * 4 + k];
-    const p11 = img.data[((y + 1) * img.width + x + 1) * 4 + k];
-    out[k] = p00 * (1 - dx) * (1 - dy) + p10 * dx * (1 - dy) + p01 * (1 - dx) * dy + p11 * dx * dy;
+/**
+ * Distância euclidiana até o pixel marcado mais próximo, pelo algoritmo
+ * sequencial de oito pontos (Danielsson): dois varrimentos, cada célula
+ * guardando o VETOR até a origem mais próxima em vez da distância. Guardar o
+ * vetor é o que mantém a medida exata nas diagonais, onde contar passos erra.
+ */
+function nearestSites(mask, w, h) {
+  const FAR = 1e9;
+  const dx = new Int32Array(w * h).fill(FAR);
+  const dy = new Int32Array(w * h).fill(FAR);
+
+  for (let i = 0; i < w * h; i++) if (mask[i]) { dx[i] = 0; dy[i] = 0; }
+
+  const d2 = (i) => (dx[i] === FAR ? FAR : dx[i] * dx[i] + dy[i] * dy[i]);
+  const pull = (i, j, ox, oy) => {
+    if (dx[j] === FAR) return;
+    const nx = dx[j] + ox, ny = dy[j] + oy;
+    if (nx * nx + ny * ny < d2(i)) { dx[i] = nx; dy[i] = ny; }
+  };
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (x > 0) pull(i, i - 1, 1, 0);
+      if (y > 0) pull(i, i - w, 0, 1);
+      if (x > 0 && y > 0) pull(i, i - w - 1, 1, 1);
+      if (x < w - 1 && y > 0) pull(i, i - w + 1, -1, 1);
+    }
+    for (let x = w - 1; x >= 0; x--) {
+      const i = y * w + x;
+      if (x < w - 1) pull(i, i + 1, -1, 0);
+    }
+  }
+  for (let y = h - 1; y >= 0; y--) {
+    for (let x = w - 1; x >= 0; x--) {
+      const i = y * w + x;
+      if (y < h - 1) pull(i, i + w, 0, -1);
+      if (x < w - 1 && y < h - 1) pull(i, i + w + 1, -1, -1);
+      if (x > 0 && y < h - 1) pull(i, i + w - 1, 1, -1);
+    }
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (x > 0) pull(i, i - 1, 1, 0);
+    }
+  }
+  return { dx, dy };
+}
+
+/**
+ * O campo de distância com sinal, mais a cor espalhada.
+ *
+ * A cor precisa ser espalhada para fora da letra porque, ao amostrar perto da
+ * borda, o vizinho transparente entraria na conta e puxaria a cor para o
+ * preto. Cada pixel de fora recebe a cor do pixel opaco mais próximo, que o
+ * próprio campo já sabe qual é, e aí a borda interpola cor com cor.
+ */
+function field(img) {
+  const { width: w, height: h, data } = img;
+  const inside = new Uint8Array(w * h);
+  const outside = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    const on = data[i * 4 + 3] > 127;
+    inside[i] = on ? 1 : 0;
+    outside[i] = on ? 0 : 1;
+  }
+
+  const toShape = nearestSites(inside, w, h);
+  const toVoid = nearestSites(outside, w, h);
+
+  const sd = new Float32Array(w * h);
+  const rgb = new Uint8Array(w * h * 3);
+  for (let i = 0; i < w * h; i++) {
+    const out = Math.hypot(toShape.dx[i], toShape.dy[i]);
+    const inn = Math.hypot(toVoid.dx[i], toVoid.dy[i]);
+    // Negativa dentro, positiva fora, zero exatamente na borda.
+    sd[i] = out - inn;
+
+    // De onde vem a cor deste ponto: dele mesmo, se for opaco; do pixel opaco
+    // mais próximo, se não for.
+    const y = (i / w) | 0, x = i % w;
+    const src = inside[i] ? i : (y + toShape.dy[i]) * w + (x + toShape.dx[i]);
+    const s = Math.max(0, Math.min(w * h - 1, src));
+    rgb[i * 3] = data[s * 4];
+    rgb[i * 3 + 1] = data[s * 4 + 1];
+    rgb[i * 3 + 2] = data[s * 4 + 2];
+  }
+  return { w, h, sd: smooth(sd, w, h, SMOOTH_SIGMA), rgb };
+}
+
+/**
+ * Suaviza o campo com uma gaussiana separável.
+ *
+ * É aqui que a escada do arquivo original some. O contorno do `logo.png` não
+ * é liso: ele tem degraus de um a três pixels e alguns pixels soltos, porque
+ * o arquivo é um bitmap sem antisserrilhado. Borrar a MÁSCARA só produziria
+ * cinza; borrar a DISTÂNCIA move o contorno, e mover um contorno na direção
+ * da própria curvatura é exatamente alisar.
+ *
+ * O sigma é pequeno perto da letra: a haste do "d" tem cerca de 30 pixels de
+ * largura na origem, então 1,5 arredonda o degrau e não toca na forma.
+ */
+function smooth(sd, w, h, sigma) {
+  const radius = Math.ceil(sigma * 3);
+  const kernel = [];
+  let sum = 0;
+  for (let i = -radius; i <= radius; i++) {
+    const v = Math.exp(-(i * i) / (2 * sigma * sigma));
+    kernel.push(v);
+    sum += v;
+  }
+  for (let i = 0; i < kernel.length; i++) kernel[i] /= sum;
+
+  const tmp = new Float32Array(w * h);
+  const out = new Float32Array(w * h);
+  const clamp = (v, hi) => (v < 0 ? 0 : v > hi ? hi : v);
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let acc = 0;
+      for (let i = -radius; i <= radius; i++) acc += sd[y * w + clamp(x + i, w - 1)] * kernel[i + radius];
+      tmp[y * w + x] = acc;
+    }
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let acc = 0;
+      for (let i = -radius; i <= radius; i++) acc += tmp[clamp(y + i, h - 1) * w + x] * kernel[i + radius];
+      out[y * w + x] = acc;
+    }
   }
   return out;
+}
+
+/** Interpolação bilinear de um canal qualquer do campo. */
+function bilinear(read, w, h, fx, fy) {
+  const x = Math.floor(fx), y = Math.floor(fy);
+  const dx = fx - x, dy = fy - y;
+  const at = (xx, yy) => read(Math.max(0, Math.min(w - 1, xx)), Math.max(0, Math.min(h - 1, yy)));
+  return (
+    at(x, y) * (1 - dx) * (1 - dy) +
+    at(x + 1, y) * dx * (1 - dy) +
+    at(x, y + 1) * (1 - dx) * dy +
+    at(x + 1, y + 1) * dx * dy
+  );
+}
+
+/**
+ * Amostra o recorte em coordenadas 0..1 e devolve [r, g, b, a].
+ *
+ * `perPixel` é quantos pixels da origem cabem num pixel do destino. É ele que
+ * define a largura da transição: a borda cobre um pixel de destino, nem mais
+ * (borrada) nem menos (serrilhada).
+ */
+function sampleField(f, box, u, v, perPixel) {
+  const fx = box.x0 + u * (box.x1 - box.x0);
+  const fy = box.y0 + v * (box.y1 - box.y0);
+
+  const d = bilinear((x, y) => f.sd[y * f.w + x], f.w, f.h, fx, fy);
+  const a = Math.max(0, Math.min(1, 0.5 - d / Math.max(perPixel, 1e-6)));
+  if (a <= 0) return [0, 0, 0, 0];
+
+  const r = bilinear((x, y) => f.rgb[(y * f.w + x) * 3], f.w, f.h, fx, fy);
+  const g = bilinear((x, y) => f.rgb[(y * f.w + x) * 3 + 1], f.w, f.h, fx, fy);
+  const b = bilinear((x, y) => f.rgb[(y * f.w + x) * 3 + 2], f.w, f.h, fx, fy);
+  return [r, g, b, a * 255];
 }
 
 /**
@@ -167,7 +333,8 @@ function compose({ size, background, source, d, dot, markHeight }) {
     for (let y = Math.floor(y0); y < Math.ceil(y0 + h); y++) {
       for (let x = Math.floor(x0); x < Math.ceil(x0 + w); x++) {
         if (x < 0 || y < 0 || x >= size || y >= size) continue;
-        const [r, g, b, a] = sample(source.img, box, (x + 0.5 - x0) / w, (y + 0.5 - y0) / h);
+        const perPixel = (box.x1 - box.x0) / w;
+        const [r, g, b, a] = sampleField(source.field, box, (x + 0.5 - x0) / w, (y + 0.5 - y0) / h, perPixel);
         if (a <= 0) continue;
         const i = (y * size + x) * 4;
         const alpha = a / 255;
@@ -190,7 +357,7 @@ function compose({ size, background, source, d, dot, markHeight }) {
  * abertura, que é quadrada, e para o gráfico de destaque da Google Play, que
  * é 1024x500.
  */
-function wordmark({ size, height, background, img, box, width }) {
+function wordmark({ size, height, background, field: f, box, width }) {
   const W = size;
   const H = height ?? size;
   const canvas = Buffer.alloc(W * H * 4);
@@ -208,7 +375,7 @@ function wordmark({ size, height, background, img, box, width }) {
   for (let y = Math.floor(y0); y < Math.ceil(y0 + h); y++) {
     for (let x = Math.floor(x0); x < Math.ceil(x0 + w); x++) {
       if (x < 0 || y < 0 || x >= W || y >= H) continue;
-      const [r, g, b, a] = sample(img, box, (x + 0.5 - x0) / w, (y + 0.5 - y0) / h);
+      const [r, g, b, a] = sampleField(f, box, (x + 0.5 - x0) / w, (y + 0.5 - y0) / h, (box.x1 - box.x0) / w);
       if (a <= 0) continue;
       const i = (y * W + x) * 4;
       const alpha = a / 255;
@@ -229,12 +396,15 @@ if (storeDir) mkdirSync(storeDir, { recursive: true });
 function marks(file) {
   const img = decodePng(file);
   const groups = glyphs(img);
+  // O campo custa dois varrimentos da imagem inteira, então sai uma vez só.
+  const f = field(img);
   const first = groups[0];
   const last = groups[groups.length - 1];
   const dB = bounds(img, first[0], first[1]);
   const dotB = bounds(img, last[0], last[1]);
   return {
     img,
+    field: f,
     // O vão que o próprio logotipo dá ao ponto, e não o vão entre duas letras:
     // é o que mantém o "d." com o espaçamento da marca.
     gap: last[0] - groups[groups.length - 2][1],
@@ -262,7 +432,7 @@ writeFileSync(`${outDir}/adaptive-icon.png`, compose({
 
 // Abertura: o logotipo inteiro, que é como a marca deve ser lida quando cabe.
 writeFileSync(`${outDir}/splash.png`, wordmark({
-  size: 1024, background: WHITE, img: positive.img, box: positive.all, width: 0.62,
+  size: 1024, background: WHITE, field: positive.field, box: positive.all, width: 0.62,
 }));
 
 writeFileSync(`${outDir}/favicon.png`, compose({
@@ -291,7 +461,7 @@ if (storeDir) {
   // diferentes conforme a tela, e o que fica fora do centro se perde.
   writeFileSync(`${storeDir}/play-feature-graphic-1024x500.png`, wordmark({
     size: 1024, height: 500, background: BLUE,
-    img: negative.img, box: negative.all, width: 0.56,
+    field: negative.field, box: negative.all, width: 0.56,
   }));
 }
 
