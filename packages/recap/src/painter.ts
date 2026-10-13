@@ -51,8 +51,8 @@ export const PAINTER_SOURCE = `
 
   var FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
 
-  var COLOR_PRIMARY = brand.primary || '#0137F7';
-  var COLOR_ACCENT = brand.accent || '#FF6A54';
+  var COLOR_PRIMARY = brand.primary || '#0050FF';
+  var COLOR_ACCENT = brand.accent || '#FF6B4D';
   var COLOR_INK = brand.ink || '#0D1016';
 
   function toRgb(hex) {

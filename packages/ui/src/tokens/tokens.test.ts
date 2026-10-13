@@ -11,9 +11,9 @@ import { darkTokens, lightTokens, themes } from './semantic';
 import { MIN_TOUCH_TARGET, breakpoints, layout, motion, radius, spacing } from './scale';
 
 describe('brand anchors', () => {
-  it('uses the exact logo colours at the 500 step', () => {
-    expect(blue[500]).toBe('#0137F7');
-    expect(coral[500]).toBe('#FF6A54');
+  it('uses the exact brandbook colours at the 500 step', () => {
+    expect(blue[500]).toBe('#0050FF');
+    expect(coral[500]).toBe('#FF6B4D');
   });
 });
 
@@ -280,7 +280,7 @@ describe('colour compositing', () => {
     expect(flatten('rgba(255, 255, 255, 0)', '#000000')).toBe('#000000');
     expect(flatten('rgba(0, 0, 0, 0.5)', '#ffffff')).toBe('#808080');
     // A solid colour is its own composite, whatever sits behind it.
-    expect(flatten('#0137F7', '#FFFFFF')).toBe('#0137f7');
+    expect(flatten('#0050FF', '#FFFFFF')).toBe('#0050ff');
   });
 });
 

@@ -11,11 +11,11 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#0050FF"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.dinamique.app",
+      "bundleIdentifier": "com.dinamique.com.br",
       "infoPlist": {
         "UIBackgroundModes": [
           "location"
@@ -31,10 +31,10 @@
       }
     },
     "android": {
-      "package": "com.dinamique.app",
+      "package": "com.dinamique.com.br",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0137F7"
+        "backgroundColor": "#0050FF"
       },
       "permissions": [
         "ACCESS_COARSE_LOCATION",
@@ -75,13 +75,13 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#0137F7"
+          "color": "#0050FF"
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true
     },
-    "primaryColor": "#0137F7"
+    "primaryColor": "#0050FF"
   }
 }

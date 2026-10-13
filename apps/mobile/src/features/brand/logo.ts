@@ -1,7 +1,8 @@
 import type { ImageSourcePropType } from 'react-native';
 
 /**
- * O logotipo oficial da Dinamique, extraído do mini manual de marca V1.0.
+ * O logotipo oficial da Dinamique, gerado a partir do `logotipo.png` do
+ * brandbook por `assets/brand/make-app-icons.mjs`.
  *
  * Duas versões, porque o manual pede as duas (§05 do manual):
  *   - `logo.png`, wordmark azul com ponto coral, para fundos claros
@@ -17,5 +18,5 @@ export const LOGO_SOURCE: ImageSourcePropType =
 export const LOGO_NEGATIVE_SOURCE: ImageSourcePropType =
   require('../../../../../assets/brand/logo-negativo.png');
 
-/** Largura ÷ altura do arquivo real (1168 × 213). A marca nunca é esticada. */
-export const LOGO_ASPECT_RATIO = 1168 / 213;
+/** Largura ÷ altura do arquivo real (974 × 184). A marca nunca é esticada. */
+export const LOGO_ASPECT_RATIO = 974 / 184;

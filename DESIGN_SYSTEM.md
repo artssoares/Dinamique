@@ -7,8 +7,8 @@ step is a tint or shade of the same hue, never an independently chosen colour.
 
 | Role | Hex | RGB |
 | --- | --- | --- |
-| Blue 500 – primary | `#0137F7` | 1, 55, 247 |
-| Coral 500 – accent | `#FF6A54` | 255, 106, 84 |
+| Blue 500 – primary | `#0050FF` | 0, 80, 255 |
+| Coral 500 – accent | `#FF6B4D` | 255, 107, 77 |
 | White | `#FFFFFF` | 255, 255, 255 |
 
 Neutrals carry a faint blue cast so white surfaces sit next to the brand blue

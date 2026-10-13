@@ -83,7 +83,7 @@ vazios, o texto simplesmente não os menciona.
    - App ou jogo: **App**
    - Gratuito ou pago: **Gratuito** (a assinatura Pro é compra dentro do app)
 
-> Guarde o nome do pacote: **`com.dinamique.app`**. Ele é definitivo: depois
+> Guarde o nome do pacote: **`com.dinamique.com.br`**. Ele é definitivo: depois
 > de publicado não muda nunca mais.
 
 ---
@@ -98,7 +98,7 @@ vazios, o texto simplesmente não os menciona.
    o aplicativo vai morar. Não crie o registro do aplicativo à mão: a
    ferramenta da etapa 4 cria sozinha, com os identificadores certos.
 
-> O identificador na Apple é o mesmo **`com.dinamique.app`**, e também é
+> O identificador na Apple é o mesmo **`com.dinamique.com.br`**, e também é
 > definitivo.
 
 ---
@@ -246,8 +246,8 @@ formulários. Um link quebrado é motivo de recusa automática.
 
 | Imagem | Onde | Tamanho |
 | --- | --- | --- |
-| Ícone | Google Play | 512 × 512 PNG |
-| Gráfico de destaque | Google Play | 1024 × 500 |
+| Ícone | Google Play | 512 × 512 PNG de 32 bits, com alfa |
+| Gráfico de destaque | Google Play | 1024 × 500 PNG de 24 bits, sem alfa |
 | Capturas de celular | Google Play | mínimo 2, até 8 |
 | Capturas de iPhone | App Store | 1290 × 2796 ou 1320 × 2868, de 3 a 10 |
 | Capturas de iPad | App Store | só se `supportsTablet` continuar `true` |
@@ -411,7 +411,7 @@ o aviso aparecer com o aplicativo fechado:
   fazer.
 - **Android:** é preciso ligar o Firebase. Crie um projeto em
   <https://console.firebase.google.com>, adicione um app Android com o pacote
-  `com.dinamique.app`, baixe a chave de conta de serviço e envie com
+  `com.dinamique.com.br`, baixe a chave de conta de serviço e envie com
   `eas credentials` → Android → *Google Service Account*. Sem isso a
   notificação simplesmente não chega, e nada mais quebra.
 

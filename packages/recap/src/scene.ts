@@ -80,8 +80,8 @@ export interface RecapScene {
 export const DEFAULT_BRAND: RecapBrand = {
   wordmark: 'Dinamique',
   handle: 'dinamique.com.br',
-  primary: '#0137F7',
-  accent: '#FF6A54',
+  primary: '#0050FF',
+  accent: '#FF6B4D',
   ink: '#0D1016',
 };
 

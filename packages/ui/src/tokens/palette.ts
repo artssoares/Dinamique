@@ -5,9 +5,10 @@
  * ramp and two semantic colours. Green means profit/success and red means
  * expense/error; neither is ever used decoratively (§13).
  *
- * The 500 step of each family is the brand colour taken from the logo:
- *   Blue  500  #0137F7   rgb(1, 55, 247)
- *   Coral 500  #FF6A54   rgb(255, 106, 84)
+ * The 500 step of each family is the brand colour as the brandbook states
+ * it, not as the old logo file happened to export it:
+ *   Blue  500  #0050FF   rgb(0, 80, 255)
+ *   Coral 500  #FF6B4D   rgb(255, 107, 77)
  *
  * The remaining steps are tints/shades of those anchors, not independently
  * chosen hues, which is what keeps the UI from looking like a template (§138).
@@ -19,7 +20,7 @@ export const blue = {
   200: '#B8C9FF',
   300: '#8AA5FF',
   400: '#4A71FF',
-  500: '#0137F7',
+  500: '#0050FF',
   600: '#012CC6',
   700: '#02249C',
   800: '#031C78',
@@ -32,7 +33,7 @@ export const coral = {
   200: '#FFC7BD',
   300: '#FFA394',
   400: '#FF866F',
-  500: '#FF6A54',
+  500: '#FF6B4D',
   600: '#E5482F',
   700: '#BC3520',
   800: '#8F2717',
