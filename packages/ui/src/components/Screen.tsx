@@ -183,7 +183,10 @@ export function Screen({
   return (
     <KeyboardAvoidingView
       style={[{ flex: 1, backgroundColor: backgrounds[background] }, style]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      // Android draws edge to edge (forced from Android 16, opted into below
+      // it), so the window no longer shrinks for the keyboard and the screen
+      // has to make room itself, as on iOS.
+      behavior={Platform.OS === 'web' ? undefined : 'padding'}
     >
       {header}
       {body}
