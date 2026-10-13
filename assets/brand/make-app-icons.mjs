@@ -185,26 +185,32 @@ function compose({ size, background, source, d, dot, markHeight }) {
   return encodePng(size, size, canvas);
 }
 
-/** O logotipo inteiro, deitado num quadrado, para a tela de abertura. */
-function wordmark({ size, background, img, box, width }) {
-  const canvas = Buffer.alloc(size * size * 4);
+/**
+ * O logotipo inteiro, centrado numa tela de qualquer proporção. Serve para a
+ * abertura, que é quadrada, e para o gráfico de destaque da Google Play, que
+ * é 1024x500.
+ */
+function wordmark({ size, height, background, img, box, width }) {
+  const W = size;
+  const H = height ?? size;
+  const canvas = Buffer.alloc(W * H * 4);
   if (background) {
-    for (let i = 0; i < size * size; i++) {
+    for (let i = 0; i < W * H; i++) {
       canvas[i * 4] = background[0];
       canvas[i * 4 + 1] = background[1];
       canvas[i * 4 + 2] = background[2];
       canvas[i * 4 + 3] = 255;
     }
   }
-  const w = size * width;
+  const w = W * width;
   const h = (w * (box.y1 - box.y0)) / (box.x1 - box.x0);
-  const x0 = (size - w) / 2, y0 = (size - h) / 2;
+  const x0 = (W - w) / 2, y0 = (H - h) / 2;
   for (let y = Math.floor(y0); y < Math.ceil(y0 + h); y++) {
     for (let x = Math.floor(x0); x < Math.ceil(x0 + w); x++) {
-      if (x < 0 || y < 0 || x >= size || y >= size) continue;
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
       const [r, g, b, a] = sample(img, box, (x + 0.5 - x0) / w, (y + 0.5 - y0) / h);
       if (a <= 0) continue;
-      const i = (y * size + x) * 4;
+      const i = (y * W + x) * 4;
       const alpha = a / 255;
       for (let k = 0; k < 3; k++) {
         canvas[i + k] = Math.round(canvas[i + k] * (1 - alpha) + [r, g, b][k] * alpha);
@@ -212,12 +218,13 @@ function wordmark({ size, background, img, box, width }) {
       canvas[i + 3] = Math.min(255, Math.round(canvas[i + 3] + a));
     }
   }
-  return encodePng(size, size, canvas);
+  return encodePng(W, H, canvas);
 }
 
 // ------------------------------------------------------------------ saída ---
-const [brandDir, outDir] = process.argv.slice(2);
+const [brandDir, outDir, storeDir] = process.argv.slice(2);
 mkdirSync(outDir, { recursive: true });
+if (storeDir) mkdirSync(storeDir, { recursive: true });
 
 function marks(file) {
   const img = decodePng(file);
@@ -268,5 +275,24 @@ writeFileSync(`${outDir}/notification-icon.png`, compose({
   size: 96, background: null, source: negative,
   d: negative.d, dot: negative.dot, markHeight: 0.52,
 }));
+
+// ------------------------------------------------- fichas das lojas ---------
+// Não entram no aplicativo: são os arquivos que a Google Play pede no
+// formulário da ficha, em tamanhos que ela recusa se vierem errados.
+if (storeDir) {
+  // Ícone da ficha: 512x512, o mesmo desenho do ícone do aplicativo.
+  writeFileSync(`${storeDir}/play-icon-512.png`, compose({
+    size: 512, background: BLUE, source: negative,
+    d: negative.d, dot: negative.dot, markHeight: 0.52,
+  }));
+
+  // Gráfico de destaque: 1024x500, o logotipo inteiro sobre o azul da marca.
+  // Sem texto extra de propósito: a Google corta esta imagem em proporções
+  // diferentes conforme a tela, e o que fica fora do centro se perde.
+  writeFileSync(`${storeDir}/play-feature-graphic-1024x500.png`, wordmark({
+    size: 1024, height: 500, background: BLUE,
+    img: negative.img, box: negative.all, width: 0.56,
+  }));
+}
 
 console.log('ok');

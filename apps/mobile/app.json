@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.dinamique.app",
+      "bundleIdentifier": "com.dinamique.com.br",
       "infoPlist": {
         "UIBackgroundModes": [
           "location"
@@ -31,7 +31,7 @@
       }
     },
     "android": {
-      "package": "com.dinamique.app",
+      "package": "com.dinamique.com.br",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0137F7"

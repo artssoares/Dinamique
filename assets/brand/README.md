@@ -48,5 +48,14 @@ seria redesenhar a marca, que é justamente o que este repositório não faz.
 Para refazer os cinco arquivos depois de trocar o logotipo:
 
 ```bash
-node assets/brand/make-app-icons.mjs assets/brand apps/mobile/assets
+node assets/brand/make-app-icons.mjs assets/brand apps/mobile/assets assets/store
 ```
+
+O terceiro caminho é opcional e guarda o que vai na ficha da Google Play, e
+não dentro do aplicativo: o ícone de 512 e o gráfico de destaque de 1024x500.
+A Google recusa esses dois arquivos se vierem em outro tamanho, então eles são
+gerados em vez de recortados à mão.
+
+O gráfico de destaque não leva texto além do logotipo de propósito: a Google
+corta essa imagem em proporções diferentes conforme a tela, e o que fica fora
+do centro se perde.
