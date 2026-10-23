@@ -117,6 +117,10 @@ window.__RECAP_MP4__ = (function () {
     }
     var shift = -minOffset;
     var movieDuration = Math.round((trackDuration * MOVIE_TIMESCALE) / timescale);
+    // The media timeline runs on composition times, which the shift moves
+    // later; the edit list plays [shift, shift + trackDuration) of it, so
+    // the media has to declare that it reaches the end of that window.
+    var mediaDuration = trackDuration + shift;
 
     // stts: runs of equal durations.
     var stts = [];
@@ -189,7 +193,7 @@ window.__RECAP_MP4__ = (function () {
           edts,
           box('mdia', [
             fullBox('mdhd', 0, 0, [
-              u32(0), u32(0), u32(timescale), u32(trackDuration),
+              u32(0), u32(0), u32(timescale), u32(mediaDuration),
               u16(0x55c4), u16(0)  // 'und'
             ]),
             fullBox('hdlr', 0, 0, [u32(0), ascii('vide'), zeros(12), ascii('VideoHandler'), u8(0)]),

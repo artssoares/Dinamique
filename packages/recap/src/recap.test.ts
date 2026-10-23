@@ -835,6 +835,9 @@ describe('the MP4 writer', () => {
     expect([20, 28, 36].map((at) => view.getUint32(ctts.start + at))).toEqual([3000, 6000, 0]);
     const elst = find(file, ['moov', 'trak', 'edts', 'elst']);
     expect(view.getUint32(elst.start + 20)).toBe(3000);
+    // The edit plays media time [3000, 12000), so the media must reach 12000.
+    const mdhd = find(file, ['moov', 'trak', 'mdia', 'mdhd']);
+    expect(view.getUint32(mdhd.start + 24)).toBe(12000);
   });
 
   it('contains no backtick and no interpolation of its own', () => {
