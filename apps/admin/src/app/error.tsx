@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { withBasePath } from '@/lib/base-path';
 
 /**
  * Tela de falha do painel. Mostra o que houve, oferece uma saída, e manda a
@@ -15,7 +16,9 @@ export default function PanelError({
   reset: () => void;
 }) {
   useEffect(() => {
-    void fetch('/relatar-erro', {
+    // `withBasePath` e não '/relatar-erro': o fetch sai literal, e a raiz do
+    // domínio não é servida pelo painel.
+    void fetch(withBasePath('/relatar-erro'), {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({

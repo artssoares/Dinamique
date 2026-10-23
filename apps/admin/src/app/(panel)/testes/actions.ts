@@ -208,6 +208,14 @@ export async function recordResult(formData: FormData) {
 
   const supabase = getServiceClient();
 
+  // Rodada encerrada não recebe mais marcação. Uma rodada fechada é o registro
+  // do que foi testado naquele dia, e é dela que sai o "dá para publicar?":
+  // se desse para marcar depois, o placar de uma rodada antiga mudaria sozinho
+  // e o registro deixaria de valer como registro. Para corrigir, reabra a
+  // rodada (há botão para isso) — o que fica no log de auditoria.
+  const run = await supabase.from('qa_runs').select('finished_at').eq('id', runId).maybeSingle();
+  if (!run.data || run.data.finished_at !== null) return;
+
   // Marcação vazia significa "voltar a não testado", que é diferente de
   // "pulado": pulado é uma decisão, não testado é a ausência dela.
   if (statusRaw === '') {

@@ -127,8 +127,13 @@ export default async function Tests({
     ((resultsRes.data as ResultRow[] | null) ?? []).map((row) => [row.case_id, row]),
   );
 
-  const activeCases = cases.filter((item) => item.is_active);
   const activeSuites = suites.filter((suite) => suite.is_active);
+  // Um teste só conta se ele E a área dele estiverem em uso. Sem a segunda
+  // metade, desativar uma área inteira esconderia os testes dela da lista mas
+  // os manteria no placar: um crítico invisível travaria o "dá para publicar?"
+  // sem existir nenhum lugar na tela onde marcá-lo.
+  const activeSuiteIds = new Set(activeSuites.map((suite) => suite.id));
+  const activeCases = cases.filter((item) => item.is_active && activeSuiteIds.has(item.suite_id));
   const canEdit = SUPPORT_ROLES.includes(admin.role);
 
   const counts = {

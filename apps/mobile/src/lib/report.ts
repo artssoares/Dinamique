@@ -76,6 +76,25 @@ export function reportError(input: ReportInput): void {
   }
 }
 
+/**
+ * O detalhe técnico, sem nunca estourar.
+ *
+ * `JSON.stringify` quebra em objeto com referência circular e em BigInt, e o
+ * que chega aqui vem do gancho global de erros — ou seja, é exatamente a
+ * entrada que ninguém controla. Se isto estourasse como argumento de
+ * `reportError`, estouraria FORA do try que protege o envio, dentro do
+ * tratador de falhas: a segunda falha, na tela de quem já viu a primeira.
+ */
+function detailOf(error: unknown): string | null {
+  if (error instanceof Error) return error.stack ?? null;
+  if (error === null || error === undefined) return null;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
 /** Atalho para um `catch`: transforma o que veio em título e detalhe. */
 export function reportCaught(
   error: unknown,
@@ -83,7 +102,7 @@ export function reportCaught(
 ): void {
   reportError({
     title: messageOf(error),
-    detail: error instanceof Error ? (error.stack ?? null) : JSON.stringify(error ?? null),
+    detail: detailOf(error),
     screen: options.screen ?? null,
     severity: options.severity ?? 'error',
     context: options.context,

@@ -60,27 +60,35 @@ export default async function ErrorDetail({ params }: { params: Promise<{ id: st
 
   const supabase = await getSessionClient();
 
-  const [error, events] = await Promise.all([
+  const [error, events, impact] = await Promise.all([
     supabase
       .from('app_errors')
       .select('*')
       .eq('id', id)
       .maybeSingle(),
+    // Só as últimas 50, que é o que a tabela no fim da página mostra.
     supabase
       .from('app_error_events')
       .select('id, user_id, app_version, platform, created_at')
       .eq('error_id', id)
       .order('created_at', { ascending: false })
       .limit(50),
+    // "Pessoas atingidas" sai daqui, e não da lista acima: a view conta no
+    // banco, sobre todas as ocorrências. Contar sobre as 50 exibidas diria
+    // "3 pessoas" num erro que pegou trezentas, e é justamente esse número que
+    // decide se a falha é urgente.
+    supabase
+      .from('app_error_impact')
+      .select('affected_users')
+      .eq('error_id', id)
+      .maybeSingle(),
   ]);
 
   const row = error.data as Row | null;
   if (!row) notFound();
 
   const occurrences = (events.data as Occurrence[] | null) ?? [];
-  const affectedUsers = new Set(
-    occurrences.filter((o) => o.user_id !== null).map((o) => o.user_id),
-  ).size;
+  const affectedUsers = (impact.data as { affected_users: number } | null)?.affected_users ?? 0;
 
   const shaped = {
     id: row.id,
