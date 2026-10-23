@@ -16,6 +16,7 @@ import {
   sanitisePhone,
   sosFailureCode,
 } from '@dinamique/business-logic';
+import { AppState } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 import { useSession } from '@/hooks/useSession';
@@ -301,42 +302,76 @@ export function SafetyProvider({ children }: { children: ReactNode }) {
    * Só roda para quem entrou na rede. Quem apenas ativou o SOS para si mesmo
    * nunca tem posição publicada: é a diferença entre as duas escolhas da tela
    * de configuração, e ela é respeitada aqui e no banco.
+   *
+   * NÃO é um temporizador de tela, e por isso não passa pelo
+   * `useForegroundInterval` como os outros dois desta tela: ele segue batendo
+   * com o aplicativo em segundo plano, de propósito. A presença vale 30 minutos
+   * no banco (`sos_alert_ttl`), e esta é a única coisa que chama
+   * `sos_share_location` — parar de bater com o telefone no bolso tiraria o
+   * motorista da lista de quem é avisado justamente enquanto ele dirige, que é
+   * quando a rede existe para servir.
+   *
+   * A economia de bateria aqui veio de não ligar mais o GPS (ver `maxAgeMs`
+   * abaixo), não de parar de bater.
    */
-  const inNetwork = Boolean(userId) && prefs.networkOptIn && prefs.consentAt !== null;
-
-  const beat = useCallback(async () => {
-    // Sem `prompt`: a presença é publicada sozinha, e uma caixa de permissão
-    // que aparece sem ninguém ter tocado em nada gasta a única chance de
-    // pedir. Quem nunca liberou a localização simplesmente não publica, e o
-    // disparo do SOS, que é onde a caixa faz sentido, continua pedindo.
-    //
-    // `maxAgeMs`: o ponto que o sistema já tem serve. Ligar o GPS a cada minuto
-    // e meio, o dia inteiro, para dizer em que pedaço da cidade a pessoa está
-    // era o maior gasto de bateria do aplicativo fora da contagem da jornada —
-    // e durante uma jornada a própria contagem já deixa um ponto de segundos
-    // atrás guardado ali, de graça. A rede tem 5 km de raio: um ponto de dois
-    // minutos põe o motorista no mesmo lugar que um ponto de agora.
-    const fix = await currentFix({ prompt: false, maxAgeMs: 2 * HEARTBEAT_MS });
-    // O ponto de demonstração não entra na rede: ele colocaria um motorista
-    // que está em casa, num notebook, no meio de São Paulo para os outros.
-    if (!fix.demo) {
-      await supabase.rpc('sos_share_location', {
-        p_lat: fix.lat,
-        p_lon: fix.lon,
-        p_accuracy: fix.accuracy,
-      });
-    }
-    await loadAlerts();
-  }, [loadAlerts]);
-
-  // A primeira batida sai na hora em que a pessoa entra na rede, sem esperar o
-  // intervalo; as seguintes só com o aplicativo aberto.
   useEffect(() => {
-    if (!inNetwork) return;
-    void beat();
-  }, [beat, inNetwork]);
+    if (!userId || !prefs.networkOptIn || prefs.consentAt === null) return undefined;
 
-  useForegroundInterval(inNetwork ? () => void beat() : null, HEARTBEAT_MS);
+    let cancelled = false;
+
+    async function beat() {
+      // Sem `prompt`: a presença é publicada sozinha, e uma caixa de permissão
+      // que aparece sem ninguém ter tocado em nada gasta a única chance de
+      // pedir. Quem nunca liberou a localização simplesmente não publica, e o
+      // disparo do SOS, que é onde a caixa faz sentido, continua pedindo.
+      //
+      // `maxAgeMs`: o ponto que o sistema já tem serve. Ligar o GPS a cada
+      // minuto e meio, o dia inteiro, para dizer em que pedaço da cidade a
+      // pessoa está era o maior gasto de bateria do aplicativo fora da contagem
+      // da jornada — e durante uma jornada a própria contagem já deixa um ponto
+      // de segundos atrás guardado ali, de graça. A rede tem 5 km de raio: um
+      // ponto de dois minutos põe o motorista no mesmo lugar que um ponto de
+      // agora.
+      const fix = await currentFix({ prompt: false, maxAgeMs: 2 * HEARTBEAT_MS });
+      if (cancelled) return;
+      // O ponto de demonstração não entra na rede: ele colocaria um motorista
+      // que está em casa, num notebook, no meio de São Paulo para os outros.
+      if (!fix.demo) {
+        await supabase.rpc('sos_share_location', {
+          p_lat: fix.lat,
+          p_lon: fix.lon,
+          p_accuracy: fix.accuracy,
+        });
+      }
+      // A releitura dos alertas é para a lista na tela, então só com a tela à
+      // vista: o aviso de um alerta que chega com o aplicativo fechado vem por
+      // notificação, pelo mesmo canal do sino, e não por esta consulta. Publicar
+      // a presença sem reler a lista é um terço do trabalho de cada batida em
+      // segundo plano.
+      if (!cancelled && AppState.currentState !== 'background') await loadAlerts();
+    }
+
+    void beat();
+    const timer = setInterval(() => void beat(), HEARTBEAT_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [loadAlerts, prefs.consentAt, prefs.networkOptIn, userId]);
+
+  /**
+   * Ao voltar para a frente, relê a lista uma vez.
+   *
+   * É o par da linha acima que deixa de reler em segundo plano: sem isto, a
+   * pessoa destravaria o telefone e veria uma lista de até um minuto e meio
+   * atrás enquanto a próxima batida não chega.
+   */
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (next) => {
+      if (next === 'active') void loadAlerts();
+    });
+    return () => subscription.remove();
+  }, [loadAlerts]);
 
   // Com um alerta meu no ar, o número de avisados e o prazo mudam sozinhos.
   useForegroundInterval(alert ? () => void loadAlerts() : null, ACTIVE_POLL_MS);
