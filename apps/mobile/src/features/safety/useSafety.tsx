@@ -19,6 +19,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { track } from '@/lib/analytics';
 import { useSession } from '@/hooks/useSession';
+import { useForegroundInterval } from '@/hooks/useForegroundInterval';
 import { currentFix, type SafetyFix } from './position';
 
 /**
@@ -301,44 +302,44 @@ export function SafetyProvider({ children }: { children: ReactNode }) {
    * nunca tem posição publicada: é a diferença entre as duas escolhas da tela
    * de configuração, e ela é respeitada aqui e no banco.
    */
-  useEffect(() => {
-    if (!userId || !prefs.networkOptIn || prefs.consentAt === null) return undefined;
+  const inNetwork = Boolean(userId) && prefs.networkOptIn && prefs.consentAt !== null;
 
-    let cancelled = false;
-
-    async function beat() {
-      // Sem `prompt`: a presença é publicada sozinha, e uma caixa de permissão
-      // que aparece sem ninguém ter tocado em nada gasta a única chance de
-      // pedir. Quem nunca liberou a localização simplesmente não publica, e o
-      // disparo do SOS, que é onde a caixa faz sentido, continua pedindo.
-      const fix = await currentFix({ prompt: false });
-      if (cancelled) return;
-      // O ponto de demonstração não entra na rede: ele colocaria um motorista
-      // que está em casa, num notebook, no meio de São Paulo para os outros.
-      if (!fix.demo) {
-        await supabase.rpc('sos_share_location', {
-          p_lat: fix.lat,
-          p_lon: fix.lon,
-          p_accuracy: fix.accuracy,
-        });
-      }
-      if (!cancelled) await loadAlerts();
+  const beat = useCallback(async () => {
+    // Sem `prompt`: a presença é publicada sozinha, e uma caixa de permissão
+    // que aparece sem ninguém ter tocado em nada gasta a única chance de
+    // pedir. Quem nunca liberou a localização simplesmente não publica, e o
+    // disparo do SOS, que é onde a caixa faz sentido, continua pedindo.
+    //
+    // `maxAgeMs`: o ponto que o sistema já tem serve. Ligar o GPS a cada minuto
+    // e meio, o dia inteiro, para dizer em que pedaço da cidade a pessoa está
+    // era o maior gasto de bateria do aplicativo fora da contagem da jornada —
+    // e durante uma jornada a própria contagem já deixa um ponto de segundos
+    // atrás guardado ali, de graça. A rede tem 5 km de raio: um ponto de dois
+    // minutos põe o motorista no mesmo lugar que um ponto de agora.
+    const fix = await currentFix({ prompt: false, maxAgeMs: 2 * HEARTBEAT_MS });
+    // O ponto de demonstração não entra na rede: ele colocaria um motorista
+    // que está em casa, num notebook, no meio de São Paulo para os outros.
+    if (!fix.demo) {
+      await supabase.rpc('sos_share_location', {
+        p_lat: fix.lat,
+        p_lon: fix.lon,
+        p_accuracy: fix.accuracy,
+      });
     }
+    await loadAlerts();
+  }, [loadAlerts]);
 
+  // A primeira batida sai na hora em que a pessoa entra na rede, sem esperar o
+  // intervalo; as seguintes só com o aplicativo aberto.
+  useEffect(() => {
+    if (!inNetwork) return;
     void beat();
-    const timer = setInterval(() => void beat(), HEARTBEAT_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [loadAlerts, prefs.consentAt, prefs.networkOptIn, userId]);
+  }, [beat, inNetwork]);
+
+  useForegroundInterval(inNetwork ? () => void beat() : null, HEARTBEAT_MS);
 
   // Com um alerta meu no ar, o número de avisados e o prazo mudam sozinhos.
-  useEffect(() => {
-    if (!alert) return undefined;
-    const timer = setInterval(() => void loadAlerts(), ACTIVE_POLL_MS);
-    return () => clearInterval(timer);
-  }, [alert, loadAlerts]);
+  useForegroundInterval(alert ? () => void loadAlerts() : null, ACTIVE_POLL_MS);
 
   const updatePrefs = useCallback(
     async (patch: Partial<SafetyPreferences>): Promise<boolean> => {

@@ -51,6 +51,19 @@ export const DEMO_POSITION: SafetyFix = {
 /** Depois disto, o ponto de demonstração vale mais que continuar esperando. */
 const FIX_TIMEOUT_MS = 6000;
 
+/** Uma leitura do sistema no formato que as telas usam. */
+function toSafetyFix(reading: Location.LocationObject): SafetyFix {
+  return {
+    lat: reading.coords.latitude,
+    lon: reading.coords.longitude,
+    accuracy:
+      reading.coords.accuracy === null || reading.coords.accuracy === undefined
+        ? null
+        : Math.round(reading.coords.accuracy),
+    demo: false,
+  };
+}
+
 export interface FixOptions {
   /**
    * Se pode abrir o pedido de permissão do sistema.
@@ -63,6 +76,20 @@ export interface FixOptions {
    * volta a aparecer depois de um "não permitir".
    */
   prompt?: boolean;
+  /**
+   * Idade máxima, em milissegundos, de um ponto que o sistema já tem guardado.
+   *
+   * Zero (o padrão) liga o GPS e espera uma leitura nova, que é o certo no
+   * disparo do SOS: ali a posição é a informação. Acima de zero, aceita o
+   * último ponto que o sistema já conhece se ele for mais recente que isso, e
+   * só liga o GPS quando não existe nenhum.
+   *
+   * É a diferença entre ligar o GPS a cada minuto e meio o dia inteiro e não
+   * ligar quase nunca: numa jornada em andamento a própria contagem de
+   * quilômetros já está alimentando esse ponto guardado, e fora da jornada a
+   * presença na rede não precisa de precisão de metros.
+   */
+  maxAgeMs?: number;
 }
 
 /**
@@ -72,13 +99,25 @@ export interface FixOptions {
  * demorar bem mais que isso num primeiro fix, e aqui não existe "esperar mais
  * um pouco": ou sai um ponto, ou sai o de demonstração com o aviso na tela.
  */
-export async function currentFix({ prompt = true }: FixOptions = {}): Promise<SafetyFix> {
+export async function currentFix({
+  prompt = true,
+  maxAgeMs = 0,
+}: FixOptions = {}): Promise<SafetyFix> {
   try {
     const permission = await Location.getForegroundPermissionsAsync();
     if (!permission.granted) {
       if (!prompt) return DEMO_POSITION;
       const asked = await Location.requestForegroundPermissionsAsync();
       if (!asked.granted) return DEMO_POSITION;
+    }
+
+    // O ponto que o sistema já tem sai de graça: nenhum rádio é ligado. Só
+    // vale quando quem chamou disse que um ponto de alguns minutos serve.
+    if (maxAgeMs > 0) {
+      const cached = await Location.getLastKnownPositionAsync({ maxAge: maxAgeMs }).catch(
+        () => null,
+      );
+      if (cached) return toSafetyFix(cached);
     }
 
     const reading = await Promise.race([
@@ -90,15 +129,7 @@ export async function currentFix({ prompt = true }: FixOptions = {}): Promise<Sa
 
     if (!reading) return DEMO_POSITION;
 
-    return {
-      lat: reading.coords.latitude,
-      lon: reading.coords.longitude,
-      accuracy:
-        reading.coords.accuracy === null || reading.coords.accuracy === undefined
-          ? null
-          : Math.round(reading.coords.accuracy),
-      demo: false,
-    };
+    return toSafetyFix(reading);
   } catch {
     // O shim web do expo-location estoura em navegadores sem a Permissions API
     // (Safari), e um erro não tratado aqui deixaria o botão de emergência

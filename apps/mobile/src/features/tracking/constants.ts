@@ -21,10 +21,17 @@ export const routeChunkKey = (journeyId: string, chunk: number) =>
  *
  * Appending to one growing JSON array would mean rewriting the whole shift
  * every ten seconds for ten hours. Chunking makes an append O(chunk) instead of
- * O(shift), and 500 fixes is roughly 35 KB — well clear of the ~2 MB per-row
- * ceiling Android's SQLite-backed AsyncStorage imposes.
+ * O(shift) — and the chunk is the real cost, because every batch of positions
+ * reads the open chunk, parses it, appends and writes it back whole.
+ *
+ * 120 rather than 500 for that reason: ~8 KB parsed and rewritten per batch
+ * instead of ~35 KB, which is four fifths of the CPU and disk work of capture
+ * gone, on the phone of someone who is driving. A ten-hour shift opens about
+ * thirty keys instead of eight, and the close reads them in one `multiGet`.
+ * Still well clear of the ~2 MB per-row ceiling Android's SQLite-backed
+ * AsyncStorage imposes.
  */
-export const ROUTE_CHUNK_SIZE = 500;
+export const ROUTE_CHUNK_SIZE = 120;
 
 /** A buffer nobody claimed within this many days is abandoned; we drop it. */
 export const ORPHAN_BUFFER_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
