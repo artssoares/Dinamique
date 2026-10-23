@@ -27,6 +27,13 @@ import { useThemeBoot } from '@/features/theme/useThemeBoot';
 // but only the ones it finds while the bundle is being evaluated — registering
 // inside a component would work right up until the driver switched apps.
 import '@/features/tracking/backgroundTask';
+// Também no escopo do módulo, e pelo mesmo motivo: os ganchos globais de erro
+// têm de existir antes do primeiro render, senão a falha que acontece ao abrir
+// o app é justamente a que ninguém vê.
+import { installDiagnostics } from '@/features/diagnostics/install';
+import { ErrorBoundary } from '@/features/diagnostics/ErrorBoundary';
+
+installDiagnostics();
 
 /**
  * Routing guard. Three destinations depending on session state:
@@ -164,11 +171,16 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <SessionProvider>
-          <OfflineProvider>
-            <ThemedApp />
-          </OfflineProvider>
-        </SessionProvider>
+        {/* Dentro do SafeAreaProvider e do tema, para a tela de falha ser
+            desenhável; fora dos providers de dados, porque é justamente um
+            deles que pode ser o que quebrou. */}
+        <ErrorBoundary>
+          <SessionProvider>
+            <OfflineProvider>
+              <ThemedApp />
+            </OfflineProvider>
+          </SessionProvider>
+        </ErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

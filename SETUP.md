@@ -67,13 +67,19 @@ No projeto do painel, as mesmas chaves com outro prefixo:
 
 ### Virar administrador
 
-O painel exige um administrador, e o primeiro precisa ser criado à mão.
+O painel exige um administrador, e **o primeiro** precisa ser criado à mão.
 Crie sua conta pelo aplicativo e depois, no SQL Editor:
 
 ```sql
 insert into admin_users (user_id, role)
 select id, 'superadmin' from profiles where email = 'seu@email.com';
 ```
+
+Do segundo em diante não precisa de SQL: use **Administradores**, no painel. A
+pessoa se cadastra pelo aplicativo como qualquer um e você dá o acesso pelo
+email — o painel nunca escolhe nem guarda a senha de ninguém.
+
+O painel abre em `dinamique.com.br/admin`.
 
 ---
 

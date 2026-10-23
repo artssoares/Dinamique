@@ -627,7 +627,14 @@ begin
       -- tem de abrir para o usuário logado. Ela não recebe id nenhum: age
       -- sempre sobre `auth.uid()`, e por isso não há a quem ela possa apagar
       -- além de quem a chamou.
-      'delete_my_account'
+      'delete_my_account',
+      -- Relatar uma falha. É a única porta de escrita em `app_errors`, e ela
+      -- existe justamente para que o aplicativo NÃO tenha grant de insert ou
+      -- update naquela tabela: com grant, qualquer um reabriria, reescreveria
+      -- ou apagaria o histórico de falhas. A função não recebe id de nada:
+      -- grava o autor a partir de `auth.uid()` e não tem como apontar para a
+      -- linha de outro problema.
+      'report_app_error'
     )
     and has_function_privilege('authenticated', p.oid, 'EXECUTE');
 
@@ -656,6 +663,24 @@ begin
   perform assert(
     not has_function_privilege('anon', 'delete_my_account()'::regprocedure, 'EXECUTE'),
     'excluir conta exige login');
+  perform assert(
+    has_function_privilege(
+      'authenticated',
+      'report_app_error(text, text, text, text, text, text, text, jsonb)'::regprocedure,
+      'EXECUTE'),
+    'o aplicativo logado continua podendo relatar uma falha');
+  perform assert(
+    not has_function_privilege(
+      'anon',
+      'report_app_error(text, text, text, text, text, text, text, jsonb)'::regprocedure,
+      'EXECUTE'),
+    'relatar falha exige login — a chave pública não abre escrita no banco');
+  -- O que a função protege: a tabela em si continua fechada à escrita do
+  -- cliente, porque é isso que torna o histórico de falhas confiável.
+  perform assert(
+    not has_table_privilege('authenticated', 'app_errors'::regclass, 'INSERT')
+    and not has_table_privilege('authenticated', 'app_errors'::regclass, 'DELETE'),
+    'o cliente não escreve nem apaga em app_errors direto');
 
   -- O cadastro depende do gatilho em auth.users: se o papel de autenticação
   -- da Supabase existir, ele precisa continuar podendo executá-lo.
@@ -1465,5 +1490,139 @@ begin
 
   raise notice '';
   raise notice 'TESTES DE EXCLUSÃO DE CONTA PASSARAM';
+end;
+$$;
+
+-- ============================================================================
+-- Erros do aplicativo e a área de testes.
+--
+-- Três coisas que precisam continuar verdadeiras: o mesmo problema não vira
+-- cem linhas, um usuário comum não lê a lista de falhas, e um problema
+-- marcado como resolvido que volta a acontecer reabre sozinho.
+-- ============================================================================
+do $$
+declare
+  v_user  uuid := gen_random_uuid();
+  v_admin uuid := gen_random_uuid();
+  v_first bigint;
+  v_again bigint;
+  v_suite uuid;
+  v_case  uuid;
+  v_run   uuid;
+begin
+  insert into auth.users (id, email, raw_user_meta_data)
+  values (v_user,  'obs-user@example.com',  '{"full_name": "Obs User"}'::jsonb),
+         (v_admin, 'obs-admin@example.com', '{"full_name": "Obs Admin"}'::jsonb);
+
+  insert into admin_users (user_id, role) values (v_admin, 'superadmin');
+
+  -- --------------------------------------------------------- agrupamento ---
+  perform login_as(v_user);
+
+  v_first := report_app_error(
+    'mobile', 'TypeError: cannot read property x of null', 'stack a', '/journey/close',
+    'error', '1.0.4', 'android', '{}'::jsonb);
+
+  v_again := report_app_error(
+    'mobile', 'TypeError: cannot read property x of null', 'stack b', '/journey/close',
+    'fatal', '1.0.4', 'android', '{}'::jsonb);
+
+  reset role;
+
+  perform assert(v_first = v_again,
+    'a mesma falha na mesma tela é UM problema, não dois');
+  perform assert((select occurrences from app_errors where id = v_first) = 2,
+    'a segunda vez conta como ocorrência');
+  perform assert((select severity from app_errors where id = v_first) = 'fatal',
+    'uma ocorrência fatal promove a gravidade do problema');
+  perform assert((select count(*) from app_error_events where error_id = v_first) = 2,
+    'cada ocorrência fica registrada separadamente');
+  perform assert(
+    (select affected_users from app_error_impact where error_id = v_first) = 1,
+    'duas ocorrências do mesmo usuário contam como um usuário atingido');
+
+  -- Ids diferentes no texto são a MESMA falha: sem isso, uma linha por
+  -- registro inexistente enterraria a lista.
+  perform login_as(v_user);
+  perform report_app_error('mobile', 'row ' || gen_random_uuid() || ' not found', null, '/fuel');
+  perform report_app_error('mobile', 'row ' || gen_random_uuid() || ' not found', null, '/fuel');
+  reset role;
+
+  perform assert(
+    (select count(*) from app_errors where screen = '/fuel') = 1,
+    'ids diferentes no texto não criam problemas diferentes');
+
+  -- ---------------------------------------------------------- reabertura ---
+  update app_errors set status = 'resolved', resolved_at = now() where id = v_first;
+
+  perform login_as(v_user);
+  perform report_app_error(
+    'mobile', 'TypeError: cannot read property x of null', 'stack c', '/journey/close');
+  reset role;
+
+  perform assert((select status from app_errors where id = v_first) = 'new',
+    'um erro resolvido que volta a acontecer reabre sozinho');
+  perform assert((select resolved_at from app_errors where id = v_first) is null,
+    'a reabertura limpa a data de resolução');
+
+  -- Quem decidiu ignorar continua ignorando: a reabertura é para o que foi
+  -- dado por corrigido, não para o que foi dado por aceitável.
+  update app_errors set status = 'ignored' where id = v_first;
+  perform login_as(v_user);
+  perform report_app_error(
+    'mobile', 'TypeError: cannot read property x of null', 'stack d', '/journey/close');
+  reset role;
+
+  perform assert((select status from app_errors where id = v_first) = 'ignored',
+    'um erro ignorado não reabre');
+
+  -- ------------------------------------------------------------ privacidade ---
+  perform login_as(v_user);
+  perform assert((select count(*) from app_errors) = 0,
+    'um usuário comum não lê a lista de erros, nem os que ele mesmo causou');
+  perform assert((select count(*) from app_error_events) = 0,
+    'nem as ocorrências');
+  reset role;
+
+  perform login_as(v_admin);
+  perform assert((select count(*) from app_errors) > 0,
+    'o admin lê a lista de erros');
+  reset role;
+
+  -- --------------------------------------------------------- área de testes ---
+  perform assert((select count(*) from qa_suites) >= 15,
+    'o roteiro de testes já nasce preenchido');
+  perform assert((select count(*) from qa_cases where is_critical) > 0,
+    'o roteiro distingue o que é essencial');
+
+  perform login_as(v_user);
+  perform assert((select count(*) from qa_cases) = 0,
+    'um usuário comum não vê o roteiro de testes');
+  reset role;
+
+  select id into v_suite from qa_suites order by position limit 1;
+  select id into v_case from qa_cases where suite_id = v_suite order by position limit 1;
+
+  insert into qa_runs (label, started_by) values ('Rodada de teste', v_admin)
+  returning id into v_run;
+
+  insert into qa_results (run_id, case_id, status, tested_by)
+  values (v_run, v_case, 'fail', v_admin);
+
+  -- Marcar o mesmo caso de novo corrige o resultado em vez de empilhar outro:
+  -- do contrário a rodada teria duas respostas para a mesma pergunta.
+  insert into qa_results (run_id, case_id, status, tested_by)
+  values (v_run, v_case, 'pass', v_admin)
+  on conflict (run_id, case_id) do update set status = excluded.status;
+
+  perform assert((select count(*) from qa_results where run_id = v_run) = 1,
+    'um caso tem um resultado por rodada');
+  perform assert((select status from qa_results where run_id = v_run) = 'pass',
+    'remarcar substitui o resultado anterior');
+  perform assert((select passed from qa_run_summary where run_id = v_run) = 1,
+    'o placar da rodada acompanha as marcações');
+
+  raise notice '';
+  raise notice 'TESTES DE ERROS E DA ÁREA DE TESTES PASSARAM';
 end;
 $$;
