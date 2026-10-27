@@ -47,6 +47,11 @@ acesso** e **só um superadmin cria outro superadmin**.
 | `/analytics` | aquisição, plataformas, veículos, suporte |
 | `/relatorios` | cruzamento de dimensões e filtros, com exportação |
 | `/catalogos` | plataformas, categorias, tour, insights, importar veículos |
+| `/atividades` | linha do tempo de tudo o que os usuários fizeram, em frases |
+| `/erros` | central de erros, agrupados por problema |
+| `/erros/[id]` | ficha do erro, palpite em português e prompt pronto para investigar |
+| `/testes` | roteiro do aplicativo e rodadas de teste |
+| `/administradores` | quem entra no painel, com qual papel |
 | `/logs` | Audit Log |
 
 ## Notas internas no suporte
@@ -69,48 +74,86 @@ viria do formulário e qualquer tabela do banco ficaria alcançável.
 A importação de veículos usa `import_vehicle()`, que valida tipo, combustível e
 consumo e devolve erro legível por linha em vez de estourar.
 
-## Onde o painel mora, e por que `/admin` ainda não existe
+## Onde o painel mora
 
-A intenção é servir o painel em `app.dinamique.com.br/admin`, o mesmo domínio
-do aplicativo. A tentativa de 23/09 foi desfeita, e o que ela descobriu vale
-mais do que o que ela entregou.
+`dinamique.com.br/admin`, servido pelo projeto `dinamique1/dinamique-admin` da
+Vercel, que constrói `@dinamique/admin` a partir da raiz do repositório.
 
-### Os três projetos da Vercel, e o que cada um publica de verdade
+O caminho vem do `basePath: '/admin'` no `next.config.mjs`, e não de um
+rewrite. A diferença importa: o `basePath` reescreve TODA url que o painel
+emite — páginas, `/_next/...`, Server Actions e rotas de api — enquanto um
+rewrite mudaria só o endereço da página e deixaria o navegador pedindo os
+arquivos à raiz do domínio, que não os tem.
 
-| Projeto | Publica | Conferido |
-| --- | --- | --- |
-| `dinamique1/dinamique-mobile` | o aplicativo, em `app.dinamique.com.br` | sim |
-| `dinamique1/dinamique-admin` | **o aplicativo também**, apesar do nome | sim, 23/09 |
-| `feed-on-track/dinamique` | o painel | é o único que roda `@dinamique/admin` |
+A raiz do domínio não é servida pelo `basePath`, então quem digita
+`dinamique.com.br` sem o `/admin` cairia num 404 da Vercel. O `redirects()` do
+mesmo arquivo cobre isso, com `basePath: false` — sem essa linha a regra valeria
+para `/admin/` e criaria um laço com ela mesma.
 
-O nome `dinamique-admin` mente. Abrir
-`dinamique-admin-git-main-dinamique1.vercel.app/` devolve o pacote do Expo, com
-a barra de abas e o botão de emergência: é uma segunda cópia do aplicativo, não
-o painel. Quem constrói o painel é `feed-on-track/dinamique`, num escopo
-diferente da Vercel.
+### A tentativa anterior, e por que esta é diferente
 
-### O laço, e o que ele ensina
+A de 23/09 apontava um rewrite de `app.dinamique.com.br/admin` para o projeto
+`dinamique-admin`, pelo nome. O projeto respondia, aplicava o mesmo rewrite e
+devolvia a requisição para si: `508 INFINITE_LOOP_DETECTED`.
 
-O rewrite de `/admin/...` foi apontado para `dinamique-admin`, pelo nome. Como
-esse projeto é o próprio aplicativo, ele recebia a requisição, aplicava o mesmo
-rewrite e a devolvia para si: `508 INFINITE_LOOP_DETECTED`. O nome de um
-projeto não é prova do que ele publica. A prova é abrir a URL.
+Duas coisas mudaram. O painel agora mora no **apex**, `dinamique.com.br`, que
+não estava em nenhum projeto — então não há rewrite nenhum entre o aplicativo e
+o painel, e nada que possa laçar. E o caminho é o `basePath` do próprio Next,
+dentro do projeto que constrói o painel, em vez de um desvio entre dois
+projetos.
 
-### O que falta para `/admin` funcionar
+Há um projeto `dinamique` na conta `feed-on-track`, fora do escopo
+`dinamique1`, que também construía o painel e falha desde setembro. Ele não
+participa deste caminho e pode ser arquivado: quem publica `/admin` é
+`dinamique1/dinamique-admin`.
 
-1. O deploy do painel voltar a passar. `feed-on-track/dinamique` falha desde
-   pelo menos 16/09 (o check `Vercel – dinamique` já estava vermelho no #33,
-   antes de qualquer mudança desta leva), então hoje não existe painel no ar
-   para onde apontar.
-2. Saber o endereço desse projeto, ou ter acesso ao escopo `feed-on-track`.
-3. Só então: `basePath: '/admin'` em `next.config.mjs` e o rewrite
-   `/admin/:path*` em `apps/mobile/vercel.json`, apontando para o alias de
-   branch do painel. Os dois andam juntos, porque sem o `basePath` o navegador
-   pede `/_next/...` ao aplicativo, que não tem esses arquivos.
+### O que se move junto
 
-Enquanto isso, `EXPO_PUBLIC_BILLING_URL` fica sem valor de propósito. O
-aplicativo já trata a ausência: a tela de plano diz que a assinatura não está
-disponível, em vez de falhar contra um endereço morto.
+O webhook do Stripe, quando o pagamento entrar no ar, passa a ser
+`https://dinamique.com.br/admin/api/billing/webhook` — o `basePath` vale para as
+rotas de api também. O endereço em **Developers → Webhooks** precisa acompanhar.
+
+## Saúde do aplicativo
+
+Duas áreas respondem as perguntas que números e fichas não respondem.
+
+### Erros
+
+`app_errors` guarda UM problema por assinatura de falha, não um por ocorrência:
+uma tela que quebra para duzentos motoristas é um problema com duzentas
+ocorrências, e uma lista de duzentas linhas iguais esconde exatamente isso. A
+assinatura tira do texto o que muda a cada vez — ids e números — antes de
+agrupar.
+
+O aplicativo **não** tem grant de escrita naquela tabela. Ele chama
+`report_app_error()`, `SECURITY DEFINER`, que é a única porta: com grant direto,
+qualquer um reabriria, reescreveria ou apagaria o histórico de falhas.
+
+Relatar exige login, e isso tem um custo conhecido: uma falha na tela de login
+ou de cadastro não chega ao painel. Abrir a função para `anon` daria escrita no
+banco a quem tem a chave pública, que é pública. Perder essa falha é mais
+barato.
+
+Um problema marcado como **resolvido** que volta a acontecer reabre sozinho. Um
+marcado como **ignorado** não — ignorar é uma decisão sobre o que é aceitável,
+resolver é uma afirmação sobre o que foi corrigido.
+
+Do lado de cada erro há o palpite em português do que ele significa e o prompt
+de investigação pronto para copiar. Os dois são montados em
+`@dinamique/business-logic` (`diagnostics.ts`), não na tela, porque é lá que dá
+para testá-los.
+
+### Testes
+
+`qa_suites` → `qa_cases` é o roteiro, editável no painel. Um roteiro fixo no
+código envelhece em uma semana e aí ninguém mais olha para ele. `qa_runs` →
+`qa_results` é cada passada: a mesma lista, marcada de novo, antes de cada
+versão.
+
+Um caso marcado como **essencial** é o que trava a resposta de "dá para
+publicar?". Um caso tem um resultado por rodada (`unique (run_id, case_id)`):
+sem isso, marcar "passou" e depois "falhou" deixaria as duas linhas e a rodada
+não teria resposta.
 
 ## Deploy na Vercel
 
@@ -127,9 +170,9 @@ Variáveis: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` e
 exposta a deploys de preview de terceiros.
 
 A autenticação da Vercel está desligada neste projeto, e precisa continuar
-assim: ela responde 401 a toda requisição sem uma sessão da Vercel, inclusive à
-do rewrite, e o painel sumiria por trás de uma tela de login que não é a nossa.
-Ligá-la de volta derruba `app.dinamique.com.br/admin`.
+assim: ela responde 401 a toda requisição sem uma sessão da Vercel, e o painel
+sumiria por trás de uma tela de login que não é a nossa. Ligá-la de volta
+derruba `dinamique.com.br/admin`.
 
 O que guarda o painel é o login dele: o `requireAdmin()` no começo de cada
 página e de cada Server Action, e o RLS por baixo. Nenhuma página do painel

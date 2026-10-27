@@ -17,10 +17,12 @@ export interface AdminIdentity {
  * rather than when a token expires.
  */
 export async function requireAdmin(allowed?: AdminRole[]): Promise<AdminIdentity> {
-  // Sem configuração não há sessão possível. O /login explica o que falta;
-  // deixar a exceção subir aqui só produziria um 500 sem informação.
+  // Sem configuração não há painel possível, e a volta para o login tem de
+  // dizer isso. Já aconteceu de faltar só a chave de serviço: a senha estava
+  // certa, o banco registrava a entrada, e o painel devolvia a pessoa para o
+  // login em silêncio, como se a senha estivesse errada.
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    redirect('/login');
+    redirect('/login?erro=configuracao');
   }
 
   const supabase = await getSessionClient();
@@ -28,9 +30,12 @@ export async function requireAdmin(allowed?: AdminRole[]): Promise<AdminIdentity
 
   if (!auth.user) redirect('/login');
 
+  // `admin_users` aponta para `profiles` duas vezes (user_id e created_by).
+  // Sem dizer qual chave seguir, o banco recusa a consulta por ambiguidade, e
+  // um superadmin de verdade caía em /sem-acesso.
   const { data } = await supabase
     .from('admin_users')
-    .select('role, is_active, profiles(first_name, email)')
+    .select('role, is_active, profiles!admin_users_user_id_fkey(first_name, email)')
     .eq('user_id', auth.user.id)
     .maybeSingle();
 

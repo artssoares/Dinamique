@@ -3,6 +3,7 @@ import { formatCents, formatDuration, formatPercent } from '@dinamique/utils';
 import { requireAdmin } from '@/lib/auth';
 import { getSessionClient } from '@/lib/supabase-server';
 import { buildReport, DIMENSIONS, type DimensionKey } from '@/lib/report';
+import { withBasePath } from '@/lib/base-path';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,9 +64,9 @@ export default async function Reports({
     dimension,
   );
 
-  const exportHref = `/api/export/report?${new URLSearchParams(
+  const exportHref = withBasePath(`/api/export/report?${new URLSearchParams(
     Object.entries({ ...params, dim: dimension }).filter(([, v]) => v) as [string, string][],
-  ).toString()}`;
+  ).toString()}`);
 
   return (
     <>

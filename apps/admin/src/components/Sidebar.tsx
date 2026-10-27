@@ -20,10 +20,12 @@ export function Sidebar({
   role,
   name,
   unansweredTickets,
+  openErrors,
 }: {
   role: AdminRole;
   name: string;
   unansweredTickets: number;
+  openErrors: number;
 }) {
   const pathname = usePathname();
 
@@ -41,6 +43,7 @@ export function Sidebar({
         { href: '/usuarios', label: 'Usuários' },
         { href: '/notificacoes', label: 'Notificações', roles: ['superadmin', 'admin'] },
         { href: '/assinaturas', label: 'Assinaturas', roles: ['superadmin', 'admin'] },
+        { href: '/atividades', label: 'Atividades' },
       ],
     },
     {
@@ -59,9 +62,17 @@ export function Sidebar({
       ],
     },
     {
+      title: 'SAÚDE DO APP',
+      items: [
+        { href: '/erros', label: 'Erros', badge: openErrors },
+        { href: '/testes', label: 'Testes' },
+      ],
+    },
+    {
       title: 'SISTEMA',
       items: [
         { href: '/catalogos', label: 'Catálogos', roles: ['superadmin', 'admin', 'content'] },
+        { href: '/administradores', label: 'Administradores', roles: ['superadmin', 'admin'] },
         { href: '/logs', label: 'Audit Log', roles: ['superadmin', 'admin'] },
       ],
     },

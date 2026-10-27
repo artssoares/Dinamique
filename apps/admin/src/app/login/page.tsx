@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 
@@ -23,6 +23,14 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   const configured = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+
+  // O servidor manda para cá com `?erro=configuracao` quando a senha passou mas
+  // falta a chave de serviço. Lido no navegador, e não com useSearchParams,
+  // para a página continuar estática.
+  const [missingServerKey, setMissingServerKey] = useState(false);
+  useEffect(() => {
+    setMissingServerKey(new URLSearchParams(window.location.search).get('erro') === 'configuracao');
+  }, []);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -101,6 +109,13 @@ export default function Login() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
+
+        {missingServerKey ? (
+          <div className="small" style={{ color: 'var(--danger-text)' }}>
+            A senha está certa, mas o painel está sem a chave de serviço do banco
+            (SUPABASE_SERVICE_ROLE_KEY) nas configurações da Vercel. Sem ela não dá para entrar.
+          </div>
+        ) : null}
 
         {error ? <div className="small" style={{ color: 'var(--danger-text)' }}>{error}</div> : null}
 
