@@ -30,6 +30,7 @@ No `numeric` currency and no float distances anywhere. `10.8 km/l` is stored as
 | `…000550_grants` | table privileges for `authenticated` and `service_role` |
 | `…000600_functions_and_views` | signup, `redeem_code`, `mark_ticket_read`, read-model views |
 | `…000700_reference_data` | production reference data |
+| `…20261023000100_admin_observability` | erros do aplicativo, área de testes, linha do tempo de atividade |
 | `20260821000100_journey_gps_routes` | `journey_routes`, GPS columns on `journeys`, route preferences, retention |
 | `20260916000100_sos_safety_network` | PostGIS, `emergency_contacts`, `driver_locations`, `sos_alerts`, the SOS functions |
 
@@ -101,6 +102,9 @@ notifications read, after verifying the caller owns the ticket.
 | `daily_totals` | one row per user per calendar day | Home, history, insights, dashboard |
 | `my_referrals` | referrer's own referrals, first name only | "Minhas indicações" |
 | `notification_counts` | unread totals per user | bell and support badges |
+| `app_error_impact` | um problema de erro | quantas pessoas cada falha atingiu |
+| `qa_run_summary` | uma rodada de testes | o placar da rodada |
+| `admin_activity_feed` | um fato de atividade | a linha do tempo do painel |
 
 `daily_totals` resolves a journey's distance as
 `coalesce(distance_override, odometer pair, nullif(distance_gps, 0), 0)`. That

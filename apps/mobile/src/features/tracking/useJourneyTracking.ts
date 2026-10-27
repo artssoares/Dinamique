@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
+import { useForegroundInterval } from '@/hooks/useForegroundInterval';
 import {
   liveTrackState,
   summariseTrack,
@@ -183,18 +184,24 @@ export function useJourneyTracking(
    * close wizard hands it back on its way out, the settings screen switches it
    * off — and a one-shot sample taken a moment too early would latch the wrong
    * answer for the rest of the shift.
+   *
+   * Só com o aplicativo na frente: o número é da tela, e no Android o serviço
+   * em primeiro plano mantém o JavaScript vivo a jornada inteira, então sem
+   * isto o intervalo seguiria batendo na camada nativa e no disco a cada vinte
+   * segundos com o telefone no bolso. A contagem de quilômetros não depende
+   * deste temporizador — ela acontece na tarefa do sistema — e ao voltar para a
+   * tela o hook lê na hora.
    */
-  useEffect(() => {
+  const sample = useCallback(() => {
     if (!journeyId) return;
-    const timer = setInterval(() => {
-      void (async () => {
-        const running = await locationService.isTracking().catch(() => false);
-        setTracking(running);
-        if (running) await readLive(journeyId);
-      })();
-    }, LIVE_REFRESH_MS);
-    return () => clearInterval(timer);
+    void (async () => {
+      const running = await locationService.isTracking().catch(() => false);
+      setTracking(running);
+      if (running) await readLive(journeyId);
+    })();
   }, [journeyId, readLive]);
+
+  useForegroundInterval(journeyId ? sample : null, LIVE_REFRESH_MS);
 
   useFocusEffect(
     useCallback(() => {

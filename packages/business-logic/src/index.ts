@@ -13,3 +13,5 @@ export * from './plans';
 export * from './support';
 export * from './tracking';
 export * from './safety';
+export * from './activity';
+export * from './diagnostics';

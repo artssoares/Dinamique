@@ -5,6 +5,8 @@ import { parseRecapMessage } from '@dinamique/recap';
 import { darkTokens } from '@dinamique/ui';
 import type { FilmStageHandle, FilmStageProps } from './FilmStageShared';
 
+const FILM_ORIGIN = 'https://app.dinamique.com.br/';
+
 /**
  * The film on a phone: the same self-contained document, in a WebView.
  *
@@ -48,7 +50,11 @@ export const FilmStage = forwardRef<FilmStageHandle, FilmStageProps>(function Fi
     <View pointerEvents={interactive ? 'auto' : 'none'} style={[styles.stage, style]}>
       <WebView
         ref={webRef}
-        source={{ html }}
+        // A page loaded from a string with no base address is about:blank,
+        // which is not a secure context, and WebCodecs (the frame-by-frame
+        // encoder the export uses) only exists in one. The address is only
+        // the page's identity; nothing is fetched from it.
+        source={{ html, baseUrl: FILM_ORIGIN }}
         originWhitelist={['*']}
         style={styles.web}
         containerStyle={styles.web}

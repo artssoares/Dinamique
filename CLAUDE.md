@@ -43,37 +43,40 @@ problems that typecheck cannot see.
 
 ## Where to test
 
-Two Vercel projects, and only these two. There is no `dinamique-app`.
+Two Vercel projects that matter, both in the `dinamique1` scope. There is no
+`dinamique-app`.
 
 | Project | Address | Publishes |
 | --- | --- | --- |
-| `dinamique1/dinamique-mobile` | https://app.dinamique.com.br | the app, from `main` |
-| `feed-on-track/dinamique` | not reachable from this token | the admin panel |
+| `dinamique1/dinamique-mobile` | https://app.dinamique.com.br | the app, root `apps/mobile` |
+| `dinamique1/dinamique-admin` | https://dinamique.com.br/admin | the admin panel, root = repository root |
 
 The app lives on its own domain, not on a `.vercel.app` address. Hand over that
 domain, not a branch preview: per-branch previews exist for reviewing a pull
 request and change every time.
 
-**`dinamique1/dinamique-admin` does not publish the admin panel.** The name
-lies. Opening `dinamique-admin-git-main-dinamique1.vercel.app/` returns the
-Expo bundle, tab bar and SOS button included: it is a second copy of the app.
-Checked on 23 September, after a rewrite pointed at it by its name and produced
-`508 INFINITE_LOOP_DETECTED`, the app proxying to itself. The name of a project
-is not evidence of what it publishes; opening the URL is.
+**The name of a project is not evidence of what it publishes; opening the URL
+is.** Until 26 October `dinamique-admin` had its root directory set to
+`apps/mobile`, so it built a second copy of the app, tab bar and SOS button
+included, while its name promised the panel. A rewrite pointed at it on 23
+September produced `508 INFINITE_LOOP_DETECTED`, the app proxying to itself.
+Its root is now the repository root, where `vercel.json` builds the panel, and
+the panel serves itself under `/admin` through Next's `basePath`: no rewrite
+sits between the two, so nothing can loop. `ADMIN.md` has the details.
 
-The admin panel is built by `feed-on-track/dinamique`, in a Vercel scope this
-repository's usual token cannot read, and its deployments have been failing
-since at least 16 September: the `Vercel – dinamique` check was already red on
-#33. There is no admin panel in the air right now, and `ADMIN.md` lists what
-serving it at `app.dinamique.com.br/admin` would take.
+Vercel refuses to publish a vulnerable Next.js: the build log ends in success
+and the deployment still fails, with "Vulnerable version of Next.js detected"
+at the very end. That is what kept the panel off the air on 15.1.6. Read the
+end of the log before concluding a build is broken.
 
-The two projects sit in different Vercel scopes, `dinamique1/dinamique-mobile`
-(root `apps/mobile`) and `feed-on-track/dinamique`, which is why listing
-projects in one scope comes back empty.
+`feed-on-track/dinamique` is a third, older project that also builds the
+panel, in a scope this repository's usual token cannot read. Its `Vercel –
+dinamique` check was red on every pull request from September until the Next
+upgrade. It publishes nothing anyone uses and can be archived.
 
 **The repository default branch is `claude/dinamique-support-tickets-gfdh4o`**,
 from August, not `main`. Two consequences that have already cost a day of work:
-the admin panel publishes old code, and a fresh session starts from a tree with
+production deployments built from it publish old code, and a fresh session starts from a tree with
 no map, no route capture and none of the recent pull requests, which is enough
 to conclude with full confidence that those features were never built.
 

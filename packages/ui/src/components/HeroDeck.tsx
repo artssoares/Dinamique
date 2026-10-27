@@ -238,100 +238,115 @@ function DeckCard({
         disabled={front && !card.onPress}
       >
         {({ pressed }) => (
-          <Gradient
-            colors={gradientFor(theme, card.tone)}
-            direction={front ? 'diagonal' : 'horizontal'}
-            radius={theme.radius['3xl']}
+          // The shadow lives on its own solid layer, outside the gradient.
+          // The gradient clips its corners with overflow hidden, which on iOS
+          // removes a shadow from the same view, and Android draws no shadow
+          // at all for a view with no background colour. On both phones the
+          // deck was flat, three cards with nothing between them, while the
+          // web, where neither rule applies, showed the stack.
+          <View
             style={[
               theme.elevation.lg,
-              // A floor, never a fixed height: a card taller than the current
-              // maximum has to be free to report it, or the measurement can
-              // never grow to fit it.
-              { minHeight: height || undefined },
+              {
+                borderRadius: theme.radius['3xl'],
+                backgroundColor: gradientFor(theme, card.tone)[1],
+              },
               // Presses say so, per the motion rules. Not a transform: the card
               // is already carrying an animated position and stacking a second
               // one makes the two fight on the same frame.
               { opacity: pressed ? 0.92 : 1 },
             ]}
           >
-            <View
-              style={{
-                height: PEEK,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: theme.spacing.xs,
-                paddingHorizontal: theme.spacing.lg,
-              }}
+            <Gradient
+              colors={gradientFor(theme, card.tone)}
+              direction={front ? 'diagonal' : 'horizontal'}
+              radius={theme.radius['3xl']}
+              style={[
+                // A floor, never a fixed height: a card taller than the current
+                // maximum has to be free to report it, or the measurement can
+                // never grow to fit it.
+                { minHeight: height || undefined },
+              ]}
             >
-              {card.titleIcon ? <Icon name={card.titleIcon} size={14} color={ink} /> : null}
-              <Text variant="captionStrong" style={{ color: ink }} numberOfLines={1}>
-                {card.title}
-              </Text>
-              <Text
-                variant="captionStrong"
-                style={{ color: ink, marginLeft: 'auto' }}
-                numberOfLines={1}
-              >
-                {card.summary}
-              </Text>
-            </View>
-
-            {ratio === null ? null : (
-              // Inset past the corner radius and drawn on a track. Hard against
-              // the corner and with no track behind it, a bar a tenth of the
-              // way along was clipped into a dark stub that read as a smudge on
-              // the card rather than as progress.
               <View
                 style={{
-                  height: BAR,
-                  marginHorizontal: theme.spacing.lg,
-                  borderRadius: theme.radius.pill,
-                  overflow: 'hidden',
-                  backgroundColor: ink,
-                  opacity: 0.25,
+                  height: PEEK,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: theme.spacing.xs,
+                  paddingHorizontal: theme.spacing.lg,
                 }}
               >
+                {card.titleIcon ? <Icon name={card.titleIcon} size={14} color={ink} /> : null}
+                <Text variant="captionStrong" style={{ color: ink }} numberOfLines={1}>
+                  {card.title}
+                </Text>
+                <Text
+                  variant="captionStrong"
+                  style={{ color: ink, marginLeft: 'auto' }}
+                  numberOfLines={1}
+                >
+                  {card.summary}
+                </Text>
+              </View>
+
+              {ratio === null ? null : (
+                // Inset past the corner radius and drawn on a track. Hard against
+                // the corner and with no track behind it, a bar a tenth of the
+                // way along was clipped into a dark stub that read as a smudge on
+                // the card rather than as progress.
                 <View
                   style={{
                     height: BAR,
-                    width: `${Math.round(ratio * 100)}%`,
+                    marginHorizontal: theme.spacing.lg,
                     borderRadius: theme.radius.pill,
+                    overflow: 'hidden',
                     backgroundColor: ink,
+                    opacity: 0.25,
                   }}
-                />
-              </View>
-            )}
-
-            <View
-              style={{
-                padding: theme.spacing.xl,
-                paddingTop: theme.spacing.lg,
-                gap: theme.spacing.lg,
-              }}
-            >
-              <View style={{ gap: theme.spacing.xxs }}>
-                <Text variant="caption" style={{ color: ink, opacity: 0.85 }}>
-                  {card.label}
-                </Text>
-                {card.children}
-              </View>
-
-              {card.details && card.details.length > 0 ? (
-                <View style={{ flexDirection: 'row', gap: theme.spacing.xl, flexWrap: 'wrap' }}>
-                  {card.details.map((detail) => (
-                    <View key={detail.label} style={{ gap: 2 }}>
-                      <Text variant="caption" style={{ color: ink, opacity: 0.8 }}>
-                        {detail.label}
-                      </Text>
-                      <Text variant="bodyStrong" style={{ color: ink }}>
-                        {detail.value}
-                      </Text>
-                    </View>
-                  ))}
+                >
+                  <View
+                    style={{
+                      height: BAR,
+                      width: `${Math.round(ratio * 100)}%`,
+                      borderRadius: theme.radius.pill,
+                      backgroundColor: ink,
+                    }}
+                  />
                 </View>
-              ) : null}
-            </View>
-          </Gradient>
+              )}
+
+              <View
+                style={{
+                  padding: theme.spacing.xl,
+                  paddingTop: theme.spacing.lg,
+                  gap: theme.spacing.lg,
+                }}
+              >
+                <View style={{ gap: theme.spacing.xxs }}>
+                  <Text variant="caption" style={{ color: ink, opacity: 0.85 }}>
+                    {card.label}
+                  </Text>
+                  {card.children}
+                </View>
+
+                {card.details && card.details.length > 0 ? (
+                  <View style={{ flexDirection: 'row', gap: theme.spacing.xl, flexWrap: 'wrap' }}>
+                    {card.details.map((detail) => (
+                      <View key={detail.label} style={{ gap: 2 }}>
+                        <Text variant="caption" style={{ color: ink, opacity: 0.8 }}>
+                          {detail.label}
+                        </Text>
+                        <Text variant="bodyStrong" style={{ color: ink }}>
+                          {detail.value}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+            </Gradient>
+          </View>
         )}
       </Pressable>
     </Animated.View>

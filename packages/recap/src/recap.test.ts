@@ -17,6 +17,7 @@ import { buildFilm } from './film';
 import { buildRecapStats, DEFAULT_BRAND, TILELESS_BASEMAP, type RecapScene } from './scene';
 import { renderRecapDocument } from './renderer';
 import { PAINTER_SOURCE } from './painter';
+import { MP4_SOURCE } from './mp4';
 
 /** A short drive east along a road in São Paulo, one fix every five seconds. */
 function drive(count = 60, startAt = Date.parse('2026-08-15T09:00:00.000Z')): RawFix[] {
@@ -721,5 +722,154 @@ describe('the painter is a string, and has to stay one', () => {
     const body = PAINTER_SOURCE;
     expect(body).not.toContain('`');
     expect(body).not.toContain('${');
+  });
+});
+
+/**
+ * The MP4 writer is a string too, but unlike the painter it needs nothing from
+ * a browser, so it runs here for real: a few fake samples in, and the box tree
+ * that comes out is walked the way a player would walk it.
+ */
+describe('the MP4 writer', () => {
+  type Box = { type: string; start: number; size: number };
+
+  function mp4(): { mux: (input: unknown) => Uint8Array } {
+    const window: Record<string, unknown> = {};
+    new Function('window', MP4_SOURCE)(window);
+    return window.__RECAP_MP4__ as { mux: (input: unknown) => Uint8Array };
+  }
+
+  function children(file: Uint8Array, start: number, end: number): Box[] {
+    const view = new DataView(file.buffer, file.byteOffset, file.byteLength);
+    const boxes: Box[] = [];
+    let at = start;
+    while (at < end) {
+      const size = view.getUint32(at);
+      const type = String.fromCharCode(...file.slice(at + 4, at + 8));
+      boxes.push({ type, start: at, size });
+      expect(size).toBeGreaterThanOrEqual(8);
+      at += size;
+    }
+    expect(at).toBe(end);
+    return boxes;
+  }
+
+  function find(file: Uint8Array, path: string[]): Box {
+    let boxes = children(file, 0, file.length);
+    let found: Box | undefined;
+    for (const [depth, type] of path.entries()) {
+      found = boxes.find((box) => box.type === type);
+      if (!found) throw new Error(`no ${path.slice(0, depth + 1).join('/')}`);
+      // stsd carries an entry count before its children; everything else in
+      // this path is a plain container.
+      const header = type === 'stsd' ? 16 : 8;
+      if (depth < path.length - 1) {
+        boxes = children(file, found.start + header, found.start + found.size);
+      }
+    }
+    return found!;
+  }
+
+  const samples = [
+    { data: new Uint8Array([1, 1, 1, 1, 1]), pts: 0, duration: 3000, key: true },
+    { data: new Uint8Array([2, 2, 2]), pts: 3000, duration: 3000, key: false },
+    { data: new Uint8Array([3, 3, 3, 3]), pts: 6000, duration: 3000, key: false },
+  ];
+  const description = new Uint8Array([1, 0x42, 0xe0, 0x28, 0xff, 0xe1, 0, 0]);
+
+  it('puts the index in front of the media, and points it at the samples', () => {
+    const file = mp4().mux({ width: 1080, height: 1920, timescale: 90000, description, samples });
+    const view = new DataView(file.buffer);
+
+    expect(children(file, 0, file.length).map((box) => box.type)).toEqual(['ftyp', 'moov', 'mdat']);
+
+    const stco = find(file, ['moov', 'trak', 'mdia', 'minf', 'stbl', 'stco']);
+    const offset = view.getUint32(stco.start + 16);
+    expect(Array.from(file.slice(offset, offset + 12))).toEqual([1, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3]);
+
+    const stsz = find(file, ['moov', 'trak', 'mdia', 'minf', 'stbl', 'stsz']);
+    expect(view.getUint32(stsz.start + 16)).toBe(3);
+    expect([20, 24, 28].map((at) => view.getUint32(stsz.start + at))).toEqual([5, 3, 4]);
+
+    const stss = find(file, ['moov', 'trak', 'mdia', 'minf', 'stbl', 'stss']);
+    expect(view.getUint32(stss.start + 12)).toBe(1);
+    expect(view.getUint32(stss.start + 16)).toBe(1);
+  });
+
+  it('runs at exactly the film rate, with no reordering table to confuse a player', () => {
+    const file = mp4().mux({ width: 1080, height: 1920, timescale: 90000, description, samples });
+    const view = new DataView(file.buffer);
+
+    const stts = find(file, ['moov', 'trak', 'mdia', 'minf', 'stbl', 'stts']);
+    expect(view.getUint32(stts.start + 12)).toBe(1);
+    expect(view.getUint32(stts.start + 16)).toBe(3);
+    expect(view.getUint32(stts.start + 20)).toBe(3000);
+
+    const mdhd = find(file, ['moov', 'trak', 'mdia', 'mdhd']);
+    expect(view.getUint32(mdhd.start + 20)).toBe(90000);
+    expect(view.getUint32(mdhd.start + 24)).toBe(9000);
+
+    const stbl = find(file, ['moov', 'trak', 'mdia', 'minf', 'stbl']);
+    const types = children(file, stbl.start + 8, stbl.start + stbl.size).map((box) => box.type);
+    expect(types).not.toContain('ctts');
+
+    const tkhd = find(file, ['moov', 'trak', 'tkhd']);
+    expect(view.getUint32(tkhd.start + 84) / 65536).toBe(1080);
+    expect(view.getUint32(tkhd.start + 88) / 65536).toBe(1920);
+  });
+
+  it('keeps reordered frames in presentation order', () => {
+    // Decode order I P B: the B frame shows before the P frame it follows.
+    const reordered = [
+      { ...samples[0], pts: 0 },
+      { ...samples[1], pts: 6000 },
+      { ...samples[2], pts: 3000 },
+    ];
+    const file = mp4().mux({ width: 1080, height: 1920, timescale: 90000, description, samples: reordered });
+    const view = new DataView(file.buffer);
+
+    const ctts = find(file, ['moov', 'trak', 'mdia', 'minf', 'stbl', 'ctts']);
+    expect(view.getUint32(ctts.start + 12)).toBe(3);
+    // dts 0, 3000, 6000 against pts 0, 6000, 3000: offsets 0, 3000, -3000,
+    // shifted by 3000 so none is negative.
+    expect([20, 28, 36].map((at) => view.getUint32(ctts.start + at))).toEqual([3000, 6000, 0]);
+    const elst = find(file, ['moov', 'trak', 'edts', 'elst']);
+    expect(view.getUint32(elst.start + 20)).toBe(3000);
+    // The edit plays media time [3000, 12000), so the media must reach 12000.
+    const mdhd = find(file, ['moov', 'trak', 'mdia', 'mdhd']);
+    expect(view.getUint32(mdhd.start + 24)).toBe(12000);
+  });
+
+  it('contains no backtick and no interpolation of its own', () => {
+    expect(MP4_SOURCE).not.toContain('`');
+    expect(MP4_SOURCE).not.toContain('${');
+  });
+});
+
+describe('the recording', () => {
+  const record = PAINTER_SOURCE.slice(
+    PAINTER_SOURCE.indexOf('function record()'),
+    PAINTER_SOURCE.indexOf('function deliver('),
+  );
+
+  it('encodes frame by frame where it can, stamped by index rather than by the clock', () => {
+    expect(record).toContain('new VideoEncoder(');
+    expect(record).toContain('timestamp: Math.round((index * 1000000) / film.fps)');
+    expect(record).toContain("avc: { format: 'avc' }");
+  });
+
+  it('falls back to the real-time recorder where it cannot', () => {
+    expect(record).toContain('recordRealtime()');
+    expect(record).toContain('new MediaRecorder(');
+  });
+});
+
+describe('the preview', () => {
+  it('paints a film frame once, not once per screen refresh', () => {
+    const tick = PAINTER_SOURCE.slice(
+      PAINTER_SOURCE.indexOf('function tick()'),
+      PAINTER_SOURCE.indexOf('function play()'),
+    );
+    expect(tick).toMatch(/if \(index !== shownIndex\) \{\s*shownIndex = index;\s*paint\(index, true\);/);
   });
 });

@@ -988,11 +988,23 @@ export const PAINTER_SOURCE = `
     return ((index % film.frameCount) + film.frameCount) % film.frameCount;
   }
 
+  /** The frame last put on the canvas by the player, so it is painted once. */
+  var shownIndex = -1;
+
   function tick() {
     if (!playing) return;
     var index = currentIndex(performance.now());
-    paint(index, true);
-    post({ type: 'frame', index: index, total: film.frameCount });
+    // The film runs at 30 frames a second and the screen at 60, 90 or 120.
+    // Repainting the same frame for every refresh was two to four full
+    // canvases per film frame, each one crossing the bridge as a message,
+    // which is where the preview stuttered and took the app's own frames
+    // down with it. A tile that lands mid-frame shows on the next one, a
+    // thirtieth of a second later.
+    if (index !== shownIndex) {
+      shownIndex = index;
+      paint(index, true);
+      post({ type: 'frame', index: index, total: film.frameCount });
+    }
     if (options.loop === false && index >= film.frameCount - 1) {
       playing = false;
       post({ type: 'ended' });
@@ -1004,6 +1016,8 @@ export const PAINTER_SOURCE = `
   function play() {
     if (playing) return;
     playing = true;
+    // Whatever is on the canvas now (a seek, a recording) is not the player's.
+    shownIndex = -1;
     startedAt = performance.now() - pausedAt;
     rafHandle = requestAnimationFrame(tick);
   }
@@ -1018,6 +1032,7 @@ export const PAINTER_SOURCE = `
   function seek(index) {
     pausedAt = (clamp(index, 0, film.frameCount - 1) / film.fps) * 1000;
     startedAt = performance.now() - pausedAt;
+    shownIndex = index;
     paint(index, true);
   }
 
@@ -1142,99 +1157,315 @@ export const PAINTER_SOURCE = `
   function record() {
     pause();
 
+    var canEncode =
+      typeof VideoEncoder !== 'undefined' &&
+      typeof VideoFrame !== 'undefined' &&
+      !!window.__RECAP_MP4__;
+    var canCapture = typeof MediaRecorder !== 'undefined' && !!canvas.captureStream;
+
+    if (!canEncode && !canCapture) {
+      post({ type: 'error', code: 'unsupported', message: 'Este aparelho não consegue gravar o vídeo.' });
+      return;
+    }
+
+    post({ type: 'progress', phase: 'tiles', value: 0 });
+
+    preloadTiles(function (value) {
+      post({ type: 'progress', phase: 'tiles', value: value });
+    })
+      .then(function () {
+        return canEncode ? encoderConfig() : null;
+      })
+      .then(function (config) {
+        if (!config) {
+          recordRealtime();
+          return;
+        }
+        encodeFrames(config).then(deliver, function () {
+          // An encoder that accepted the configuration and then failed is
+          // rare, and the real-time recorder still makes a video. Worse, but
+          // a video.
+          recordRealtime();
+        });
+      });
+  }
+
+  // Frame by frame, through WebCodecs, into an MP4 written by mp4.ts.
+  //
+  // The first choice wherever the WebView has it, which is every Android
+  // WebView of the last few years and Safari from 16.4. Frame N is encoded
+  // with the timestamp of frame N however long it took to paint, so a slow
+  // phone takes longer to make the file and never makes a worse one: every
+  // frame is in it, at exactly the film's rate. That is what the real-time
+  // recorder below could not promise, and its dropped frames and uneven clock
+  // are what WhatsApp turned into a slow, stuttering clip.
+
+  /**
+   * Constrained Baseline first: it never reorders frames, which keeps the
+   * file simple for every player, and at this bitrate the quality cost is
+   * invisible after WhatsApp's own re-encode. Level 4.0 is what 1080 by 1920
+   * at 30 fps needs.
+   */
+  var AVC_CODECS = ['avc1.42e028', 'avc1.4d0028', 'avc1.640028', 'avc1.42e01f'];
+
+  function encoderConfig() {
+    var i = 0;
+    function attempt() {
+      if (i >= AVC_CODECS.length) return Promise.resolve(null);
+      var config = {
+        codec: AVC_CODECS[i],
+        width: W,
+        height: H,
+        bitrate: options.bitrate || 6000000,
+        framerate: film.fps,
+        // Length-prefixed samples plus a separate avcC, which is what MP4
+        // stores. The default, Annex B, is for streams.
+        avc: { format: 'avc' }
+      };
+      i += 1;
+      try {
+        return VideoEncoder.isConfigSupported(config).then(function (support) {
+          return support && support.supported ? config : attempt();
+        }, attempt);
+      } catch (error) {
+        return attempt();
+      }
+    }
+    return attempt();
+  }
+
+  /** Track timescale: 90 kHz divides evenly by 24, 25, 30 and 60 fps. */
+  var TIMESCALE = 90000;
+  /** How long one frame may wait for its own tiles before going out soft. */
+  var FRAME_TILE_WAIT = 1500;
+  /** And all frames together, so a dead tile server cannot hold the export. */
+  var TOTAL_TILE_WAIT = 20000;
+
+  /** Whether a tile this frame needs is still on its way. */
+  function tilesPending(index) {
+    if (!basemap.urlTemplate) return false;
+    var needed = tilesForFrame(frameAt(index));
+    for (var i = 0; i < needed.length; i += 1) {
+      var entry = tiles[tileKey(needed[i][0], needed[i][1], needed[i][2])];
+      if (entry && !entry.ok && !entry.failed) return true;
+    }
+    return false;
+  }
+
+  function copyBytes(source) {
+    if (source instanceof ArrayBuffer) return new Uint8Array(source.slice(0));
+    return new Uint8Array(
+      source.buffer.slice(source.byteOffset, source.byteOffset + source.byteLength)
+    );
+  }
+
+  function encodeFrames(config) {
+    return new Promise(function (resolve, reject) {
+      var samples = [];
+      var description = null;
+      var failed = null;
+      var frameDuration = Math.round(TIMESCALE / film.fps);
+      var encoder;
+
+      function abandon(error) {
+        try {
+          encoder.close();
+        } catch (closeError) {
+          /* Already closed by its own error. */
+        }
+        reject(error);
+      }
+
+      try {
+        encoder = new VideoEncoder({
+          output: function (chunk, meta) {
+            if (!description && meta && meta.decoderConfig && meta.decoderConfig.description) {
+              description = copyBytes(meta.decoderConfig.description);
+            }
+            var data = new Uint8Array(chunk.byteLength);
+            chunk.copyTo(data);
+            samples.push({
+              data: data,
+              pts: Math.round((chunk.timestamp * TIMESCALE) / 1000000),
+              duration: frameDuration,
+              key: chunk.type === 'key'
+            });
+          },
+          error: function (error) {
+            failed = error || new Error('encoder');
+          }
+        });
+        encoder.configure(config);
+      } catch (error) {
+        reject(error);
+        return;
+      }
+
+      var index = 0;
+      var waited = 0;
+      var waitedTotal = 0;
+
+      function finish() {
+        encoder.flush().then(function () {
+          if (failed) throw failed;
+          if (!description || samples.length === 0) throw new Error('mp4: no output');
+          encoder.close();
+          var file = window.__RECAP_MP4__.mux({
+            width: W,
+            height: H,
+            timescale: TIMESCALE,
+            description: description,
+            samples: samples
+          });
+          resolve(new Blob([file], { type: 'video/mp4' }));
+        }).catch(abandon);
+      }
+
+      function step() {
+        if (failed) {
+          abandon(failed);
+          return;
+        }
+        if (index >= film.frameCount) {
+          finish();
+          return;
+        }
+        // The encoder runs on its own thread; painting far ahead of it only
+        // piles frames up in memory.
+        if (encoder.encodeQueueSize > 2) {
+          setTimeout(step, 4);
+          return;
+        }
+
+        paint(index, true);
+
+        // Unlike a real-time recording, this one can wait for a tile. The
+        // preload fetched almost all of them; this covers the rest.
+        if (tilesPending(index) && waited < FRAME_TILE_WAIT && waitedTotal < TOTAL_TILE_WAIT) {
+          waited += 40;
+          waitedTotal += 40;
+          setTimeout(step, 40);
+          return;
+        }
+        waited = 0;
+
+        var frame = new VideoFrame(canvas, {
+          timestamp: Math.round((index * 1000000) / film.fps),
+          duration: Math.round(1000000 / film.fps)
+        });
+        try {
+          encoder.encode(frame, { keyFrame: index % (film.fps * 2) === 0 });
+        } catch (error) {
+          frame.close();
+          abandon(error);
+          return;
+        }
+        frame.close();
+
+        if (index % 6 === 0) {
+          post({ type: 'progress', phase: 'render', value: index / film.frameCount });
+        }
+        index += 1;
+        // Yielding between frames lets tile images land and keeps the page
+        // answering the host while the export runs.
+        setTimeout(step, 0);
+      }
+
+      step();
+    });
+  }
+
+  // In real time, through MediaRecorder: the fallback for a WebView without
+  // WebCodecs.
+  function recordRealtime() {
     if (typeof MediaRecorder === 'undefined' || !canvas.captureStream) {
       post({ type: 'error', code: 'unsupported', message: 'Este aparelho não consegue gravar o vídeo.' });
       return;
     }
 
     var mime = pickMime();
-    post({ type: 'progress', phase: 'tiles', value: 0 });
 
-    preloadTiles(function (value) {
-      post({ type: 'progress', phase: 'tiles', value: value });
-    }).then(function () {
-      // Captured at a fixed rate and painted against the wall clock.
-      //
-      // The tempting alternative, captureStream(0) plus requestFrame(), one
-      // encoded frame per painted frame, is wrong here, and subtly. A
-      // MediaRecorder timestamps frames when they arrive, not by any nominal
-      // rate, so on a phone that paints at 18 fps that route produces every
-      // frame of the film stretched over 36 seconds instead of 22. The film
-      // would be complete and the pacing ruined, which for something whose
-      // whole job is rhythm is the worse failure. Mapping elapsed time to a
-      // frame index instead means a slow device drops frames and keeps the
-      // timing, exactly like video playback everywhere else.
-      var stream = canvas.captureStream(film.fps);
+    // Captured at a fixed rate and painted against the wall clock.
+    //
+    // The tempting alternative, captureStream(0) plus requestFrame(), one
+    // encoded frame per painted frame, is wrong here, and subtly. A
+    // MediaRecorder timestamps frames when they arrive, not by any nominal
+    // rate, so on a phone that paints at 18 fps that route produces every
+    // frame of the film stretched over 36 seconds instead of 22. The film
+    // would be complete and the pacing ruined, which for something whose
+    // whole job is rhythm is the worse failure. Mapping elapsed time to a
+    // frame index instead means a slow device drops frames and keeps the
+    // timing, exactly like video playback everywhere else.
+    var stream = canvas.captureStream(film.fps);
 
-      var settings = { videoBitsPerSecond: options.bitrate || 6000000 };
-      if (mime) settings.mimeType = mime;
+    var settings = { videoBitsPerSecond: options.bitrate || 6000000 };
+    if (mime) settings.mimeType = mime;
 
-      var recorder;
+    var recorder;
+    try {
+      recorder = new MediaRecorder(stream, settings);
+    } catch (error) {
       try {
-        recorder = new MediaRecorder(stream, settings);
-      } catch (error) {
-        try {
-          recorder = new MediaRecorder(stream);
-        } catch (fallbackError) {
-          post({ type: 'error', code: 'unsupported', message: 'Este aparelho não consegue gravar o vídeo.' });
+        recorder = new MediaRecorder(stream);
+      } catch (fallbackError) {
+        post({ type: 'error', code: 'unsupported', message: 'Este aparelho não consegue gravar o vídeo.' });
+        return;
+      }
+    }
+
+    var parts = [];
+    recorder.ondataavailable = function (event) {
+      if (event.data && event.data.size > 0) parts.push(event.data);
+    };
+    recorder.onstop = function () {
+      deliver(new Blob(parts, { type: recorder.mimeType || mime || 'video/webm' }));
+    };
+    recorder.onerror = function () {
+      post({ type: 'error', code: 'recorder', message: 'A gravação falhou no meio.' });
+    };
+
+    // Paint frame zero and give the encoder a moment before starting, so
+    // the first thing in the file is the composed opening rather than
+    // whatever was on the canvas when the driver hit the button.
+    //
+    // Loading stays enabled for every frame of the recording. The preload
+    // above is the plan; this is what happens when the plan misses one, and
+    // it missed constantly: a tile past the preload ceiling, a tile whose
+    // request failed once, a tile the sampler skipped. With loading off
+    // those were holes for the whole take, and a hole is the navy backdrop,
+    // which is why the recording flashed blue where the preview, which has
+    // always painted with loading on, played clean. A tile that lands late
+    // costs one soft frame; a tile that can never land costs the shot.
+    paint(0, true);
+
+    setTimeout(function () {
+      recorder.start();
+      var began = performance.now();
+      var lastPainted = -1;
+
+      function step() {
+        var elapsed = performance.now() - began;
+        var index = Math.floor((elapsed / 1000) * film.fps);
+
+        if (index >= film.frameCount) {
+          paint(film.frameCount - 1, true);
+          // A beat of slack so the last painted frame is actually captured
+          // and the encoder flushes before the container is closed.
+          setTimeout(function () { recorder.stop(); }, 260);
           return;
         }
-      }
 
-      var parts = [];
-      recorder.ondataavailable = function (event) {
-        if (event.data && event.data.size > 0) parts.push(event.data);
-      };
-      recorder.onstop = function () {
-        deliver(new Blob(parts, { type: recorder.mimeType || mime || 'video/webm' }));
-      };
-      recorder.onerror = function () {
-        post({ type: 'error', code: 'recorder', message: 'A gravação falhou no meio.' });
-      };
-
-      // Paint frame zero and give the encoder a moment before starting, so
-      // the first thing in the file is the composed opening rather than
-      // whatever was on the canvas when the driver hit the button.
-      //
-      // Loading stays enabled for every frame of the recording. The preload
-      // above is the plan; this is what happens when the plan misses one, and
-      // it missed constantly: a tile past the preload ceiling, a tile whose
-      // request failed once, a tile the sampler skipped. With loading off
-      // those were holes for the whole take, and a hole is the navy backdrop,
-      // which is why the recording flashed blue where the preview, which has
-      // always painted with loading on, played clean. A tile that lands late
-      // costs one soft frame; a tile that can never land costs the shot.
-      paint(0, true);
-
-      setTimeout(function () {
-        recorder.start();
-        var began = performance.now();
-        var lastPainted = -1;
-
-        function step() {
-          var elapsed = performance.now() - began;
-          var index = Math.floor((elapsed / 1000) * film.fps);
-
-          if (index >= film.frameCount) {
-            paint(film.frameCount - 1, true);
-            // A beat of slack so the last painted frame is actually captured
-            // and the encoder flushes before the container is closed.
-            setTimeout(function () { recorder.stop(); }, 260);
-            return;
+        if (index !== lastPainted) {
+          paint(index, true);
+          lastPainted = index;
+          if (index % 6 === 0) {
+            post({ type: 'progress', phase: 'render', value: index / film.frameCount });
           }
-
-          if (index !== lastPainted) {
-            paint(index, true);
-            lastPainted = index;
-            if (index % 6 === 0) {
-              post({ type: 'progress', phase: 'render', value: index / film.frameCount });
-            }
-          }
-          nextFrame().then(step);
         }
         nextFrame().then(step);
-      }, 120);
-    });
+      }
+      nextFrame().then(step);
+    }, 120);
   }
 
   /**
