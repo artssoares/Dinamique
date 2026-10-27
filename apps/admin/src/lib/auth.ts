@@ -30,9 +30,12 @@ export async function requireAdmin(allowed?: AdminRole[]): Promise<AdminIdentity
 
   if (!auth.user) redirect('/login');
 
+  // `admin_users` aponta para `profiles` duas vezes (user_id e created_by).
+  // Sem dizer qual chave seguir, o banco recusa a consulta por ambiguidade, e
+  // um superadmin de verdade caía em /sem-acesso.
   const { data } = await supabase
     .from('admin_users')
-    .select('role, is_active, profiles(first_name, email)')
+    .select('role, is_active, profiles!admin_users_user_id_fkey(first_name, email)')
     .eq('user_id', auth.user.id)
     .maybeSingle();
 

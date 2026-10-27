@@ -29,7 +29,7 @@ export default async function Administrators() {
 
   const { data } = await supabase
     .from('admin_users')
-    .select('user_id, role, is_active, created_at, profiles(first_name, last_name, email, last_seen_at)')
+    .select('user_id, role, is_active, created_at, profiles!admin_users_user_id_fkey(first_name, last_name, email, last_seen_at)')
     .order('created_at', { ascending: true });
 
   const admins = (data as unknown as AdminRow[] | null) ?? [];
