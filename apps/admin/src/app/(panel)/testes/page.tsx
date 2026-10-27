@@ -152,8 +152,11 @@ export default async function Tests({
   const failedCritical = activeCases.filter(
     (item) => item.is_critical && results.get(item.id)?.status === 'fail',
   );
+  // Travado e pulado não são aprovação: o fluxo essencial continua sem
+  // resposta, e contá-los como resolvidos faria o painel dizer "pode publicar"
+  // sobre algo que ninguém conseguiu testar.
   const untestedCritical = activeCases.filter(
-    (item) => item.is_critical && results.get(item.id) === undefined,
+    (item) => item.is_critical && results.get(item.id)?.status !== 'pass',
   );
 
   return (
@@ -246,7 +249,7 @@ export default async function Tests({
                   {failedCritical.length > 0
                     ? `Não publique ainda: ${failedCritical.map((item) => item.title).join('; ')}.`
                     : untestedCritical.length > 0
-                      ? `Faltam ${untestedCritical.length} testes marcados como essenciais.`
+                      ? `Faltam ${untestedCritical.length} testes essenciais sem um "passou": não testados, travados ou pulados.`
                       : 'Os testes marcados como essenciais estão todos verdes nesta rodada.'}
                 </p>
                 {canEdit ? (

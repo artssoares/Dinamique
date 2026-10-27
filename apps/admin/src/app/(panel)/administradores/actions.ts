@@ -65,6 +65,22 @@ export async function inviteAdmin(
     return { ok: false, message: 'Você não pode alterar o seu próprio acesso.' };
   }
 
+  // Este upsert também sobrescreve quem já é admin, então ele precisa da mesma
+  // trava do `changeAdminRole`: sem ela, um admin comum rebaixaria um
+  // superadmin apenas reenviando o email dele com um nível menor.
+  const { data: existing } = await supabase
+    .from('admin_users')
+    .select('role')
+    .eq('user_id', target.id)
+    .maybeSingle();
+
+  if (
+    (existing as { role: string } | null)?.role === 'superadmin' &&
+    admin.role !== 'superadmin'
+  ) {
+    return { ok: false, message: 'Só um superadmin pode alterar o acesso de outro superadmin.' };
+  }
+
   const { error } = await supabase
     .from('admin_users')
     .upsert(
