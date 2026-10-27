@@ -1,4 +1,5 @@
 import type { RecapFilm } from './film';
+import { MP4_SOURCE } from './mp4';
 import { PAINTER_SOURCE } from './painter';
 import type { RecapScene } from './scene';
 
@@ -82,7 +83,7 @@ export function renderRecapDocument(
 <body>
 <canvas id="stage"></canvas>
 <script>window.__RECAP__ = ${serialise(payload)};</script>
-<script>${PAINTER_SOURCE}</script>
+<script>${MP4_SOURCE}${PAINTER_SOURCE}</script>
 </body>
 </html>`;
 }

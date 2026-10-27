@@ -181,44 +181,19 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
       : null;
 
   return (
-    // O que está debaixo dos controles é o mapa, não o fundo do aplicativo, e
-    // ele é escuro a qualquer hora do dia. Então esta parte da tela é escura
+    // O que está em volta dos controles é o filme, não o fundo do aplicativo,
+    // e ele é escuro a qualquer hora do dia. Então esta parte da tela é escura
     // mesmo para quem usa o aplicativo no claro: sem isso, o "Cancelar" da
     // gravação era um texto quase preto por cima de uma imagem de satélite à
     // noite. O tema do resto do aplicativo continua sendo o que a pessoa
     // escolheu.
     <ThemeScope scheme="dark">
       <View style={{ flex: 1, backgroundColor: darkTokens.backgroundPrimary }}>
-        {recording ? (
-          <FilmStage key="export" ref={exportRef} recap={recap} mode="export" onMessage={handleExportMessage} />
-        ) : (
-          <Pressable
-            style={{ flex: 1 }}
-            accessibilityRole="button"
-            accessibilityLabel="Tocar o filme de novo"
-            onPress={() => previewRef.current?.play()}
-          >
-            {/* Not interactive: an iframe swallows every tap that lands on it,
-                and the Pressable around it is the control. */}
-            <FilmStage
-              key="preview"
-              ref={previewRef}
-              recap={playing}
-              mode="preview"
-              interactive={false}
-              onMessage={handlePreviewMessage}
-            />
-          </Pressable>
-        )}
-
         <View
           pointerEvents="box-none"
           style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
             paddingTop: insets.top + theme.spacing.xs,
+            paddingBottom: theme.spacing.xs,
             paddingHorizontal: theme.spacing.md,
             flexDirection: 'row',
             alignItems: 'center',
@@ -234,16 +209,43 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
           {!recording && warming ? <Pill text="Carregando o mapa" /> : null}
         </View>
 
+        {/* The film sits between the bar and the controls rather than under
+            them. Full screen behind them, a 9:16 frame on a taller phone was
+            a box floating in the middle with black above and below, and the
+            map credit at its foot read as a loose line across the screen.
+            Here its foot meets the controls and the credit sits on the edge
+            of the picture it belongs to. */}
+        <View style={{ flex: 1 }}>
+          {recording ? (
+            <FilmStage key="export" ref={exportRef} recap={recap} mode="export" onMessage={handleExportMessage} />
+          ) : (
+            <Pressable
+              style={{ flex: 1 }}
+              accessibilityRole="button"
+              accessibilityLabel="Tocar o filme de novo"
+              onPress={() => previewRef.current?.play()}
+            >
+              {/* Not interactive: an iframe swallows every tap that lands on it,
+                  and the Pressable around it is the control. */}
+              <FilmStage
+                key="preview"
+                ref={previewRef}
+                recap={playing}
+                mode="preview"
+                interactive={false}
+                onMessage={handlePreviewMessage}
+              />
+            </Pressable>
+          )}
+        </View>
+
         {recording ? <RecordingOverlay phase={video.phase} progress={video.progress} /> : null}
 
         <View
           pointerEvents="box-none"
           style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 0,
             paddingHorizontal: theme.spacing.lg,
+            paddingTop: theme.spacing.md,
             paddingBottom: insets.bottom + theme.spacing.md,
             gap: theme.spacing.sm,
           }}

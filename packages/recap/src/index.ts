@@ -26,6 +26,7 @@ export * from './renderer';
 export * from './scene';
 export * from './storyboard';
 export * from './track';
+export { MP4_SOURCE } from './mp4';
 export { PAINTER_SOURCE } from './painter';
 
 /**
