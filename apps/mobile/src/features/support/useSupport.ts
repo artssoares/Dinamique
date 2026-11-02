@@ -114,7 +114,8 @@ export function useTicketConversation(ticketId: string) {
     void refresh();
 
     // Opening the conversation clears its notifications (§71).
-    void supabase.rpc('mark_ticket_read', { p_ticket_id: ticketId });
+    // `.then` sends it: an rpc that is never awaited is never called.
+    void supabase.rpc('mark_ticket_read', { p_ticket_id: ticketId }).then(() => undefined);
 
     const channel = supabase
       .channel(`ticket:${ticketId}`)

@@ -113,12 +113,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Records the visit so the admin panel's "último acesso" is real (§84).
+  //
+  // The `.then` is what sends it. A supabase-js query is lazy: built and never
+  // awaited, it never leaves the phone. This line used to end at `.eq(...)`,
+  // and no profile ever got a last_seen_at.
   useEffect(() => {
     if (!session?.user) return;
     void supabase
       .from('profiles')
       .update({ last_seen_at: new Date().toISOString() })
-      .eq('id', session.user.id);
+      .eq('id', session.user.id)
+      .then(() => undefined);
   }, [session?.user?.id]);
 
   const value = useMemo<SessionState>(
