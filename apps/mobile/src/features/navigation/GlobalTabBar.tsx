@@ -1,9 +1,10 @@
 import { useCallback } from 'react';
 import { useRouter, useSegments } from 'expo-router';
-import { layout } from '@dinamique/ui';
+import { layout, useResponsive } from '@dinamique/ui';
 import { useSession } from '@/hooks/useSession';
 import { useNotificationCounts } from '@/hooks/useNotifications';
 import { TabBarSurface } from './TabBar';
+import { NavigationRail } from './NavigationRail';
 
 /**
  * The menu, on the screens the tab navigator does not reach.
@@ -39,6 +40,20 @@ const WITHOUT_MENU = ['(auth)', 'onboarding', '(tabs)'];
  * the last card, or a gap under a screen with no bar.
  */
 export function useGlobalTabBarVisible(): boolean {
+  const segments = useSegments();
+  const inApp = useInApp();
+  const { navigation } = useResponsive();
+  // On a tablet the rail is the menu everywhere, and nothing floats at the
+  // bottom of a pushed screen.
+  if (navigation === 'rail') return false;
+  return inApp && !WITHOUT_MENU.includes(segments[0] ?? '');
+}
+
+/**
+ * Whether the driver is somewhere inside the app proper, tabs included: past
+ * sign-in and onboarding, on a screen that has a menu at all.
+ */
+function useInApp(): boolean {
   const { session, profile, loading } = useSession();
   const segments = useSegments();
   const group = segments[0];
@@ -51,15 +66,20 @@ export function useGlobalTabBarVisible(): boolean {
   // `undefined` is the root itself, which redirects immediately.
   if (group === undefined) return false;
 
-  return !WITHOUT_MENU.includes(group);
+  return group !== '(auth)' && group !== 'onboarding';
 }
 
-export function GlobalTabBar() {
-  const router = useRouter();
-  const visible = useGlobalTabBarVisible();
-  const { unreadTotal } = useNotificationCounts();
+/** Whether the tablet rail belongs beside the route currently showing. */
+export function useAppRailVisible(): boolean {
+  const inApp = useInApp();
+  const { navigation } = useResponsive();
+  return navigation === 'rail' && inApp;
+}
 
-  const select = useCallback(
+/** Sends the driver to one of the five destinations from anywhere. */
+function useSelectTab() {
+  const router = useRouter();
+  return useCallback(
     (name: string) => {
       // `navigate` rather than `push`: the tab group is already in the stack
       // underneath this screen, so pushing would stack a second copy of the
@@ -68,17 +88,35 @@ export function GlobalTabBar() {
     },
     [router],
   );
+}
+
+/**
+ * The menu on a tablet, drawn once by the root layout beside the stack.
+ *
+ * Unlike the floating bar it is on every screen, the tabs included, so it
+ * works out for itself which destination is showing: one of the tabs lights
+ * up, and on a pushed screen none does, for the same reason as the bar.
+ */
+export function AppRail() {
+  const segments = useSegments() as string[];
+  const select = useSelectTab();
+  const { unreadTotal } = useNotificationCounts();
+
+  const activeName = segments[0] === '(tabs)' ? (segments[1] ?? 'index') : null;
+
+  return <NavigationRail activeName={activeName} onSelect={select} badge={unreadTotal} />;
+}
+
+export function GlobalTabBar() {
+  const visible = useGlobalTabBarVisible();
+  const { unreadTotal } = useNotificationCounts();
+  const select = useSelectTab();
 
   if (!visible) return null;
 
   // `anchorTour={false}`: the navigator's bar owns the tour anchors, and both
   // bars are mounted at once while a pushed screen is showing.
   return (
-    <TabBarSurface
-      activeName={null}
-      onSelect={select}
-      badge={unreadTotal}
-      anchorTour={false}
-    />
+    <TabBarSurface activeName={null} onSelect={select} badge={unreadTotal} anchorTour={false} />
   );
 }

@@ -16,7 +16,7 @@ import { useBottomInset } from '../hooks/useBottomInset';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { NATIVE_DRIVER } from '../hooks/usePressMotion';
 import { useResponsive } from '../hooks/useResponsive';
-import { useContentInsets } from '../hooks/useContentInsets';
+import { useContentInsets, type ColumnWidth } from '../hooks/useContentInsets';
 import { layout, type SpacingToken } from '../tokens/index';
 
 export interface ScreenProps {
@@ -40,9 +40,10 @@ export interface ScreenProps {
   /**
    * How wide the column may get on a tablet or the web. 'content' is the
    * reading width and the right answer for forms and lists; 'wide' is for
-   * screens that lay cards out in a grid.
+   * screens that lay cards out in a grid; 'dashboard' is for the screens that
+   * split into two `Columns` on a tablet lying down.
    */
-  width?: 'content' | 'wide';
+  width?: ColumnWidth;
   background?: 'primary' | 'secondary' | 'surface';
   /**
    * Fades the content in on mount. On by default: a screen that appears fully
@@ -83,7 +84,10 @@ export function Screen({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const reduced = useReducedMotion();
-  const { isMedium } = useResponsive();
+  const { navigation } = useResponsive();
+  // On a tablet the menu is a rail at the side, so the tab screens have no bar
+  // at the bottom to clear.
+  const clearsTabBar = tabBarSpacing && navigation === 'bar';
   // Room the app is holding at the bottom of *this* screen: the floating menu
   // that stays put across pushed pages. Zero inside the tab group, where
   // `tabBarSpacing` below already accounts for the bar.
@@ -104,7 +108,6 @@ export function Screen({
     animation.start();
     return () => animation.stop();
   }, [animate, entrance, reduced, theme.motion.base]);
-  const columnWidth = width === 'wide' ? layout.maxWideContentWidth : layout.maxContentWidth;
   const fills = grow || center;
 
   const backgrounds = {
@@ -115,14 +118,14 @@ export function Screen({
 
   // One rule, shared with the screens whose list owns the scrolling and has to
   // apply the same inset itself.
-  const { horizontal } = useContentInsets(padding, width);
+  const { horizontal, maxWidth: columnWidth } = useContentInsets(padding, width);
 
   // The two never stack: `tabBarSpacing` is for the bar the tab navigator
   // draws, `floating` for the one the app floats over a pushed screen, and a
   // screen is under exactly one of them. `max` rather than a sum, so a future
   // screen that sets both does not end up with a hand's width of dead space.
   const barSpace = Math.max(
-    tabBarSpacing ? layout.tabBarHeight + layout.tabBarInset + theme.spacing.lg : 0,
+    clearsTabBar ? layout.tabBarHeight + layout.tabBarInset + theme.spacing.lg : 0,
     floating > 0 ? floating + theme.spacing.lg : 0,
   );
 
@@ -131,7 +134,7 @@ export function Screen({
 
   const column: StyleProp<ViewStyle> = {
     width: '100%',
-    maxWidth: isMedium ? columnWidth : undefined,
+    maxWidth: columnWidth,
     alignSelf: 'center',
     gap: theme.spacing[gap],
     justifyContent: center ? 'center' : undefined,
@@ -139,9 +142,7 @@ export function Screen({
 
   const entering = {
     opacity: entrance,
-    transform: [
-      { translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) },
-    ],
+    transform: [{ translateY: entrance.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }],
   };
 
   const body = scroll ? (
@@ -200,18 +201,13 @@ export function Screen({
             paddingBottom:
               insets.bottom +
               theme.spacing.md +
-              Math.max(
-                tabBarSpacing ? layout.tabBarHeight + layout.tabBarInset : 0,
-                floating,
-              ),
+              Math.max(clearsTabBar ? layout.tabBarHeight + layout.tabBarInset : 0, floating),
             borderTopWidth: 1,
             borderTopColor: theme.colors.borderSubtle,
             backgroundColor: backgrounds[background],
           }}
         >
-          <View
-            style={{ width: '100%', maxWidth: isMedium ? columnWidth : undefined, alignSelf: 'center' }}
-          >
+          <View style={{ width: '100%', maxWidth: columnWidth, alignSelf: 'center' }}>
             {footer}
           </View>
         </View>

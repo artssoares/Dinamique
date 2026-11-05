@@ -15,6 +15,29 @@ export interface ContentInsets {
   column: ViewStyle;
 }
 
+export type ColumnWidth = 'content' | 'wide' | 'dashboard';
+
+/**
+ * How wide a screen's column may get.
+ *
+ * - `content`: the reading width. Forms, lists, settings.
+ * - `wide`: card grids, which tolerate a little more.
+ * - `dashboard`: Home, Histórico, Insights. On a tablet lying down these split
+ *   into two columns (`Columns`) and take the room; anywhere narrower they are
+ *   an ordinary reading column, because one card stretched across a tablet
+ *   held upright is not a dashboard, just a wide card.
+ */
+export function columnMaxWidth(
+  width: ColumnWidth,
+  screen: { isMedium: boolean; isTwoPane: boolean },
+): number | undefined {
+  if (!screen.isMedium) return undefined;
+  if (width === 'dashboard') {
+    return screen.isTwoPane ? layout.maxDashboardWidth : layout.maxContentWidth;
+  }
+  return width === 'wide' ? layout.maxWideContentWidth : layout.maxContentWidth;
+}
+
 /**
  * Where a screen's content stops and its edge begins.
  *
@@ -30,10 +53,10 @@ export interface ContentInsets {
  */
 export function useContentInsets(
   padding: SpacingToken = 'xl',
-  width: 'content' | 'wide' = 'content',
+  width: ColumnWidth = 'content',
 ): ContentInsets {
   const theme = useTheme();
-  const { isCompact, isMedium } = useResponsive();
+  const { isCompact, isMedium, isTwoPane } = useResponsive();
 
   const requested = theme.spacing[padding];
   // A narrow phone gives a step of padding back to the content. A step back,
@@ -41,8 +64,7 @@ export function useContentInsets(
   // Android while a 390dp iPhone got 0 was the bug underneath all of this.
   const horizontal = isCompact ? Math.min(requested, theme.spacing.lg) : requested;
 
-  const columnWidth = width === 'wide' ? layout.maxWideContentWidth : layout.maxContentWidth;
-  const maxWidth = isMedium ? columnWidth : undefined;
+  const maxWidth = columnMaxWidth(width, { isMedium, isTwoPane });
 
   return {
     horizontal,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import type { GoalPeriod } from '@dinamique/types';
 import {
@@ -27,6 +27,7 @@ import {
   Skeleton,
   Text,
   useContentInsets,
+  useResponsive,
   useTheme,
   type DayMark,
   type IconName,
@@ -65,10 +66,15 @@ export default function History() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerMonth, setPickerMonth] = useState(() => startOfMonth(toDateOnly(new Date())));
   const [marks, setMarks] = useState<Record<string, DayMark>>({});
+  // Num tablet deitado, com dias para mostrar, o resumo do período vai para
+  // uma coluna à esquerda e a lista dia a dia para outra à direita, cada uma
+  // rolando sozinha: dá para descer pelos dias sem perder o total de vista.
+  const { isTwoPane } = useResponsive();
+  const split = isTwoPane && rows.length > 0;
   // A lista é quem rola, então a margem que a Screen daria vem para cá: no
   // container do conteúdo, para a barra de rolagem continuar na borda e os
   // cartões não.
-  const insets = useContentInsets();
+  const insets = useContentInsets('xl', split ? 'dashboard' : 'content');
   // Qual período já está desenhado. Ref, e não estado, para não entrar nas
   // dependências de `load`.
   const shown = useRef<GoalPeriod | null>(null);
@@ -142,81 +148,120 @@ export default function History() {
     router.push({ pathname: '/journey/day', params: { date } });
   }
 
-  return (
-    <Screen
-      header={<AppHeader title="Histórico" subtitle="Dia a dia do que você ganhou e gastou" />}
-      scroll={false}
-      padding="none"
-      tabBarSpacing
-    >
-      <FlatList
-        contentContainerStyle={{ ...insets.column, gap: theme.spacing.md, flexGrow: 1 }}
-        showsVerticalScrollIndicator={false}
-        data={rows}
-        keyExtractor={(item) => item.date}
-        onRefresh={load}
-        refreshing={false}
-        ListHeaderComponent={
-          <View style={{ gap: theme.spacing.lg, marginBottom: theme.spacing.sm }}>
-            <SegmentedControl
-              label="Período"
-              value={period}
-              onChange={setPeriod}
-              options={[
-                { value: 'weekly', label: 'Semana' },
-                { value: 'monthly', label: 'Mês' },
-                { value: 'yearly', label: 'Ano' },
-              ]}
-            />
+  const periodSummary = (
+    <View style={{ gap: theme.spacing.lg }}>
+      <SegmentedControl
+        label="Período"
+        value={period}
+        onChange={setPeriod}
+        options={[
+          { value: 'weekly', label: 'Semana' },
+          { value: 'monthly', label: 'Mês' },
+          { value: 'yearly', label: 'Ano' },
+        ]}
+      />
 
-            {/* The way into a day that is not in the period on screen. Without
+      {/* The way into a day that is not in the period on screen. Without
                 it, "esqueci de lançar quinta passada" means switching to Mês,
                 scrolling, and hoping. */}
-            <Button
-              label="Abrir um dia anterior"
-              variant="secondary"
-              iconName="calendar"
-              fullWidth
-              onPress={() => {
-                setPickerMonth(startOfMonth(toDateOnly(new Date())));
-                setPickerOpen(true);
-              }}
-            />
-
-            {rows.length > 0 ? (
-              <>
-                <PeriodHeadline summary={summary} period={period} />
-                <PeriodMetrics summary={summary} daysWithData={daysWithData} />
-                <SectionHeader title="Dia a dia" />
-              </>
-            ) : null}
-          </View>
-        }
-        ListEmptyComponent={
-          loading ? (
-            <View style={{ gap: theme.spacing.md }}>
-              <Skeleton height={160} radius={theme.radius['2xl']} />
-              <Skeleton height={80} radius={theme.radius['2xl']} />
-              <Skeleton height={80} radius={theme.radius['2xl']} />
-            </View>
-          ) : (
-            <EmptyState
-              iconName="history"
-              title="Nada registrado neste período"
-              description="Quando você registrar ganhos ou jornadas, eles aparecem aqui. Também dá para lançar um dia que já passou."
-              actionLabel="Abrir um dia"
-              onAction={() => setPickerOpen(true)}
-            />
-          )
-        }
-        renderItem={({ item }) => (
-          <DayCard
-            row={item}
-            hasRoute={routeDays.has(item.date)}
-            onPress={() => openDay(item.date)}
-          />
-        )}
+      <Button
+        label="Abrir um dia anterior"
+        variant="secondary"
+        iconName="calendar"
+        fullWidth
+        onPress={() => {
+          setPickerMonth(startOfMonth(toDateOnly(new Date())));
+          setPickerOpen(true);
+        }}
       />
+
+      {rows.length > 0 ? (
+        <>
+          <PeriodHeadline summary={summary} period={period} />
+          <PeriodMetrics summary={summary} daysWithData={daysWithData} />
+        </>
+      ) : null}
+    </View>
+  );
+
+  const days = (
+    <FlatList
+      style={split ? { flex: 1 } : undefined}
+      contentContainerStyle={
+        split
+          ? { gap: theme.spacing.md, paddingBottom: theme.spacing.lg }
+          : { ...insets.column, gap: theme.spacing.md, flexGrow: 1 }
+      }
+      showsVerticalScrollIndicator={false}
+      data={rows}
+      keyExtractor={(item) => item.date}
+      onRefresh={load}
+      refreshing={false}
+      ListHeaderComponent={
+        split ? (
+          <SectionHeader title="Dia a dia" />
+        ) : (
+          <View style={{ gap: theme.spacing.lg, marginBottom: theme.spacing.sm }}>
+            {periodSummary}
+            {rows.length > 0 ? <SectionHeader title="Dia a dia" /> : null}
+          </View>
+        )
+      }
+      ListEmptyComponent={
+        loading ? (
+          <View style={{ gap: theme.spacing.md }}>
+            <Skeleton height={160} radius={theme.radius['2xl']} />
+            <Skeleton height={80} radius={theme.radius['2xl']} />
+            <Skeleton height={80} radius={theme.radius['2xl']} />
+          </View>
+        ) : (
+          <EmptyState
+            iconName="history"
+            title="Nada registrado neste período"
+            description="Quando você registrar ganhos ou jornadas, eles aparecem aqui. Também dá para lançar um dia que já passou."
+            actionLabel="Abrir um dia"
+            onAction={() => setPickerOpen(true)}
+          />
+        )
+      }
+      renderItem={({ item }) => (
+        <DayCard
+          row={item}
+          hasRoute={routeDays.has(item.date)}
+          onPress={() => openDay(item.date)}
+        />
+      )}
+    />
+  );
+
+  return (
+    <Screen
+      header={
+        <AppHeader
+          title="Histórico"
+          subtitle="Dia a dia do que você ganhou e gastou"
+          width={split ? 'dashboard' : 'content'}
+        />
+      }
+      scroll={false}
+      padding="none"
+      width={split ? 'dashboard' : 'content'}
+      tabBarSpacing
+    >
+      {split ? (
+        <View style={{ ...insets.column, flex: 1, flexDirection: 'row', gap: theme.spacing.xl }}>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingBottom: theme.spacing.lg }}
+            showsVerticalScrollIndicator={false}
+          >
+            {periodSummary}
+          </ScrollView>
+          {days}
+        </View>
+      ) : (
+        days
+      )}
 
       <Sheet
         visible={pickerOpen}

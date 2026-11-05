@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { BottomInsetProvider, ThemeProvider, useTheme } from '@dinamique/ui';
@@ -16,8 +16,10 @@ import { JourneyProvider } from '@/features/journey/useJourney';
 import { SafetyProvider } from '@/features/safety/useSafety';
 import { SosFlow } from '@/features/safety/SosFlow';
 import {
+  AppRail,
   GLOBAL_TAB_BAR_SPACE,
   GlobalTabBar,
+  useAppRailVisible,
   useGlobalTabBarVisible,
 } from '@/features/navigation/GlobalTabBar';
 import { markDocumentReady } from '@/features/theme/preference';
@@ -32,8 +34,11 @@ import '@/features/tracking/backgroundTask';
 // o app é justamente a que ninguém vê.
 import { installDiagnostics } from '@/features/diagnostics/install';
 import { ErrorBoundary } from '@/features/diagnostics/ErrorBoundary';
+import { lockPhonePortrait } from '@/features/orientation/lockPhonePortrait';
 
 installDiagnostics();
+// Before the first frame, so a phone never shows a sideways screen first.
+lockPhonePortrait();
 
 /**
  * Routing guard. Three destinations depending on session state:
@@ -75,44 +80,50 @@ function RootNavigator() {
   // The menu that stays put on pushed screens. Reserved and drawn from one
   // answer, so a screen never holds space for a bar that is not there.
   const menu = useGlobalTabBarVisible();
+  // On a tablet the menu is a rail down the left side instead, drawn once here
+  // beside the stack so screens slide in next to it and never under it.
+  const rail = useAppRailVisible();
 
   return (
-    <>
-      <OfflineBanner />
-      {/* Every pushed screen draws its own <ScreenHeader>, which is what
+    <View style={styles.row}>
+      {rail ? <AppRail /> : null}
+      <View style={styles.root}>
+        <OfflineBanner />
+        {/* Every pushed screen draws its own <ScreenHeader>, which is what
           guarantees a visible way back – the native header is off. */}
-      <BottomInsetProvider value={menu ? GLOBAL_TAB_BAR_SPACE : 0}>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: theme.colors.backgroundPrimary },
-            animation: 'slide_from_right',
-            // Long enough to read as movement, short enough that nobody waits
-            // for it. The default cut is what made the app feel dry.
-            animationDuration: 300,
-            gestureEnabled: true,
-          }}
-        >
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="onboarding" />
-          <Stack.Screen name="support" options={{ presentation: 'card' }} />
-          <Stack.Screen name="assinatura" options={{ presentation: 'card' }} />
-          <Stack.Screen name="legal" options={{ presentation: 'card' }} />
-        </Stack>
-      </BottomInsetProvider>
+        <BottomInsetProvider value={menu ? GLOBAL_TAB_BAR_SPACE : 0}>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: theme.colors.backgroundPrimary },
+              animation: 'slide_from_right',
+              // Long enough to read as movement, short enough that nobody waits
+              // for it. The default cut is what made the app feel dry.
+              animationDuration: 300,
+              gestureEnabled: true,
+            }}
+          >
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="onboarding" />
+            <Stack.Screen name="support" options={{ presentation: 'card' }} />
+            <Stack.Screen name="assinatura" options={{ presentation: 'card' }} />
+            <Stack.Screen name="legal" options={{ presentation: 'card' }} />
+          </Stack>
+        </BottomInsetProvider>
 
-      {/* After the stack, so it floats over whichever screen is showing. It
+        {/* After the stack, so it floats over whichever screen is showing. It
           renders nothing at all inside the tab group, where the navigator
-          draws its own. */}
-      <GlobalTabBar />
+          draws its own, nor on a tablet, where the rail is the menu. */}
+        <GlobalTabBar />
+      </View>
 
       {/* A contagem regressiva do SOS, acima de tudo: o botão que a abre vive
           no cabeçalho de cinco telas, e a folha tem de aparecer por cima da
           que estiver na frente. Enquanto ninguém segura o botão, não desenha
           nada. */}
       <SosFlow />
-    </>
+    </View>
   );
 }
 
@@ -186,4 +197,7 @@ export default function RootLayout() {
   );
 }
 
-const styles = StyleSheet.create({ root: { flex: 1 } });
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  row: { flex: 1, flexDirection: 'row' },
+});

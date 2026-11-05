@@ -111,4 +111,26 @@ export const layout = {
   tabBarHeight: 68,
   /** Gap between the tab bar and the bottom safe area. */
   tabBarInset: 12,
+  /**
+   * From this width the menu moves from the bottom edge to a rail on the left.
+   * 768dp is the narrowest tablet held upright (an iPad mini is 744dp, the
+   * common 8" Androids 800dp); no phone held upright gets near it.
+   */
+  railMinWidth: 768,
+  /**
+   * And only with this much height to hold five stacked destinations. A phone
+   * turned sideways in the browser is wide enough but 390dp tall, and keeps
+   * the bar.
+   */
+  railMinHeight: 520,
+  /** Horizontal room the rail takes from the screen, its margins included. */
+  railWidth: 100,
+  /**
+   * Usable width (the window minus the rail) from which a dashboard splits into
+   * two columns side by side. A tablet held sideways clears it; held upright it
+   * does not, and gets one wider column instead.
+   */
+  twoPaneMinWidth: 880,
+  /** The widest a two-column dashboard gets, on a big tablet or a monitor. */
+  maxDashboardWidth: 1160,
 } as const;

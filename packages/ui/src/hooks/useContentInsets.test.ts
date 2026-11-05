@@ -4,7 +4,14 @@ import { spacing } from '../tokens/index';
 const reported = { width: 390, height: 844 };
 
 vi.mock('react-native', () => ({
+  Platform: { OS: 'ios' },
   useWindowDimensions: () => reported,
+}));
+
+// The hooks are called as plain functions here, outside a render.
+vi.mock('react', async (original) => ({
+  ...(await original<typeof import('react')>()),
+  useSyncExternalStore: (_subscribe: unknown, getSnapshot: () => unknown) => getSnapshot(),
 }));
 
 vi.mock('../theme/ThemeProvider', () => ({

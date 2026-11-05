@@ -21,6 +21,7 @@ export * from './Field';
 export * from './AmountInput';
 export * from './Select';
 export * from './Screen';
+export * from './Columns';
 export * from './ScreenHeader';
 export * from './SectionHeader';
 export * from './ListRow';

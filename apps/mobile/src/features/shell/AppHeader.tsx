@@ -1,7 +1,15 @@
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Avatar, IconButton, Text, useResponsive, useTheme } from '@dinamique/ui';
+import {
+  Avatar,
+  IconButton,
+  Text,
+  columnMaxWidth,
+  useResponsive,
+  useTheme,
+  type ColumnWidth,
+} from '@dinamique/ui';
 import { BrandMark } from '@/features/brand/BrandMark';
 import { useSession } from '@/hooks/useSession';
 import { useNotificationCounts } from '@/hooks/useNotifications';
@@ -16,6 +24,8 @@ export interface AppHeaderProps {
   subtitle?: string;
   /** Opens the notifications sheet. Without it the bell pushes a screen. */
   onBellPress?: () => void;
+  /** Match the `width` of the Screen underneath, so the header lines up with it. */
+  width?: ColumnWidth;
 }
 
 /**
@@ -35,13 +45,20 @@ export interface AppHeaderProps {
  * placement in this app that displaces nothing. It renders nothing at all
  * outside the safety provider, and nothing on the right moved to make room.
  */
-export function AppHeader({ greeting, title, subtitle, onBellPress }: AppHeaderProps) {
+export function AppHeader({
+  greeting,
+  title,
+  subtitle,
+  onBellPress,
+  width = 'content',
+}: AppHeaderProps) {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { profile } = useSession();
   const { unreadTotal } = useNotificationCounts();
-  const { isCompact, isMedium, contentWidth, scale } = useResponsive();
+  const responsive = useResponsive();
+  const { isCompact, scale } = responsive;
 
   const bellTarget = useTourTarget('bell');
   const profileTarget = useTourTarget('profile');
@@ -60,7 +77,7 @@ export function AppHeader({ greeting, title, subtitle, onBellPress }: AppHeaderP
       <View
         style={{
           width: '100%',
-          maxWidth: isMedium ? contentWidth : undefined,
+          maxWidth: columnMaxWidth(width, responsive),
           alignSelf: 'center',
           gap: theme.spacing.lg,
         }}
@@ -121,7 +138,10 @@ export function AppHeader({ greeting, title, subtitle, onBellPress }: AppHeaderP
             {title ? (
               <Text
                 variant="titleLg"
-                style={{ fontSize: scale(28, { min: 24, max: 34 }), lineHeight: scale(34, { min: 30, max: 40 }) }}
+                style={{
+                  fontSize: scale(28, { min: 24, max: 34 }),
+                  lineHeight: scale(34, { min: 30, max: 40 }),
+                }}
                 numberOfLines={1}
               >
                 {title}

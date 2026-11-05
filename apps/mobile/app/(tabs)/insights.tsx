@@ -14,6 +14,7 @@ import {
   Badge,
   Button,
   Card,
+  Columns,
   EmptyState,
   Icon,
   InsightCard,
@@ -83,9 +84,34 @@ export default function Insights() {
   const nothingYet = !report || report.daysWithData === 0;
   const stillLearning = Boolean(report && report.daysWithData > 0 && report.daysWithData < MIN_DAYS);
 
+  // Com números na tela, num tablet deitado, a leitura vira um painel de duas
+  // colunas. Carregando ou vazio, segue uma coluna só: um esqueleto ou um
+  // convite espalhado pela largura inteira não ajuda ninguém.
+  const dashboard = !loading && !nothingYet && report !== null;
+
+  const periodControl = (
+    <SegmentedControl
+      label="Período"
+      value={period}
+      onChange={setPeriod}
+      options={[
+        { value: 'weekly', label: 'Semana' },
+        { value: 'monthly', label: 'Mês' },
+        { value: 'yearly', label: 'Ano' },
+      ]}
+    />
+  );
+
   return (
     <Screen
-      header={<AppHeader title="Insights" subtitle="O que os seus números estão dizendo" />}
+      header={
+        <AppHeader
+          title="Insights"
+          subtitle="O que os seus números estão dizendo"
+          width={dashboard ? 'dashboard' : 'content'}
+        />
+      }
+      width={dashboard ? 'dashboard' : 'content'}
       gap="lg"
       tabBarSpacing
       grow
@@ -100,16 +126,7 @@ export default function Insights() {
         />
       }
     >
-      <SegmentedControl
-        label="Período"
-        value={period}
-        onChange={setPeriod}
-        options={[
-          { value: 'weekly', label: 'Semana' },
-          { value: 'monthly', label: 'Mês' },
-          { value: 'yearly', label: 'Ano' },
-        ]}
-      />
+      {dashboard ? null : periodControl}
 
       {loading ? (
         <>
@@ -126,93 +143,103 @@ export default function Insights() {
           onAction={() => router.push('/(tabs)/record')}
         />
       ) : (
-        <>
-          {/* O aviso vem antes de tudo porque muda como se lê o que vem
-              depois. É uma promessa, não um pedido de desculpas: os números
-              já valem, e vão ficar melhores. */}
-          {stillLearning ? <LearningNotice days={report.daysWithData} /> : null}
+        <Columns
+          gap="lg"
+          primary={
+            <>
+              {periodControl}
 
-          <GoalSection report={report} period={period} onAdjust={() => router.push('/goals')} />
+              {/* O aviso vem antes de tudo porque muda como se lê o que vem
+                  depois. É uma promessa, não um pedido de desculpas: os
+                  números já valem, e vão ficar melhores. */}
+              {stillLearning ? <LearningNotice days={report.daysWithData} /> : null}
 
-          {report.score.hasData ? <ScoreCard score={report.score.score} /> : null}
+              <GoalSection report={report} period={period} onAdjust={() => router.push('/goals')} />
 
-          <PeriodHeadline summary={report.summary} period={period} previous={report.previous} />
+              {report.score.hasData ? <ScoreCard score={report.score.score} /> : null}
+            </>
+          }
+          secondary={
+            <>
+              <PeriodHeadline summary={report.summary} period={period} previous={report.previous} />
 
-          <PeriodMetrics summary={report.summary} daysWithData={report.daysWithData} />
+              <PeriodMetrics summary={report.summary} daysWithData={report.daysWithData} />
 
-          {report.bestDay && period !== 'daily' ? (
-            <Card
-              padding="lg"
-              style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}
-            >
-              <View
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: theme.radius.pill,
-                  backgroundColor: theme.colors.successSubtle,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Icon name="flag" size={20} color={theme.colors.successText} />
-              </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text variant="overline" color="secondary">
-                  MELHOR DIA {periodWord(period)}
-                </Text>
-                <Text variant="bodyStrong">
-                  {weekdayLabel(report.bestDay.date)} · {formatCents(report.bestDay.profit)} de lucro
-                </Text>
-              </View>
-            </Card>
-          ) : null}
+              {report.bestDay && period !== 'daily' ? (
+                <Card
+                  padding="lg"
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}
+                >
+                  <View
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: theme.radius.pill,
+                      backgroundColor: theme.colors.successSubtle,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Icon name="flag" size={20} color={theme.colors.successText} />
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text variant="overline" color="secondary">
+                      MELHOR DIA {periodWord(period)}
+                    </Text>
+                    <Text variant="bodyStrong">
+                      {weekdayLabel(report.bestDay.date)} · {formatCents(report.bestDay.profit)} de lucro
+                    </Text>
+                  </View>
+                </Card>
+              ) : null}
 
-          {/* Só quando não há meta. Com uma meta na tela, o cartão dela já
-              diz onde o ritmo atual termina, e repetir o mesmo número com
-              outro rótulo faz o motorista procurar a diferença entre os
-              dois. */}
-          {!report.goal && report.projection?.hasEnoughData ? (
-            <Card padding="lg" tone="brand" style={{ gap: theme.spacing.xs }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-                <Icon name="trendUp" size={16} color={theme.colors.brandPrimaryText} />
-                <Text variant="overline" color="brand">
-                  PROJEÇÃO
-                </Text>
-              </View>
-              <Text variant="moneyMedium" color="brand">
-                {formatCents(report.projection.projectedTotal)}
-              </Text>
-              <Text variant="caption" color="secondary">
-                É onde você fecha{' '}
-                {period === 'monthly'
-                  ? monthLabel(toDateOnly(new Date()))
-                  : period === 'yearly'
-                    ? 'o ano'
-                    : 'a semana'}{' '}
-                mantendo a média atual, estimado a partir dos {report.projection.daysElapsed} dias
-                já registrados.
-              </Text>
-            </Card>
-          ) : null}
+              {/* Só quando não há meta. Com uma meta na tela, o cartão dela já
+                  diz onde o ritmo atual termina, e repetir o mesmo número com
+                  outro rótulo faz o motorista procurar a diferença entre os
+                  dois. */}
+              {!report.goal && report.projection?.hasEnoughData ? (
+                <Card padding="lg" tone="brand" style={{ gap: theme.spacing.xs }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+                    <Icon name="trendUp" size={16} color={theme.colors.brandPrimaryText} />
+                    <Text variant="overline" color="brand">
+                      PROJEÇÃO
+                    </Text>
+                  </View>
+                  <Text variant="moneyMedium" color="brand">
+                    {formatCents(report.projection.projectedTotal)}
+                  </Text>
+                  <Text variant="caption" color="secondary">
+                    É onde você fecha{' '}
+                    {period === 'monthly'
+                      ? monthLabel(toDateOnly(new Date()))
+                      : period === 'yearly'
+                        ? 'o ano'
+                        : 'a semana'}{' '}
+                    mantendo a média atual, estimado a partir dos {report.projection.daysElapsed} dias
+                    já registrados.
+                  </Text>
+                </Card>
+              ) : null}
 
-          {benchmark ? <BenchmarkCard benchmark={benchmark} /> : null}
+              {benchmark ? <BenchmarkCard benchmark={benchmark} /> : null}
 
-          {insights.length > 0 ? (
-            <View style={{ gap: theme.spacing.md }}>
-              <SectionHeader title="O que mudou" />
-              {insights.map((insight) => (
-                <InsightCard key={insight.key} insight={insight} />
-              ))}
-            </View>
-          ) : (
-            <Card padding="lg">
-              <Text variant="body" color="secondary">
-                Seus números estão em linha com a sua média. Isso também é uma informação.
-              </Text>
-            </Card>
-          )}
-        </>
+              {insights.length > 0 ? (
+                <View style={{ gap: theme.spacing.md }}>
+                  <SectionHeader title="O que mudou" />
+                  {insights.map((insight) => (
+                    <InsightCard key={insight.key} insight={insight} />
+                  ))}
+                </View>
+              ) : (
+                <Card padding="lg">
+                  <Text variant="body" color="secondary">
+                    Seus números estão em linha com a sua média. Isso também é uma informação.
+                  </Text>
+                </Card>
+              )}
+            </>
+          }
+        />
       )}
     </Screen>
   );

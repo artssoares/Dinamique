@@ -14,7 +14,7 @@ import {
 } from '@dinamique/ui';
 import { useTourTarget } from '@/features/tour/TourProvider';
 
-interface TabConfig {
+export interface TabConfig {
   name: string;
   label: string;
   icon: IconName;
@@ -22,7 +22,7 @@ interface TabConfig {
   centre?: boolean;
 }
 
-const TABS: TabConfig[] = [
+export const TABS: TabConfig[] = [
   { name: 'index', label: 'Hoje', icon: 'home' },
   { name: 'history', label: 'Histórico', icon: 'history' },
   { name: 'record', label: 'Registrar', icon: 'plus', centre: true },
@@ -87,6 +87,10 @@ export const TAB_NAMES = TABS.map((tab) => tab.name);
  */
 export function TabBar({ state, navigation, badge = 0 }: TabBarProps) {
   const activeRoute = state.routes[state.index]?.name ?? null;
+  // On a tablet the menu is the rail the root layout draws down the left side,
+  // for every screen at once. Drawing this one too would be two menus.
+  const { navigation: menu } = useResponsive();
+  if (menu === 'rail') return null;
 
   return (
     <TabBarSurface

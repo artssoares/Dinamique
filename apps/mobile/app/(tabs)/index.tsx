@@ -5,6 +5,7 @@ import { formatCents, formatDistanceKm, formatDuration } from '@dinamique/utils'
 import {
   Button,
   Card,
+  Columns,
   EmptyState,
   HeroDeck,
   IconButton,
@@ -50,8 +51,13 @@ export default function Today() {
   // `recover: false` — Registrar owns the running journey and its live figure.
   // Two screens re-registering a dropped task would race each other over the
   // same buffer; Home only needs to be able to start one properly.
-  const { begin: beginJourney, sheets: consentSheets } = useJourneyStart({ recover: false });
+  const { begin: beginJourney, sheets: consentSheets } = useJourneyStart({
+    recover: false,
+  });
   const { isCompact } = useResponsive();
+  // Quatro números, sempre em dois por linha. Na coluna de um tablet cabiam
+  // três, e as Despesas sobravam sozinhas embaixo; no celular já eram dois.
+  const tile = { minWidth: '40%' as const };
   const [refreshing, setRefreshing] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
 
@@ -78,8 +84,10 @@ export default function Today() {
             title={name ? `Olá, ${name}!` : 'Olá!'}
             subtitle="Vamos ver como está o seu dia."
             onBellPress={() => setBellOpen(true)}
+            width="dashboard"
           />
         }
+        width="dashboard"
         tabBarSpacing
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         grow
@@ -87,268 +95,305 @@ export default function Today() {
         {loading ? (
           <HomeSkeleton />
         ) : (
-          <>
-            <JourneyPill />
+          // Num tablet deitado, o dia de hoje à esquerda (o cartão grande, os
+          // atalhos e a semana) e o que se lê com calma à direita. No celular
+          // `Columns` não desenha nada e a ordem é a de sempre.
+          <Columns
+            primary={
+              <>
+                <JourneyPill />
 
-            <Reveal>
-              <View ref={goalTarget.ref} collapsable={false}>
-                <HeroDeck
-                  cards={[
-                    {
-                      key: 'today',
-                      tone: 'brand',
-                      title: 'Hoje',
-                      titleIcon: 'wallet',
-                      summary: todayLabel(),
-                      label: data?.goalBasis === 'net' ? 'Lucro de hoje' : 'Faturamento de hoje',
-                      details: [
+                <Reveal>
+                  <View ref={goalTarget.ref} collapsable={false}>
+                    <HeroDeck
+                      cards={[
                         {
-                          label: 'Tempo',
-                          value:
-                            data && data.workedSeconds > 0
-                              ? formatDuration(data.workedSeconds)
-                              : '–',
-                        },
-                        {
-                          label: 'Distância',
-                          value: data && data.distance > 0 ? formatDistanceKm(data.distance) : '–',
-                        },
-                        { label: 'Despesas', value: formatCents(data?.totalExpenses ?? 0) },
-                      ],
-                      children: (
-                        <Money
-                          value={headline}
-                          variant="moneyHero"
-                          animate
-                          style={{ color: theme.colors.textOnBrand }}
-                        />
-                      ),
-                    },
-                    {
-                      key: 'goal',
-                      tone: 'warm',
-                      title: 'Meta de hoje',
-                      titleIcon: 'target',
-                      summary: goal
-                        ? goal.isReached
-                          ? 'Meta batida'
-                          : `faltam ${formatCents(goal.remaining)}`
-                        : 'ainda sem meta',
-                      progress: goal?.ratio,
-                      label: goal ? 'Falta para bater a meta' : 'Meta de hoje',
-                      details: goal
-                        ? [
-                            { label: 'Meta', value: formatCents(goal.target) },
-                            { label: 'Já feito', value: formatCents(goal.achieved) },
+                          key: 'today',
+                          tone: 'brand',
+                          title: 'Hoje',
+                          titleIcon: 'wallet',
+                          summary: todayLabel(),
+                          label:
+                            data?.goalBasis === 'net' ? 'Lucro de hoje' : 'Faturamento de hoje',
+                          details: [
                             {
-                              label: 'No seu ritmo',
+                              label: 'Tempo',
                               value:
-                                data?.secondsToGoal != null && data.secondsToGoal > 0
-                                  ? `faltam ${formatDuration(data.secondsToGoal)}`
-                                  : goal.isReached
-                                    ? 'batida'
-                                    : '–',
+                                data && data.workedSeconds > 0
+                                  ? formatDuration(data.workedSeconds)
+                                  : '–',
                             },
-                          ]
-                        : undefined,
-                      onPress: () => router.push('/goals'),
-                      actionLabel: goal ? 'Ajustar minha meta' : 'Definir minha meta',
-                      // No goal means no figure. R$ 0,00 here would read as
-                      // "nothing left to earn", which is the opposite of the
-                      // truth and exactly the kind of invented number §6 bans.
-                      children: goal ? (
-                        <Money
-                          value={goal.remaining}
-                          variant="moneyHero"
-                          animate
-                          style={{ color: theme.colors.textOnHeroBack }}
-                        />
-                      ) : (
-                        <Text variant="subtitle" style={{ color: theme.colors.textOnHeroBack }}>
-                          Diga quanto quer ganhar por mês e o Dinamique divide em metas por dia.
-                        </Text>
-                      ),
-                    },
-                    {
-                      key: 'week',
-                      tone: 'deep',
-                      title: 'Esta semana',
-                      titleIcon: 'history',
-                      summary: weekSummary(data?.week.daysWorked ?? 0),
-                      label: 'Lucro da semana',
-                      details: [
-                        { label: 'Faturamento', value: formatCents(data?.week.grossRevenue ?? 0) },
-                        { label: 'Custos', value: formatCents(data?.week.totalExpenses ?? 0) },
-                        {
-                          label: 'Tempo',
-                          value:
-                            data && data.week.workedSeconds > 0
-                              ? formatDuration(data.week.workedSeconds)
-                              : '–',
+                            {
+                              label: 'Distância',
+                              value:
+                                data && data.distance > 0 ? formatDistanceKm(data.distance) : '–',
+                            },
+                            {
+                              label: 'Despesas',
+                              value: formatCents(data?.totalExpenses ?? 0),
+                            },
+                          ],
+                          children: (
+                            <Money
+                              value={headline}
+                              variant="moneyHero"
+                              animate
+                              style={{ color: theme.colors.textOnBrand }}
+                            />
+                          ),
                         },
-                      ],
-                      onPress: () => router.push('/(tabs)/history'),
-                      actionLabel: 'Ver o histórico da semana',
-                      children: (
-                        <Money
-                          value={data?.week.netProfit ?? 0}
-                          variant="moneyHero"
-                          animate
-                          style={{ color: theme.colors.textOnBrand }}
-                        />
-                      ),
-                    },
-                  ]}
-                />
-              </View>
-            </Reveal>
-
-            <Reveal delay={70}>
-              <QuickActions
-                journeyRunning={journey !== null}
-                starting={journeyBusy}
-                error={journeyError}
-                onDismissError={dismissError}
-                onStart={() => void beginJourney()}
-                startRef={startTarget.ref}
-              />
-            </Reveal>
-
-            {/* A semana à vista, logo depois dos atalhos: consertar um dia que
-                passou deixa de morar só dentro do Histórico. */}
-            <Reveal delay={105}>
-              <DayJump />
-            </Reveal>
-
-            <Reveal delay={140}>
-              {goal ? (
-                <Card padding="xl" style={{ alignItems: 'center', gap: theme.spacing.lg }}>
-                  <View style={{ alignSelf: 'stretch' }}>
-                    <SectionHeader
-                      title="Meta de hoje"
-                      actionLabel="Ajustar"
-                      onAction={() => router.push('/goals')}
+                        {
+                          key: 'goal',
+                          tone: 'warm',
+                          title: 'Meta de hoje',
+                          titleIcon: 'target',
+                          summary: goal
+                            ? goal.isReached
+                              ? 'Meta batida'
+                              : `faltam ${formatCents(goal.remaining)}`
+                            : 'ainda sem meta',
+                          progress: goal?.ratio,
+                          label: goal ? 'Falta para bater a meta' : 'Meta de hoje',
+                          details: goal
+                            ? [
+                                {
+                                  label: 'Meta',
+                                  value: formatCents(goal.target),
+                                },
+                                {
+                                  label: 'Já feito',
+                                  value: formatCents(goal.achieved),
+                                },
+                                {
+                                  label: 'No seu ritmo',
+                                  value:
+                                    data?.secondsToGoal != null && data.secondsToGoal > 0
+                                      ? `faltam ${formatDuration(data.secondsToGoal)}`
+                                      : goal.isReached
+                                        ? 'batida'
+                                        : '–',
+                                },
+                              ]
+                            : undefined,
+                          onPress: () => router.push('/goals'),
+                          actionLabel: goal ? 'Ajustar minha meta' : 'Definir minha meta',
+                          // No goal means no figure. R$ 0,00 here would read as
+                          // "nothing left to earn", which is the opposite of the
+                          // truth and exactly the kind of invented number §6 bans.
+                          children: goal ? (
+                            <Money
+                              value={goal.remaining}
+                              variant="moneyHero"
+                              animate
+                              style={{ color: theme.colors.textOnHeroBack }}
+                            />
+                          ) : (
+                            <Text variant="subtitle" style={{ color: theme.colors.textOnHeroBack }}>
+                              Diga quanto quer ganhar por mês e o Dinamique divide em metas por dia.
+                            </Text>
+                          ),
+                        },
+                        {
+                          key: 'week',
+                          tone: 'deep',
+                          title: 'Esta semana',
+                          titleIcon: 'history',
+                          summary: weekSummary(data?.week.daysWorked ?? 0),
+                          label: 'Lucro da semana',
+                          details: [
+                            {
+                              label: 'Faturamento',
+                              value: formatCents(data?.week.grossRevenue ?? 0),
+                            },
+                            {
+                              label: 'Custos',
+                              value: formatCents(data?.week.totalExpenses ?? 0),
+                            },
+                            {
+                              label: 'Tempo',
+                              value:
+                                data && data.week.workedSeconds > 0
+                                  ? formatDuration(data.week.workedSeconds)
+                                  : '–',
+                            },
+                          ],
+                          onPress: () => router.push('/(tabs)/history'),
+                          actionLabel: 'Ver o histórico da semana',
+                          children: (
+                            <Money
+                              value={data?.week.netProfit ?? 0}
+                              variant="moneyHero"
+                              animate
+                              style={{ color: theme.colors.textOnBrand }}
+                            />
+                          ),
+                        },
+                      ]}
                     />
                   </View>
-                  <ProgressRing
-                    ratio={goal.ratio}
-                    label={`Meta de hoje, ${Math.round(goal.ratio * 100)}%`}
-                    centreLabel={`${Math.round(goal.ratio * 100)}%`}
-                    centreHint={
-                      goal.isReached ? 'Meta batida' : `Faltam ${formatCents(goal.remaining)}`
-                    }
-                    size={isCompact ? 148 : 176}
-                  />
-                  <Text variant="caption" color="secondary" align="center">
-                    {formatCents(goal.achieved)} de {formatCents(goal.target)}
-                    {data?.secondsToGoal !== null && (data?.secondsToGoal ?? 0) > 0
-                      ? `. No ritmo de hoje, faltam cerca de ${formatDuration(data!.secondsToGoal!)}`
-                      : ''}
-                  </Text>
-                </Card>
-              ) : (
-                <Card padding="xl" style={{ gap: theme.spacing.md }}>
-                  <Text variant="subtitle">Você ainda não tem uma meta</Text>
-                  <Text variant="body" color="secondary">
-                    Diga quanto quer ganhar por mês e o Dinamique divide isso em metas por dia,
-                    semana e ano.
-                  </Text>
-                  <Button
-                    label="Definir minha meta"
-                    variant="secondary"
-                    iconName="target"
-                    onPress={() => router.push('/goals')}
-                  />
-                </Card>
-              )}
-            </Reveal>
+                </Reveal>
 
-            <Reveal delay={210}>
-              <View ref={statsTarget.ref} collapsable={false} style={{ gap: theme.spacing.md }}>
-                <SectionHeader
-                  title="Seus números de hoje"
-                  actionLabel="Ver histórico"
-                  onAction={() => router.push('/(tabs)/history')}
-                />
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.md }}>
-                  <StatTile
-                    label="Lucro"
-                    icon="wallet"
-                    tone={data && data.netProfit < 0 ? 'danger' : 'success'}
-                    value={formatCents(data?.netProfit ?? 0)}
+                <Reveal delay={70}>
+                  <QuickActions
+                    journeyRunning={journey !== null}
+                    starting={journeyBusy}
+                    error={journeyError}
+                    onDismissError={dismissError}
+                    onStart={() => void beginJourney()}
+                    startRef={startTarget.ref}
                   />
-                  <StatTile
-                    label="R$ por hora"
-                    icon="clock"
-                    value={
-                      data?.profitPerHour === null || data?.profitPerHour === undefined
-                        ? null
-                        : formatCents(data.profitPerHour)
-                    }
-                    emptyHint="sem tempo registrado"
-                  />
-                  <StatTile
-                    label="R$ por km"
-                    icon="route"
-                    value={
-                      data?.revenuePerKm === null || data?.revenuePerKm === undefined
-                        ? null
-                        : formatCents(data.revenuePerKm)
-                    }
-                    emptyHint="sem km"
-                  />
-                  <StatTile
-                    label="Despesas"
-                    icon="receipt"
-                    tone="danger"
-                    value={formatCents(data?.totalExpenses ?? 0)}
-                  />
-                </View>
-              </View>
-            </Reveal>
+                </Reveal>
 
-            <Reveal delay={280}>
-              {!data?.hasAnyData ? (
-                <Card padding="none" style={{ overflow: 'hidden' }}>
-                  <EmptyState
-                    iconName="flag"
-                    title="Nada registrado hoje ainda"
-                    description="Comece uma jornada ou lance um ganho. Em poucos toques o Dinamique já mostra quanto sobrou."
-                    actionLabel="Registrar agora"
-                    onAction={() => router.push('/(tabs)/record')}
-                  />
-                </Card>
-              ) : (
-                <View style={{ gap: theme.spacing.md }}>
-                  <SectionHeader title="Atalhos" />
-                  <Card padding="none" style={{ overflow: 'hidden' }}>
-                    <ListRow
-                      first
-                      icon="fuel"
-                      iconTone="warning"
-                      label="Abastecimento"
-                      description="Registre litros, preço e o consumo sai sozinho"
-                      onPress={() => router.push('/fuel')}
+                {/* A semana à vista, logo depois dos atalhos: consertar um dia que
+                passou deixa de morar só dentro do Histórico. */}
+                <Reveal delay={105}>
+                  <DayJump />
+                </Reveal>
+              </>
+            }
+            secondary={
+              <>
+                <Reveal delay={140}>
+                  {goal ? (
+                    <Card padding="xl" style={{ alignItems: 'center', gap: theme.spacing.lg }}>
+                      <View style={{ alignSelf: 'stretch' }}>
+                        <SectionHeader
+                          title="Meta de hoje"
+                          actionLabel="Ajustar"
+                          onAction={() => router.push('/goals')}
+                        />
+                      </View>
+                      <ProgressRing
+                        ratio={goal.ratio}
+                        label={`Meta de hoje, ${Math.round(goal.ratio * 100)}%`}
+                        centreLabel={`${Math.round(goal.ratio * 100)}%`}
+                        centreHint={
+                          goal.isReached ? 'Meta batida' : `Faltam ${formatCents(goal.remaining)}`
+                        }
+                        size={isCompact ? 148 : 176}
+                      />
+                      <Text variant="caption" color="secondary" align="center">
+                        {formatCents(goal.achieved)} de {formatCents(goal.target)}
+                        {data?.secondsToGoal !== null && (data?.secondsToGoal ?? 0) > 0
+                          ? `. No ritmo de hoje, faltam cerca de ${formatDuration(data!.secondsToGoal!)}`
+                          : ''}
+                      </Text>
+                    </Card>
+                  ) : (
+                    <Card padding="xl" style={{ gap: theme.spacing.md }}>
+                      <Text variant="subtitle">Você ainda não tem uma meta</Text>
+                      <Text variant="body" color="secondary">
+                        Diga quanto quer ganhar por mês e o Dinamique divide isso em metas por dia,
+                        semana e ano.
+                      </Text>
+                      <Button
+                        label="Definir minha meta"
+                        variant="secondary"
+                        iconName="target"
+                        onPress={() => router.push('/goals')}
+                      />
+                    </Card>
+                  )}
+                </Reveal>
+
+                <Reveal delay={210}>
+                  <View ref={statsTarget.ref} collapsable={false} style={{ gap: theme.spacing.md }}>
+                    <SectionHeader
+                      title="Seus números de hoje"
+                      actionLabel="Ver histórico"
+                      onAction={() => router.push('/(tabs)/history')}
                     />
-                    <ListRow
-                      icon="wrench"
-                      iconTone="brand"
-                      label="Manutenção"
-                      description="O que já foi feito e o que está chegando"
-                      onPress={() => router.push('/costs/maintenance')}
-                    />
-                    <ListRow
-                      icon="receipt"
-                      iconTone="danger"
-                      label="Custos fixos"
-                      description="Aluguel do carro, seguro, parcelas"
-                      onPress={() => router.push('/costs/recurring')}
-                    />
-                  </Card>
-                </View>
-              )}
-            </Reveal>
-          </>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        flexWrap: 'wrap',
+                        gap: theme.spacing.md,
+                      }}
+                    >
+                      <StatTile
+                        style={tile}
+                        label="Lucro"
+                        icon="wallet"
+                        tone={data && data.netProfit < 0 ? 'danger' : 'success'}
+                        value={formatCents(data?.netProfit ?? 0)}
+                      />
+                      <StatTile
+                        style={tile}
+                        label="R$ por hora"
+                        icon="clock"
+                        value={
+                          data?.profitPerHour === null || data?.profitPerHour === undefined
+                            ? null
+                            : formatCents(data.profitPerHour)
+                        }
+                        emptyHint="sem tempo registrado"
+                      />
+                      <StatTile
+                        style={tile}
+                        label="R$ por km"
+                        icon="route"
+                        value={
+                          data?.revenuePerKm === null || data?.revenuePerKm === undefined
+                            ? null
+                            : formatCents(data.revenuePerKm)
+                        }
+                        emptyHint="sem km"
+                      />
+                      <StatTile
+                        style={tile}
+                        label="Despesas"
+                        icon="receipt"
+                        tone="danger"
+                        value={formatCents(data?.totalExpenses ?? 0)}
+                      />
+                    </View>
+                  </View>
+                </Reveal>
+
+                <Reveal delay={280}>
+                  {!data?.hasAnyData ? (
+                    <Card padding="none" style={{ overflow: 'hidden' }}>
+                      <EmptyState
+                        iconName="flag"
+                        title="Nada registrado hoje ainda"
+                        description="Comece uma jornada ou lance um ganho. Em poucos toques o Dinamique já mostra quanto sobrou."
+                        actionLabel="Registrar agora"
+                        onAction={() => router.push('/(tabs)/record')}
+                      />
+                    </Card>
+                  ) : (
+                    <View style={{ gap: theme.spacing.md }}>
+                      <SectionHeader title="Atalhos" />
+                      <Card padding="none" style={{ overflow: 'hidden' }}>
+                        <ListRow
+                          first
+                          icon="fuel"
+                          iconTone="warning"
+                          label="Abastecimento"
+                          description="Registre litros, preço e o consumo sai sozinho"
+                          onPress={() => router.push('/fuel')}
+                        />
+                        <ListRow
+                          icon="wrench"
+                          iconTone="brand"
+                          label="Manutenção"
+                          description="O que já foi feito e o que está chegando"
+                          onPress={() => router.push('/costs/maintenance')}
+                        />
+                        <ListRow
+                          icon="receipt"
+                          iconTone="danger"
+                          label="Custos fixos"
+                          description="Aluguel do carro, seguro, parcelas"
+                          onPress={() => router.push('/costs/recurring')}
+                        />
+                      </Card>
+                    </View>
+                  )}
+                </Reveal>
+              </>
+            }
+          />
         )}
       </Screen>
 
@@ -384,16 +429,29 @@ function QuickActions({
   const theme = useTheme();
   const router = useRouter();
 
-  const actions: { icon: IconName; label: string; onPress: () => void; primary?: boolean }[] = [
+  const actions: {
+    icon: IconName;
+    label: string;
+    onPress: () => void;
+    primary?: boolean;
+  }[] = [
     {
       icon: journeyRunning ? 'stop' : 'play',
       label: journeyRunning ? 'Encerrar' : 'Iniciar',
       onPress: journeyRunning ? () => router.push('/journey/close') : onStart,
       primary: true,
     },
-    { icon: 'arrowUpRight', label: 'Ganho', onPress: () => router.push('/(tabs)/record') },
+    {
+      icon: 'arrowUpRight',
+      label: 'Ganho',
+      onPress: () => router.push('/(tabs)/record'),
+    },
     { icon: 'fuel', label: 'Abastecer', onPress: () => router.push('/fuel') },
-    { icon: 'insights', label: 'Insights', onPress: () => router.push('/(tabs)/insights') },
+    {
+      icon: 'insights',
+      label: 'Insights',
+      onPress: () => router.push('/(tabs)/insights'),
+    },
   ];
 
   return (
@@ -420,7 +478,10 @@ function QuickActions({
               style={
                 action.primary
                   ? undefined
-                  : { backgroundColor: theme.colors.backgroundSecondary, borderWidth: 0 }
+                  : {
+                      backgroundColor: theme.colors.backgroundSecondary,
+                      borderWidth: 0,
+                    }
               }
             />
             <Text variant="caption" color="secondary" numberOfLines={1}>
@@ -441,7 +502,10 @@ function greeting(): string {
 }
 
 function todayLabel(): string {
-  return new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  return new Date().toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+  });
 }
 
 /**
