@@ -42,6 +42,7 @@
     "expo-sharing": "~13.1.5",
     "expo-status-bar": "~2.2.3",
     "expo-task-manager": "~13.1.6",
+    "expo-video": "~2.2.3",
     "expo-web-browser": "~14.2.0",
     "maplibre-gl": "5.24.0",
     "react": "19.0.0",

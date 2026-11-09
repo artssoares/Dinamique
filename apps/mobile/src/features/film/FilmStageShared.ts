@@ -12,8 +12,12 @@ export interface FilmStageHandle {
 export interface FilmStageProps {
   recap: Recap;
   onMessage?: (message: RecapMessage) => void;
-  /** A recording document does not loop and does not start on its own. */
-  mode?: 'preview' | 'export';
+  /**
+   * `preview` plays and loops. `export` waits to be told to record. `bake`
+   * makes the file the moment it is up, with nobody watching: see
+   * `bakery/store.ts`.
+   */
+  mode?: 'preview' | 'export' | 'bake';
   /**
    * How the 9:16 canvas sits in a box of another shape. `contain` letterboxes
    * (the full screen); `cover` fills and crops the sides (the square tile on

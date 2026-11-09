@@ -35,6 +35,7 @@ import '@/features/tracking/backgroundTask';
 import { installDiagnostics } from '@/features/diagnostics/install';
 import { ErrorBoundary } from '@/features/diagnostics/ErrorBoundary';
 import { lockPhonePortrait } from '@/features/orientation/lockPhonePortrait';
+import { FilmBakeHost } from '@/features/film/bakery';
 
 installDiagnostics();
 // Before the first frame, so a phone never shows a sideways screen first.
@@ -123,6 +124,11 @@ function RootNavigator() {
           que estiver na frente. Enquanto ninguém segura o botão, não desenha
           nada. */}
       <SosFlow />
+
+      {/* Onde o vídeo do dia é montado, em segundo plano, assim que o filme
+          de uma jornada aparece na tela. Não desenha nada enquanto não há
+          vídeo a montar. Ver `features/film/bakery`. */}
+      <FilmBakeHost />
     </View>
   );
 }

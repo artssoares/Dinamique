@@ -75,6 +75,7 @@ export default function JourneyFilm() {
       recap={film.recap}
       playing={film.preview}
       hasRoute={hasRoute}
+      points={film.points}
       onClose={() => router.back()}
     />
   );

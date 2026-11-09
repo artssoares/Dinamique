@@ -34,6 +34,7 @@ export const FilmStage = forwardRef<FilmStageHandle, FilmStageProps>(function Fi
       recap.document({
         loop: mode === 'preview',
         autoplay: mode === 'preview',
+        bake: mode === 'bake',
         // Chunks, not an object URL, and on the web too. A blob URL made
         // inside the iframe dies with the iframe, and the iframe is torn down
         // the instant the recording ends: the file was being revoked before

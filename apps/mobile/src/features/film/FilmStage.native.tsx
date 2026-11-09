@@ -25,6 +25,7 @@ export const FilmStage = forwardRef<FilmStageHandle, FilmStageProps>(function Fi
       recap.document({
         loop: mode === 'preview',
         autoplay: mode === 'preview',
+        bake: mode === 'bake',
         deliver: 'chunks',
         fit,
       }),

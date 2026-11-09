@@ -37,6 +37,24 @@ export const PAINTER_SOURCE = `
   canvas.width = film.width;
   canvas.height = film.height;
 
+  /**
+   * Where the glow is drawn: a canvas a quarter of the size of the frame.
+   *
+   * The glow used to be a shadowBlur of 46 pixels on each of the thirty
+   * colour chunks of the route, on the full frame. That is thirty gaussian
+   * blurs over a 1080 by 1920 canvas for every frame, about four fifths of
+   * the cost of painting one, and the reason the preview stuttered on a
+   * phone and the export took longer than the film. A glow has no detail to
+   * lose, so it is drawn here at a quarter of the size, with the blur scaled
+   * to match, and laid over the frame in one drawImage. Sixteen times fewer
+   * pixels to blur, and the same soft light.
+   */
+  var GLOW_SCALE = 0.25;
+  var glowCanvas = document.createElement('canvas');
+  glowCanvas.width = Math.max(1, Math.round(film.width * GLOW_SCALE));
+  glowCanvas.height = Math.max(1, Math.round(film.height * GLOW_SCALE));
+  var glowCtx = glowCanvas.getContext('2d');
+
   var W = film.width;
   var H = film.height;
   /** Every size below is expressed against a 1080-wide design. */
@@ -539,8 +557,9 @@ export const PAINTER_SOURCE = `
    *
    * Chunks overlap by one point so the round joins hide the seams.
    */
-  function strokeAlongRoute(count, lineWidth, alpha, blur, blurColor) {
-    var chunks = Math.min(30, Math.max(1, count - 1));
+  function strokeAlongRoute(count, lineWidth, alpha, blur, blurColor, target, maxChunks) {
+    var g = target || ctx;
+    var chunks = Math.min(maxChunks || 30, Math.max(1, count - 1));
     var perChunk = (count - 1) / chunks;
 
     for (var c = 0; c < chunks; c += 1) {
@@ -549,19 +568,49 @@ export const PAINTER_SOURCE = `
       if (to <= from) continue;
 
       var t = (c + 0.5) / chunks;
-      ctx.strokeStyle = blurColor ? blurColor : routeColorAt(t, alpha);
+      g.strokeStyle = blurColor ? blurColor : routeColorAt(t, alpha);
       if (blur) {
-        ctx.shadowBlur = blur;
-        ctx.shadowColor = routeColorAt(t, 0.9);
+        g.shadowBlur = blur;
+        g.shadowColor = routeColorAt(t, 0.9);
       }
-      ctx.lineWidth = lineWidth;
-      ctx.beginPath();
-      ctx.moveTo(routeBuffer[from * 2], routeBuffer[from * 2 + 1]);
+      g.lineWidth = lineWidth;
+      g.beginPath();
+      g.moveTo(routeBuffer[from * 2], routeBuffer[from * 2 + 1]);
       for (var i = from + 1; i <= to; i += 1) {
-        ctx.lineTo(routeBuffer[i * 2], routeBuffer[i * 2 + 1]);
+        g.lineTo(routeBuffer[i * 2], routeBuffer[i * 2 + 1]);
       }
-      ctx.stroke();
+      g.stroke();
     }
+  }
+
+  /**
+   * Prepares the quarter-size glow canvas for a pass: cleared, scaled so the
+   * route's full-frame coordinates land where they should, additive.
+   * shadowBlur is in device pixels and ignores the transform, which is why
+   * every caller scales its blur by GLOW_SCALE itself.
+   */
+  function beginGlow() {
+    glowCtx.setTransform(1, 0, 0, 1, 0, 0);
+    glowCtx.globalCompositeOperation = 'source-over';
+    glowCtx.shadowBlur = 0;
+    glowCtx.shadowColor = 'transparent';
+    glowCtx.clearRect(0, 0, glowCanvas.width, glowCanvas.height);
+    glowCtx.setTransform(
+      glowCanvas.width / W, 0, 0, glowCanvas.height / H, 0, 0
+    );
+    glowCtx.globalCompositeOperation = 'lighter';
+    glowCtx.lineJoin = 'round';
+    glowCtx.lineCap = 'round';
+  }
+
+  /** Lays the glow canvas over the frame, additively, at full size. */
+  function endGlow() {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(glowCanvas, 0, 0, W, H);
+    ctx.restore();
   }
 
   /**
@@ -587,13 +636,16 @@ export const PAINTER_SOURCE = `
     var dim = 1 - overlayVeil(frame) * 0.28;
     if (dim <= 0.05) return;
 
+    // 1, glow, on the quarter-size canvas (see GLOW_SCALE). Ten colour
+    // steps rather than thirty: under a blur this wide the ramp between them
+    // cannot be seen, and each step is its own blur.
+    beginGlow();
+    strokeAlongRoute(count, 22 * U, 0.28 * dim, 46 * U * GLOW_SCALE, null, glowCtx, 10);
+    endGlow();
+
     ctx.save();
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-
-    // 1, glow
-    ctx.globalCompositeOperation = 'lighter';
-    strokeAlongRoute(count, 22 * U, 0.28 * dim, 46 * U);
 
     // 2, casing
     ctx.globalCompositeOperation = 'source-over';
@@ -623,17 +675,32 @@ export const PAINTER_SOURCE = `
     if (to - from < 1) return;
 
     var fade = 1 - Math.max(0, (frame.flash - 0.75) / 0.25);
+    var i;
+
+    // The halo on the quarter-size canvas, like the route's glow; the
+    // bright line itself at full size, where it has to stay sharp.
+    beginGlow();
+    glowCtx.shadowColor = 'rgba(255,255,255,0.95)';
+    glowCtx.shadowBlur = 40 * U * GLOW_SCALE;
+    glowCtx.strokeStyle = 'rgba(255,255,255,' + (0.85 * fade) + ')';
+    glowCtx.lineWidth = 8 * U;
+    glowCtx.beginPath();
+    glowCtx.moveTo(routeBuffer[from * 2], routeBuffer[from * 2 + 1]);
+    for (i = from + 1; i <= to; i += 1) {
+      glowCtx.lineTo(routeBuffer[i * 2], routeBuffer[i * 2 + 1]);
+    }
+    glowCtx.stroke();
+    endGlow();
+
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    ctx.shadowColor = 'rgba(255,255,255,0.95)';
-    ctx.shadowBlur = 40 * U;
     ctx.strokeStyle = 'rgba(255,255,255,' + (0.85 * fade) + ')';
     ctx.lineWidth = 8 * U;
     ctx.beginPath();
     ctx.moveTo(routeBuffer[from * 2], routeBuffer[from * 2 + 1]);
-    for (var i = from + 1; i <= to; i += 1) {
+    for (i = from + 1; i <= to; i += 1) {
       ctx.lineTo(routeBuffer[i * 2], routeBuffer[i * 2 + 1]);
     }
     ctx.stroke();
@@ -1157,11 +1224,25 @@ export const PAINTER_SOURCE = `
   function record() {
     pause();
 
+    // Baking is the export the app starts on its own, in the background, as
+    // soon as a journey's film is on screen. It only makes sense frame by
+    // frame: the real-time recorder takes as long as the film and drops
+    // frames on a slow phone, which is the experience baking exists to
+    // replace. So a bake that cannot encode says so with its own code and
+    // the app falls back to the old flow, where the driver asks for the file
+    // and watches it record.
+    var baking = options.bake === true;
+
     var canEncode =
       typeof VideoEncoder !== 'undefined' &&
       typeof VideoFrame !== 'undefined' &&
       !!window.__RECAP_MP4__;
     var canCapture = typeof MediaRecorder !== 'undefined' && !!canvas.captureStream;
+
+    if (baking && !canEncode) {
+      post({ type: 'error', code: 'no-encoder', message: 'Este aparelho não monta o vídeo sozinho.' });
+      return;
+    }
 
     if (!canEncode && !canCapture) {
       post({ type: 'error', code: 'unsupported', message: 'Este aparelho não consegue gravar o vídeo.' });
@@ -1178,10 +1259,18 @@ export const PAINTER_SOURCE = `
       })
       .then(function (config) {
         if (!config) {
+          if (baking) {
+            post({ type: 'error', code: 'no-encoder', message: 'Este aparelho não monta o vídeo sozinho.' });
+            return;
+          }
           recordRealtime();
           return;
         }
         encodeFrames(config).then(deliver, function () {
+          if (baking) {
+            post({ type: 'error', code: 'encoder-failed', message: 'A montagem do vídeo falhou no meio.' });
+            return;
+          }
           // An encoder that accepted the configuration and then failed is
           // rare, and the real-time recorder still makes a video. Worse, but
           // a video.
@@ -1529,6 +1618,13 @@ export const PAINTER_SOURCE = `
 
   paint(0, true);
   post({ type: 'ready', frameCount: film.frameCount, durationMs: film.durationMs, fps: film.fps });
+
+  // A bake starts the moment the document is up. Nobody pressed anything:
+  // the app opened it so the file is ready before the driver asks for it.
+  if (options.bake === true) {
+    record();
+    return;
+  }
 
   // The preview warms the tile cache before it starts, the same way the
   // recording does. Started cold, the camera outran the network on every

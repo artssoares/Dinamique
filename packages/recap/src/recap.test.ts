@@ -864,6 +864,54 @@ describe('the recording', () => {
   });
 });
 
+// O vídeo é montado em segundo plano assim que o filme aparece na tela. Sem
+// isso o motorista via o filme duas vezes: uma para assistir, outra
+// esperando a gravação para poder compartilhar.
+describe('the bake', () => {
+  function payloadOf(html: string): { options: Record<string, unknown> } {
+    const start = html.indexOf('window.__RECAP__ = ') + 'window.__RECAP__ = '.length;
+    return JSON.parse(html.slice(start, html.indexOf(';</script>', start)));
+  }
+
+  it('never plays or loops, whatever else is asked', () => {
+    const scene = sceneWith(drive(200));
+    const { film } = buildFilm(scene);
+    const options = payloadOf(
+      renderRecapDocument(scene, film, { bake: true, loop: true, autoplay: true }),
+    ).options;
+    expect(options).toMatchObject({ bake: true, loop: false, autoplay: false });
+    expect(payloadOf(renderRecapDocument(scene, film)).options).toMatchObject({ bake: false });
+  });
+
+  it('starts recording on its own and never falls back to the real-time recorder', () => {
+    const boot = PAINTER_SOURCE.slice(PAINTER_SOURCE.indexOf('window.recap = {'));
+    expect(boot).toMatch(/if \(options\.bake === true\) \{\s*record\(\);\s*return;/);
+
+    const record = PAINTER_SOURCE.slice(
+      PAINTER_SOURCE.indexOf('function record()'),
+      PAINTER_SOURCE.indexOf('function encoderConfig()'),
+    );
+    // Each of the three ways out of the frame-by-frame path is guarded.
+    expect(record.match(/code: 'no-encoder'/g)?.length).toBe(2);
+    expect(record).toContain("code: 'encoder-failed'");
+  });
+});
+
+describe('the glow', () => {
+  // Thirty gaussian blurs of the full 1080 by 1920 frame per frame were four
+  // fifths of the cost of painting one, and the reason the preview
+  // stuttered. The glow is drawn on a quarter-size canvas now.
+  it('is blurred on the quarter-size canvas, never on the frame itself', () => {
+    const route = PAINTER_SOURCE.slice(
+      PAINTER_SOURCE.indexOf('function paintRoute('),
+      PAINTER_SOURCE.indexOf('function paintHead('),
+    );
+    expect(route).toContain('46 * U * GLOW_SCALE, null, glowCtx');
+    expect(route).not.toMatch(/ctx\.shadowBlur = (?!0)/);
+    expect(PAINTER_SOURCE).toContain('var GLOW_SCALE = 0.25;');
+  });
+});
+
 describe('the preview', () => {
   it('paints a film frame once, not once per screen refresh', () => {
     const tick = PAINTER_SOURCE.slice(

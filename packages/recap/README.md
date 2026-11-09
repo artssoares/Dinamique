@@ -110,16 +110,45 @@ Any provider must satisfy two things:
 
 ## Recording
 
-`window.recap.record()` preloads the tiles the film will need, then captures
-`canvas.captureStream(fps)` through a `MediaRecorder`, preferring MP4, the
-only container every destination a driver will pick actually accepts.
+The film is made into a file **before anyone asks for it**. As soon as a
+journey's film is on screen, the app opens the document with `bake: true`
+in an almost invisible WebView (an iframe on the web) mounted once at the
+root of the app (`apps/mobile/src/features/film/bakery`). The document
+preloads the tiles, paints every frame and encodes it with WebCodecs, frame
+N stamped with the timestamp of frame N, into an MP4 written by `mp4.ts`.
+What the driver then watches is that file, played by the platform's own
+video player, and Compartilhar hands over the same file at once. Before
+this, the film was painted live to be watched and painted again, at file
+size and in front of the driver, to be shared: watched twice.
 
-Painting is driven by the wall clock rather than by a frame counter with
-`requestFrame()`. A `MediaRecorder` timestamps frames when they arrive, so the
-counter approach produces every frame of the film stretched over 36 seconds on
-a phone that paints at 18 fps: complete, and ruined. Mapping elapsed time to an
-index instead drops frames and keeps the timing, like video playback
-everywhere else.
+The finished file is cached (the cache directory on a phone, Cache Storage
+in a browser) under the journey id and a fingerprint of the document, so a
+day that has not changed is never made again, and a day that has (an
+expense added) is.
+
+One film at a time: painting and encoding share the page's thread and the
+phone's encoder.
+
+A bake never falls back to the real-time recorder: a device without
+WebCodecs answers `no-encoder` and the app keeps the old flow for it, where
+the driver presses Compartilhar and watches the export. That path,
+`window.recap.record()` without `bake`, still exists: frame by frame where
+it can, `canvas.captureStream(fps)` through a `MediaRecorder` where it
+cannot. There, painting is driven by the wall clock rather than by a frame
+counter with `requestFrame()`: a `MediaRecorder` timestamps frames when they
+arrive, so the counter approach produces every frame stretched over 36
+seconds on a phone that paints at 18 fps.
+
+### What a frame costs
+
+The glow under the route is drawn on a canvas a quarter of the size of the
+frame, with the blur scaled to match, and laid over it in one `drawImage`.
+It used to be a `shadowBlur` of 46 px on each of thirty colour chunks of the
+full frame: thirty gaussian blurs per frame, four fifths of the cost of
+painting one. Measured on the demo journey in headless Chromium (software
+canvas, software encoder): 161 ms to paint a frame before, 36 ms after; the
+whole export from 128 s to 29 s. A phone, with a GPU canvas and a hardware
+encoder, takes seconds.
 
 The finished file crosses to React Native as base64 in 3-byte-aligned chunks,
 so the host can concatenate without decoding. It is generated entirely on the

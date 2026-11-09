@@ -32,6 +32,13 @@ export interface RenderOptions {
    * the head of the route moves, with no black bars.
    */
   fit?: 'contain' | 'cover';
+  /**
+   * Make the file straight away, frame by frame, and hand it over: the
+   * export the app runs in the background so sharing is instant. Never
+   * plays, never loops, and never falls back to the real-time recorder; a
+   * device that cannot encode answers with the error code `no-encoder`.
+   */
+  bake?: boolean;
 }
 
 export function renderRecapDocument(
@@ -47,10 +54,11 @@ export function renderRecapDocument(
       stats: scene.stats,
     },
     options: {
-      loop: options.loop ?? true,
-      autoplay: options.autoplay ?? true,
+      loop: options.bake ? false : (options.loop ?? true),
+      autoplay: options.bake ? false : (options.autoplay ?? true),
       bitrate: options.bitrate ?? 6_000_000,
       deliver: options.deliver ?? 'chunks',
+      bake: options.bake ?? false,
     },
   };
 

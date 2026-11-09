@@ -1,192 +1,123 @@
-import {
-  createElement,
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from 'react';
-import { Platform, Pressable, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Platform, Pressable, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { Recap, RecapMessage } from '@dinamique/recap';
+import type { Recap } from '@dinamique/recap';
+import type { LatLng } from '@dinamique/types';
 import { Button, darkTokens, Icon, IconButton, Text, ThemeScope, useTheme } from '@dinamique/ui';
-import { FilmStage, type FilmStageHandle } from './FilmStage';
-import { useFilmVideo, type VideoPhase } from './useFilmVideo';
+import { BakedVideo, type BakedVideoHandle } from './BakedVideo';
+import { BakingFilm } from './BakingFilm';
+import { LegacyFilmPlayer } from './LegacyFilmPlayer';
+import { ShareFilmButton, shareBakedFilm, useBakedFilm, type BakedFilmHandle } from './bakery';
 
 /**
  * The film, full screen, with the one thing a driver does with it: share it.
  *
- * Used by the full-screen route and by the day screen when the square grows.
- * Recording swaps the playing stage for a second one at file resolution. It
- * stays visible on purpose: a hidden page has its `requestAnimationFrame`
- * throttled to a frame a second, and the video would come out that way.
- * Watching it record is also the honest answer to "what is it doing with my
- * phone for twenty seconds".
+ * What plays is the finished video file, made in the background as soon as
+ * the film was first on screen (see `bakery`). So it plays as smoothly as any
+ * other video on the phone, and Compartilhar opens the share sheet at once,
+ * with the very file that was just watched. If the file is still being made
+ * when this opens, the day's route draws itself as the file progresses, and
+ * a tap on Compartilhar on a phone is remembered: the sheet opens by itself
+ * the moment the file exists.
  *
- * In a browser the share sheet opens only from a tap, so after the recording
- * the button changes to the tap that opens it. See `useFilmVideo`.
+ * A device that cannot make the file frame by frame gets the previous
+ * player, where the driver asks for the file and watches it record.
  */
-
-export interface FilmPlayerHandle {
-  play: () => void;
-  pause: () => void;
-  seek: (index: number) => void;
-}
 
 export interface FilmPlayerProps {
   journeyId: string;
-  /** The file-resolution film, recorded when the driver shares. */
+  /** The file-resolution film: the one made into the video. */
   recap: Recap;
-  /** What plays on screen. */
+  /** The lighter film the old player paints live. */
   playing: Recap;
   hasRoute: boolean;
-  /** Frame to pick up from, so the film continues rather than restarts. */
+  /** The route, drawn while the file is made. */
+  points: readonly LatLng[];
+  /** Seconds into the video to pick up from, so the film continues. */
+  startSeconds?: number;
+  /** Where the video was when the player closed, for whoever shows it next. */
+  onLeave?: (seconds: number) => void;
+  /** Open the share sheet as soon as the file is ready (phone only). */
+  shareOnReady?: boolean;
+  /** Old player only: the frame to pick up from, and every frame it reaches. */
   startIndex?: number;
-  /** Every frame the film advances, for whoever needs to pick up where it is. */
   onFrame?: (index: number) => void;
-  /** Start recording as soon as the player is up: the share button on the day screen. */
+  /** Old player only: start recording straight away. */
   autoRecord?: boolean;
   onClose?: () => void;
 }
 
-export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function FilmPlayer(
-  { journeyId, recap, playing, hasRoute, startIndex, onFrame, autoRecord = false, onClose },
-  ref,
-) {
+export function FilmPlayer(props: FilmPlayerProps) {
+  // Urgent: the driver opened this film full screen, so it goes before any
+  // other film waiting on the day screen.
+  const bake = useBakedFilm(props.journeyId, props.recap, { urgent: true });
+
+  if (bake.status === 'unsupported' || bake.status === 'failed') {
+    return (
+      <LegacyFilmPlayer
+        journeyId={props.journeyId}
+        recap={props.recap}
+        playing={props.playing}
+        hasRoute={props.hasRoute}
+        startIndex={props.startIndex}
+        onFrame={props.onFrame}
+        autoRecord={props.autoRecord}
+        onClose={props.onClose}
+      />
+    );
+  }
+
+  return <BakedFilmPlayer {...props} bake={bake} />;
+}
+
+function BakedFilmPlayer({
+  journeyId,
+  hasRoute,
+  points,
+  startSeconds = 0,
+  onLeave,
+  shareOnReady = false,
+  onClose,
+  bake,
+}: FilmPlayerProps & { bake: BakedFilmHandle }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const video = useFilmVideo({ journeyId, hasRoute });
+  const videoRef = useRef<BakedVideoHandle>(null);
+  const [paused, setPaused] = useState(false);
+  const [box, setBox] = useState(0);
+  // A tap on Compartilhar before the file exists, remembered. Phone only: a
+  // browser opens the share sheet only from inside a tap, never later.
+  const [armed, setArmed] = useState(shareOnReady && Platform.OS !== 'web');
 
-  const previewRef = useRef<FilmStageHandle>(null);
-  const exportRef = useRef<FilmStageHandle>(null);
-  const [recording, setRecording] = useState(autoRecord);
-  // The preview warms its tiles before it plays; until then the opening card
-  // holds the screen and this says why.
-  const [warming, setWarming] = useState(true);
+  const ready = bake.status === 'ready' && bake.baked !== null;
+  const percent = Math.round(bake.progress * 100);
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      play: () => previewRef.current?.play(),
-      pause: () => previewRef.current?.pause(),
-      seek: (index: number) => previewRef.current?.seek(index),
-    }),
-    [],
-  );
-
-  // The share button on the day screen opens this player already recording.
-  // `begin` moves the state machine to "preparing" so the label and the
-  // overlay say so from the first frame.
   useEffect(() => {
-    if (autoRecord) video.begin();
-    // Once, on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!armed || !ready || !bake.baked) return;
+    setArmed(false);
+    void shareBakedFilm(bake.baked, journeyId);
+  }, [armed, bake.baked, journeyId, ready]);
 
-  const handlePreviewMessage = useCallback(
-    (message: RecapMessage) => {
-      if (message.type === 'ready' && startIndex !== undefined && startIndex > 0) {
-        previewRef.current?.seek(startIndex);
-        return;
-      }
-      if (message.type === 'progress' && message.phase === 'tiles') {
-        setWarming(message.value < 1);
-        return;
-      }
-      if (message.type === 'frame') {
-        setWarming(false);
-        onFrame?.(message.index);
-      }
-    },
-    // `startIndex` is read once, at 'ready'; a later change must not reseek a
-    // film the driver is watching.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [onFrame],
-  );
-
-  const handleExportMessage = useCallback(
-    (message: RecapMessage) => {
-      if (message.type === 'ready') {
-        exportRef.current?.record();
-        return;
-      }
-      video.handleMessage(message);
-      if (message.type === 'done' || message.type === 'error') setRecording(false);
-    },
-    [video],
-  );
-
-  function startRecording() {
-    previewRef.current?.pause();
-    video.begin();
-    setRecording(true);
+  function close() {
+    onLeave?.(videoRef.current?.time() ?? startSeconds);
+    onClose?.();
   }
 
-  function cancelRecording() {
-    setRecording(false);
-    video.reset();
-    previewRef.current?.play();
+  function onBoxLayout(event: LayoutChangeEvent) {
+    const next = Math.round(event.nativeEvent.layout.height);
+    setBox((current) => (current === next ? current : next));
   }
 
-  const fileReady = video.phase === 'ready' || video.phase === 'done';
-
-  function primaryAction() {
-    if (fileReady) {
-      video.share();
-      return;
-    }
-    startRecording();
-  }
-
-  const primaryLabel = recording
-    ? labelFor(video.phase, video.progress)
-    : video.phase === 'sharing'
-      ? 'Abrindo o compartilhamento'
-      : fileReady
-        ? video.canShareSheet
-          ? 'Enviar para o story'
-          : 'Baixar o vídeo'
-        : 'Compartilhar vídeo';
-
-  // On the web the tap that opens the share sheet has to reach
-  // `navigator.share` inside the browser's own click event. A Pressable
-  // hands the press through React Native Web's responder system, and iOS
-  // has been seen treating that as no gesture at all and refusing the sheet.
-  // So while the file is ready, a real DOM button sits over the styled one,
-  // invisible, and takes the click first.
-  const webShareTap =
-    Platform.OS === 'web' && fileReady && video.phase !== 'sharing'
-      ? createElement('button', {
-          type: 'button',
-          'aria-label': primaryLabel,
-          onClick: (event: { preventDefault: () => void }) => {
-            event.preventDefault();
-            video.share();
-          },
-          style: {
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            opacity: 0,
-            border: 'none',
-            padding: 0,
-            margin: 0,
-            background: 'transparent',
-            cursor: 'pointer',
-          },
-        })
-      : null;
+  const label = ready
+    ? 'Compartilhar vídeo'
+    : armed
+      ? `Abre assim que ficar pronto: ${percent}%`
+      : Platform.OS === 'web'
+        ? `Preparando o vídeo: ${percent}%`
+        : 'Compartilhar quando ficar pronto';
 
   return (
-    // O que está em volta dos controles é o filme, não o fundo do aplicativo,
-    // e ele é escuro a qualquer hora do dia. Então esta parte da tela é escura
-    // mesmo para quem usa o aplicativo no claro: sem isso, o "Cancelar" da
-    // gravação era um texto quase preto por cima de uma imagem de satélite à
-    // noite. O tema do resto do aplicativo continua sendo o que a pessoa
-    // escolheu.
+    // Escuro de propósito, como o próprio filme: ver `LegacyFilmPlayer`.
     <ThemeScope scheme="dark">
       <View style={{ flex: 1, backgroundColor: darkTokens.backgroundPrimary }}>
         <View
@@ -202,44 +133,66 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
         >
           <IconButton
             icon={onClose ? 'close' : 'chevronLeft'}
-            label={recording ? 'Cancelar a gravação' : 'Fechar'}
+            label="Fechar"
             tone="surface"
-            onPress={() => (recording ? cancelRecording() : onClose?.())}
+            onPress={close}
           />
-          {!recording && warming ? <Pill text="Carregando o mapa" /> : null}
+          {!ready ? <Pill text={`Montando o vídeo: ${percent}%`} /> : null}
         </View>
 
-        {/* The film sits between the bar and the controls rather than under
-            them. Full screen behind them, a 9:16 frame on a taller phone was
-            a box floating in the middle with black above and below, and the
-            map credit at its foot read as a loose line across the screen.
-            Here its foot meets the controls and the credit sits on the edge
-            of the picture it belongs to. */}
-        <View style={{ flex: 1 }}>
-          {recording ? (
-            <FilmStage key="export" ref={exportRef} recap={recap} mode="export" onMessage={handleExportMessage} />
-          ) : (
+        <View style={{ flex: 1, justifyContent: 'center' }} onLayout={onBoxLayout}>
+          {ready && bake.baked ? (
             <Pressable
               style={{ flex: 1 }}
               accessibilityRole="button"
-              accessibilityLabel="Tocar o filme de novo"
-              onPress={() => previewRef.current?.play()}
+              accessibilityLabel={paused ? 'Continuar o filme' : 'Pausar o filme'}
+              onPress={() => setPaused(!(videoRef.current?.toggle() ?? true))}
             >
-              {/* Not interactive: an iframe swallows every tap that lands on it,
-                  and the Pressable around it is the control. */}
-              <FilmStage
-                key="preview"
-                ref={previewRef}
-                recap={playing}
-                mode="preview"
-                interactive={false}
-                onMessage={handlePreviewMessage}
+              <BakedVideo
+                ref={videoRef}
+                uri={bake.baked.uri}
+                fit="contain"
+                startAt={startSeconds}
               />
+              {paused ? (
+                <View
+                  pointerEvents="none"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 72,
+                      height: 72,
+                      borderRadius: theme.radius.pill,
+                      backgroundColor: theme.colors.surfacePrimary,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Icon name="play" size={30} color={theme.colors.textPrimary} />
+                  </View>
+                </View>
+              ) : null}
             </Pressable>
-          )}
+          ) : box > 0 ? (
+            <View style={{ paddingHorizontal: theme.spacing.xl }}>
+              <BakingFilm
+                points={points}
+                progress={bake.progress}
+                height={Math.round(Math.min(box * 0.8, 560))}
+                caption="Montando o vídeo do seu dia. Fica pronto em segundos, e pode sair daqui que ele continua."
+              />
+            </View>
+          ) : null}
         </View>
-
-        {recording ? <RecordingOverlay phase={video.phase} progress={video.progress} /> : null}
 
         <View
           pointerEvents="box-none"
@@ -250,70 +203,35 @@ export const FilmPlayer = forwardRef<FilmPlayerHandle, FilmPlayerProps>(function
             gap: theme.spacing.sm,
           }}
         >
-          {video.error ? (
-            // The code goes on screen with the sentence. A driver reporting
-            // "nothing happened" cannot open a console, and this is what turns
-            // that report into something that can be fixed.
-            <Notice
-              icon="alert"
-              text={video.errorCode ? `${video.error} (${video.errorCode})` : video.error}
-            />
-          ) : !hasRoute ? (
+          {!hasRoute ? (
             // Saying why there is no map beats letting the person think it
             // broke. It is also where GPS counting gets discovered.
-            <Notice
-              icon="info"
-              text="Sem trajeto nesta jornada. Ligue a contagem por GPS em Registrar para o próximo dia ter mapa."
-            />
-          ) : fileReady && !recording ? (
-            <Notice
-              icon="check"
-              text={
-                video.canShareSheet
-                  ? 'Vídeo pronto. Toque para escolher onde postar.'
-                  : 'Vídeo pronto. Este navegador não abre a tela de compartilhar, então ele baixa o arquivo.'
-              }
-            />
+            <Notice text="Sem trajeto nesta jornada. Ligue a contagem por GPS em Registrar para o próximo dia ter mapa." />
           ) : null}
 
-          <View style={{ position: 'relative' }}>
+          <ShareFilmButton
+            baked={ready ? bake.baked : null}
+            journeyId={journeyId}
+            label={label}
+            disabled={!ready && (armed || Platform.OS === 'web')}
+            onPress={() => {
+              bake.prioritise();
+              setArmed(true);
+            }}
+          />
+          {armed ? (
             <Button
-              label={primaryLabel}
-              size="lg"
+              label="Não abrir sozinho"
+              variant="ghost"
+              size="sm"
               fullWidth
-              iconName={recording || video.phase === 'sharing' ? undefined : 'arrowUpRight'}
-              loading={video.phase === 'sharing'}
-              disabled={recording || video.phase === 'sharing'}
-              onPress={primaryAction}
+              onPress={() => setArmed(false)}
             />
-            {webShareTap}
-          </View>
-
-          {recording ? (
-            <Button label="Cancelar" variant="ghost" size="sm" fullWidth onPress={cancelRecording} />
-          ) : fileReady ? (
-            <Button label="Gravar de novo" variant="ghost" size="sm" fullWidth onPress={startRecording} />
           ) : null}
         </View>
       </View>
     </ThemeScope>
   );
-});
-
-function labelFor(phase: VideoPhase, progress: number): string {
-  const percent = Math.round(Math.min(1, Math.max(0, progress)) * 100);
-  switch (phase) {
-    case 'preparing':
-      return `Carregando o mapa: ${percent}%`;
-    case 'rendering':
-      return `Gravando: ${percent}%`;
-    case 'encoding':
-      return `Finalizando: ${percent}%`;
-    case 'sharing':
-      return 'Abrindo o compartilhamento';
-    default:
-      return 'Preparando';
-  }
 }
 
 function Pill({ text }: { text: string }) {
@@ -334,7 +252,7 @@ function Pill({ text }: { text: string }) {
   );
 }
 
-function Notice({ icon, text }: { icon: 'alert' | 'info' | 'check'; text: string }) {
+function Notice({ text }: { text: string }) {
   const theme = useTheme();
   return (
     <View
@@ -348,69 +266,10 @@ function Notice({ icon, text }: { icon: 'alert' | 'info' | 'check'; text: string
         paddingHorizontal: theme.spacing.md,
       }}
     >
-      <Icon name={icon} size={16} color={theme.colors.textSecondary} />
+      <Icon name="info" size={16} color={theme.colors.textSecondary} />
       <Text variant="caption" style={{ color: theme.colors.textSecondary, flex: 1 }}>
         {text}
       </Text>
-    </View>
-  );
-}
-
-/**
- * A light veil, not a curtain.
- *
- * What is being recorded stays visible, because that is what the twenty
- * second wait has going for it: you get to watch it happen.
- */
-function RecordingOverlay({ phase, progress }: { phase: VideoPhase; progress: number }) {
-  const theme = useTheme();
-  return (
-    <View
-      pointerEvents="none"
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-        paddingTop: 96,
-      }}
-    >
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: theme.spacing.xs,
-          backgroundColor: theme.colors.surfacePrimary,
-          borderRadius: theme.radius.pill,
-          paddingVertical: theme.spacing.xs,
-          paddingHorizontal: theme.spacing.md,
-        }}
-      >
-        <View style={{ width: 8, height: 8, borderRadius: 999, backgroundColor: theme.colors.brandSecondary }} />
-        <Text variant="captionStrong" style={{ color: theme.colors.textPrimary, letterSpacing: 0.6 }}>
-          {phase === 'preparing' ? 'PREPARANDO' : 'GRAVANDO'}
-        </Text>
-      </View>
-      <View
-        style={{
-          marginTop: theme.spacing.sm,
-          height: 4,
-          width: '70%',
-          borderRadius: 999,
-          backgroundColor: theme.colors.borderSubtle,
-          overflow: 'hidden',
-        }}
-      >
-        <View
-          style={{
-            height: 4,
-            borderRadius: 999,
-            backgroundColor: theme.colors.brandSecondary,
-            width: `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%`,
-          }}
-        />
-      </View>
     </View>
   );
 }
