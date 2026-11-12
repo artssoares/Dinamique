@@ -3,7 +3,7 @@ import type { LatLng } from '@dinamique/types';
 import { summarisePeriod, type PeriodSummary } from '@dinamique/business-logic';
 import { buildRecap, fixesFromRoute, type RawFix, type Recap } from '@dinamique/recap';
 import { darkTokens, lightTokens } from '@dinamique/ui';
-import { decodePolyline } from '@dinamique/utils';
+import { decodePolyline, toDateOnly } from '@dinamique/utils';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/useSession';
 import { filmBasemap } from './basemap';
@@ -51,6 +51,11 @@ interface ExpenseRow {
     | null;
 }
 
+interface DayTotalsRow {
+  gross_revenue: number;
+  net_profit: number;
+}
+
 interface RouteRow {
   polyline: string;
   precision: number | null;
@@ -61,17 +66,20 @@ interface RouteRow {
  *
  * Every size in the painter derives from the width, so the three are the
  * same drawing with fewer pixels per frame. The card on the day screen is a
- * third the area of the full-screen preview, and the preview under half the
- * export; on a mid-range Android that is the difference between a smooth
- * film and one that stutters, and the driver judges the feature by what
- * plays first.
+ * third the area of the full-screen preview; on a mid-range Android that is
+ * the difference between a smooth film and one that stutters.
+ *
+ * The file itself is 720 by 1280. At 1080 by 1920 a phone painted, read back
+ * and encoded 2.25 times the pixels for every frame and wrote a file twice
+ * the size, and the driver waited for all of it. WhatsApp sends a video at
+ * no more than 720p anyway, and Stories take 720 by 1280 as it is.
  */
-const EXPORT = { width: 1080, height: 1920 };
+const EXPORT = { width: 720, height: 1280 };
 const FULL = { width: 720, height: 1280 };
 const CARD = { width: 540, height: 960 };
 
 export interface JourneyFilm {
-  /** 1080 by 1920: the file. The size Stories expect and WhatsApp keeps legible. */
+  /** 720 by 1280: the file. What WhatsApp sends and Stories accept. */
   recap: Recap | null;
   /** 720 by 1280, for the full-screen preview. */
   preview: Recap | null;
@@ -143,6 +151,17 @@ export function useJourneyFilm(journeyId: string | null): JourneyFilm {
       return;
     }
 
+    // The closing card shows the whole day, read from the same totals the
+    // history shows, so the film and Histórico never disagree. A failed read
+    // only leaves the card without the figure.
+    const dayResult = await supabase
+      .from('daily_totals')
+      .select('gross_revenue, net_profit')
+      .eq('user_id', session.user.id)
+      .eq('date', toDateOnly(new Date(journey.started_at)))
+      .maybeSingle();
+    const dayRow = dayResult.error ? null : (dayResult.data as DayTotalsRow | null);
+
     setStartedAt(journey.started_at);
     setEndedAt(journey.ended_at);
 
@@ -209,6 +228,9 @@ export function useJourneyFilm(journeyId: string | null): JourneyFilm {
       summary: totals,
       date: new Date(journey.started_at),
       driverName,
+      day: dayRow
+        ? { grossRevenue: Number(dayRow.gross_revenue), netProfit: Number(dayRow.net_profit) }
+        : null,
       fixes,
       basemap: filmBasemap(),
       // The film is always dark, so the brand pair is the light theme's,

@@ -348,15 +348,40 @@ export const PAINTER_SOURCE = `
 
   // -------------------------------------------------------------- painting --
 
+  /**
+   * A full-frame layer that never changes, painted once and then copied.
+   *
+   * A gradient over the whole frame is rasterised pixel by pixel every time
+   * it is filled; copying the same pixels from a canvas that already holds
+   * them is a block transfer. The backdrop and the vignette were two of
+   * those per frame, a third of the cost of a frame on a phone without a
+   * fast canvas, for pictures that are the same in every frame.
+   */
+  function prerender(draw) {
+    var layer = document.createElement('canvas');
+    layer.width = W;
+    layer.height = H;
+    draw(layer.getContext('2d'));
+    return layer;
+  }
+
+  var backdropLayer = null;
+  var vignetteLayer = null;
+
   function paintBackdrop(frame) {
     // Deep navy rather than black: the route's blue end would disappear into
     // true black, and dark mode in this product is never absolute black.
-    var gradient = ctx.createLinearGradient(0, 0, 0, H);
-    gradient.addColorStop(0, '#080B12');
-    gradient.addColorStop(0.55, '#0D1016');
-    gradient.addColorStop(1, '#141821');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, W, H);
+    if (!backdropLayer) {
+      backdropLayer = prerender(function (g) {
+        var gradient = g.createLinearGradient(0, 0, 0, H);
+        gradient.addColorStop(0, '#080B12');
+        gradient.addColorStop(0.55, '#0D1016');
+        gradient.addColorStop(1, '#141821');
+        g.fillStyle = gradient;
+        g.fillRect(0, 0, W, H);
+      });
+    }
+    ctx.drawImage(backdropLayer, 0, 0);
 
     if (!basemap.urlTemplate) paintField(frame);
   }
@@ -491,6 +516,27 @@ export const PAINTER_SOURCE = `
 
   /** Projects the drawn portion of the route into a reusable screen buffer. */
   var routeBuffer = [];
+  /** Its bounds on screen, min x, min y, max x, max y. */
+  var routeBox = [0, 0, -1, -1];
+
+  function measureRoute(count) {
+    var minX = Infinity;
+    var minY = Infinity;
+    var maxX = -Infinity;
+    var maxY = -Infinity;
+    for (var i = 0; i < count; i += 1) {
+      var x = routeBuffer[i * 2];
+      var y = routeBuffer[i * 2 + 1];
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    routeBox[0] = minX;
+    routeBox[1] = minY;
+    routeBox[2] = maxX;
+    routeBox[3] = maxY;
+  }
 
   function buildRoutePoints(frame, projector) {
     routeBuffer.length = 0;
@@ -603,13 +649,35 @@ export const PAINTER_SOURCE = `
     glowCtx.lineCap = 'round';
   }
 
-  /** Lays the glow canvas over the frame, additively, at full size. */
+  /**
+   * Lays the glow canvas over the frame, additively, at full size.
+   *
+   * Only the part around the route is copied, and with plain bilinear
+   * smoothing. The 'high' quality filter over the whole frame was, on its
+   * own, half the cost of painting a frame; a blur has no edge for a better
+   * filter to keep, and most of the frame holds no glow at all.
+   */
+  var GLOW_MARGIN = 96;
+
   function endGlow() {
+    if (routeBox[2] < routeBox[0]) return;
+    var sx = glowCanvas.width / W;
+    var sy = glowCanvas.height / H;
+    var margin = GLOW_MARGIN * U;
+    var x0 = clamp(Math.floor((routeBox[0] - margin) * sx), 0, glowCanvas.width);
+    var y0 = clamp(Math.floor((routeBox[1] - margin) * sy), 0, glowCanvas.height);
+    var x1 = clamp(Math.ceil((routeBox[2] + margin) * sx), 0, glowCanvas.width);
+    var y1 = clamp(Math.ceil((routeBox[3] + margin) * sy), 0, glowCanvas.height);
+    if (x1 <= x0 || y1 <= y0) return;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(glowCanvas, 0, 0, W, H);
+    ctx.imageSmoothingQuality = 'low';
+    ctx.drawImage(
+      glowCanvas,
+      x0, y0, x1 - x0, y1 - y0,
+      x0 / sx, y0 / sy, (x1 - x0) / sx, (y1 - y0) / sy
+    );
     ctx.restore();
   }
 
@@ -624,6 +692,7 @@ export const PAINTER_SOURCE = `
   function paintRoute(frame, projector) {
     var count = buildRoutePoints(frame, projector);
     if (count < 2) return;
+    measureRoute(count);
 
     // The finale is about the figure, not the map, but the shape of the day
     // is the reason anyone watched, so it stays visible underneath rather
@@ -647,17 +716,24 @@ export const PAINTER_SOURCE = `
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
 
-    // 2, casing
+    // 2, casing. One colour, so one stroke: chunking it bought nothing but
+    // thirty strokes instead of one, and darker beads where chunks overlapped.
     ctx.globalCompositeOperation = 'source-over';
     ctx.shadowBlur = 0;
     ctx.shadowColor = 'transparent';
-    strokeAlongRoute(count, 19 * U, 1, 0, 'rgba(6,9,16,' + 0.55 * dim + ')');
+    ctx.strokeStyle = 'rgba(6,9,16,' + 0.55 * dim + ')';
+    ctx.lineWidth = 19 * U;
+    traceRoute(count);
+    ctx.stroke();
 
-    // 3, the line itself
-    strokeAlongRoute(count, 11 * U, dim, 0);
+    // 3, the line itself, in chunks because its colour runs along the path.
+    strokeAlongRoute(count, 11 * U, dim, 0, null, null, 16);
 
-    // 4, hot core
-    strokeAlongRoute(count, 3.2 * U, 1, 0, 'rgba(255,255,255,' + 0.72 * dim + ')');
+    // 4, hot core, one colour again.
+    ctx.strokeStyle = 'rgba(255,255,255,' + 0.72 * dim + ')';
+    ctx.lineWidth = 3.2 * U;
+    traceRoute(count);
+    ctx.stroke();
 
     if (frame.flash > 0) paintFlash(frame, count);
     ctx.restore();
@@ -766,14 +842,25 @@ export const PAINTER_SOURCE = `
   function paintVignette(frame) {
     var amount = frame.vignette;
     if (amount <= 0) return;
-    var gradient = ctx.createRadialGradient(
-      W / 2, H * ANCHOR_Y, H * 0.16,
-      W / 2, H * ANCHOR_Y, H * 0.82
-    );
-    gradient.addColorStop(0, 'rgba(8,11,18,0)');
-    gradient.addColorStop(1, 'rgba(8,11,18,' + clamp01(amount * 1.25) + ')');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, W, H);
+    // Painted once at full strength and laid down at the frame's strength:
+    // the gradient runs from transparent to one colour, so scaling the whole
+    // layer's alpha is the same picture as scaling the outer stop.
+    if (!vignetteLayer) {
+      vignetteLayer = prerender(function (g) {
+        var gradient = g.createRadialGradient(
+          W / 2, H * ANCHOR_Y, H * 0.16,
+          W / 2, H * ANCHOR_Y, H * 0.82
+        );
+        gradient.addColorStop(0, 'rgba(8,11,18,0)');
+        gradient.addColorStop(1, 'rgba(8,11,18,1)');
+        g.fillStyle = gradient;
+        g.fillRect(0, 0, W, H);
+      });
+    }
+    ctx.save();
+    ctx.globalAlpha = clamp01(amount * 1.25);
+    ctx.drawImage(vignetteLayer, 0, 0);
+    ctx.restore();
 
     if (amount > 0.45) {
       ctx.fillStyle = 'rgba(8,11,18,' + clamp01((amount - 0.45) * 1.4) + ')';
@@ -975,38 +1062,100 @@ export const PAINTER_SOURCE = `
     ctx.restore();
   }
 
+  /**
+   * The last card, the one the video stops on.
+   *
+   * When the day's totals are known it leads with them: what the whole day
+   * brought in, under the same word the app uses for it, ganhos, and what
+   * was left after the costs underneath, labelled as an estimate like every
+   * profit in the product. The brand sits below. Without the totals it is
+   * the brand alone, as it always was.
+   */
   function paintSignature(frame) {
     if (frame.signature <= 0.01) return;
+    var day = stats.day || null;
+    var amount = clamp01(frame.signature);
     ctx.save();
-    ctx.globalAlpha = clamp01(frame.signature);
+    ctx.globalAlpha = amount;
     ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
 
     var centreY = H * 0.5;
-    var scale = 0.94 + clamp01(frame.signature) * 0.06;
+    var scale = 0.94 + amount * 0.06;
     ctx.translate(W / 2, centreY);
     ctx.scale(scale, scale);
     ctx.translate(-W / 2, -centreY);
 
-    var glow = ctx.createRadialGradient(W / 2, centreY, 0, W / 2, centreY, W * 0.6);
+    var glowY = day ? centreY - 120 * U : centreY;
+    var glow = ctx.createRadialGradient(W / 2, glowY, 0, W / 2, glowY, W * 0.6);
     glow.addColorStop(0, withAlpha(COLOR_PRIMARY, 0.4));
     glow.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, W, H);
 
-    ctx.font = '700 ' + Math.round(92 * U) + 'px ' + FONT;
+    var brandY = centreY;
+    if (day) {
+      // Waits for the stats card to clear before it shows: at the end of the
+      // numbers the signature is already at four tenths, and two figures that
+      // size on top of each other read as neither.
+      var dayAlpha = clamp01((frame.signature - 0.45) / 0.5);
+      ctx.save();
+      ctx.globalAlpha = amount * dayAlpha;
+      var top = centreY - 300 * U;
+
+      ctx.font = '400 ' + Math.round(32 * U) + 'px ' + FONT;
+      ctx.fillStyle = 'rgba(255,255,255,0.72)';
+      ctx.shadowColor = 'rgba(0,0,0,0.6)';
+      ctx.shadowBlur = 18 * U;
+      ctx.fillText(stats.dateLabel || '', W / 2, top);
+
+      ctx.font = '600 ' + Math.round(30 * U) + 'px ' + FONT;
+      ctx.fillStyle = withAlpha(COLOR_ACCENT, 0.95);
+      ctx.fillText('GANHOS DO DIA', W / 2, top + 72 * U);
+
+      ctx.font = '700 ' + Math.round(fitFont(day.grossLabel, 132, W - 120 * U)) + 'px ' + FONT;
+      ctx.fillStyle = '#34C77B';
+      ctx.shadowColor = 'rgba(52,199,123,0.35)';
+      ctx.shadowBlur = 36 * U;
+      ctx.fillText(day.grossLabel, W / 2, top + 200 * U);
+
+      ctx.shadowColor = 'rgba(0,0,0,0.6)';
+      ctx.shadowBlur = 18 * U;
+      ctx.font = '500 ' + Math.round(34 * U) + 'px ' + FONT;
+      ctx.fillStyle = day.netProfit < 0 ? '#F2626B' : 'rgba(255,255,255,0.86)';
+      ctx.fillText('Lucro estimado: ' + day.netProfitLabel, W / 2, top + 266 * U);
+      ctx.restore();
+
+      brandY = centreY + 190 * U;
+    }
+
+    ctx.font = '700 ' + Math.round((day ? 72 : 92) * U) + 'px ' + FONT;
     ctx.fillStyle = '#FFFFFF';
     ctx.shadowColor = 'rgba(0,0,0,0.5)';
     ctx.shadowBlur = 30 * U;
-    ctx.fillText(brand.wordmark || 'Dinamique', W / 2, centreY);
+    ctx.fillText(brand.wordmark || 'Dinamique', W / 2, brandY);
 
     ctx.font = '500 ' + Math.round(34 * U) + 'px ' + FONT;
     ctx.fillStyle = withAlpha(COLOR_ACCENT, 0.95);
-    ctx.fillText(brand.handle || 'dinamique.com.br', W / 2, centreY + 62 * U);
+    ctx.fillText(brand.handle || 'dinamique.com.br', W / 2, brandY + 58 * U);
 
     ctx.font = '400 ' + Math.round(26 * U) + 'px ' + FONT;
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.fillText('Quanto você realmente ganhou hoje', W / 2, centreY + 120 * U);
+    ctx.fillText('Quanto você realmente ganhou hoje', W / 2, brandY + 112 * U);
     ctx.restore();
+  }
+
+  /**
+   * A font size in pixels, from one in design units, that keeps a line
+   * inside a width: a day of six figures must not run off the frame.
+   */
+  function fitFont(text, size, maxWidth) {
+    ctx.save();
+    ctx.font = '700 ' + Math.round(size * U) + 'px ' + FONT;
+    var width = ctx.measureText(text).width;
+    ctx.restore();
+    var px = size * U;
+    return width > maxWidth ? (px * maxWidth) / width : px;
   }
 
   function paintAttribution(frame) {
@@ -1348,6 +1497,32 @@ export const PAINTER_SOURCE = `
     );
   }
 
+  /**
+   * Runs a function on the next turn of the event loop, without the wait.
+   *
+   * A chain of setTimeout(fn, 0) is clamped to four milliseconds after its
+   * fifth link, by every browser, so a 660-frame export spent over two and a
+   * half seconds doing nothing between frames. A message posted to oneself
+   * is not clamped, and still lets input, tiles and the host get a turn.
+   */
+  var soonQueue = [];
+  var soonChannel = typeof MessageChannel !== 'undefined' ? new MessageChannel() : null;
+  if (soonChannel) {
+    soonChannel.port1.onmessage = function () {
+      var fn = soonQueue.shift();
+      if (fn) fn();
+    };
+  }
+
+  function soon(fn) {
+    if (!soonChannel) {
+      setTimeout(fn, 0);
+      return;
+    }
+    soonQueue.push(fn);
+    soonChannel.port2.postMessage(0);
+  }
+
   function encodeFrames(config) {
     return new Promise(function (resolve, reject) {
       var samples = [];
@@ -1457,7 +1632,7 @@ export const PAINTER_SOURCE = `
         index += 1;
         // Yielding between frames lets tile images land and keeps the page
         // answering the host while the export runs.
-        setTimeout(step, 0);
+        soon(step);
       }
 
       step();

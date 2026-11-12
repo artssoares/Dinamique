@@ -18,7 +18,12 @@ export interface RenderOptions {
   /** Loop the preview. False for recording and for a one-shot playback. */
   loop?: boolean;
   autoplay?: boolean;
-  /** Target encoder bitrate. 6 Mbps survives WhatsApp's re-encode legibly. */
+  /**
+   * Target encoder bitrate. Defaults to 6 Mbps at 1080 by 1920, which
+   * survives WhatsApp's re-encode legibly, scaled by the frame's area, with a
+   * floor of 2.5 Mbps. A smaller film at the full rate is just a heavier
+   * file: slower to hand across to the app, to cache and to send.
+   */
   bitrate?: number;
   /**
    * How the finished file comes back. `chunks` base64s it over the bridge for
@@ -56,7 +61,7 @@ export function renderRecapDocument(
     options: {
       loop: options.bake ? false : (options.loop ?? true),
       autoplay: options.bake ? false : (options.autoplay ?? true),
-      bitrate: options.bitrate ?? 6_000_000,
+      bitrate: options.bitrate ?? defaultBitrate(film.width, film.height),
       deliver: options.deliver ?? 'chunks',
       bake: options.bake ?? false,
     },
@@ -94,6 +99,11 @@ export function renderRecapDocument(
 <script>${MP4_SOURCE}${PAINTER_SOURCE}</script>
 </body>
 </html>`;
+}
+
+export function defaultBitrate(width: number, height: number): number {
+  const area = (width * height) / (1080 * 1920);
+  return Math.max(2_500_000, Math.round((6_000_000 * area) / 100_000) * 100_000);
 }
 
 /**

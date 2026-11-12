@@ -150,6 +150,31 @@ canvas, software encoder): 161 ms to paint a frame before, 36 ms after; the
 whole export from 128 s to 29 s. A phone, with a GPU canvas and a hardware
 encoder, takes seconds.
 
+Then, in November, after drivers still found it slow: the file is made at 720 by
+1280 rather than 1080 by 1920 (WhatsApp sends no more than 720p, Stories
+take it as it is), at a bitrate scaled to the frame (`defaultBitrate`, 2.7
+Mbps here), so it is half the size to hand across, cache and send. The
+backdrop and the vignette are painted once and copied, the glow is laid back
+over only the part of the frame around the route and with bilinear rather
+than 'high' smoothing (that filter alone was half of a frame), the casing
+and the core are one stroke each instead of thirty, and the encoder loop
+yields through a `MessageChannel` instead of `setTimeout(0)`, which browsers
+clamp to 4 ms. Same demo journey, same machine: the whole bake from 59 s to
+17.6 s, the file from 17.8 MB to 8 MB, and the page's main thread no longer
+blocked for 50 ms or more on every frame (712 long tasks to 4), which is
+what made the app stutter while the file was being made in a browser.
+
+## The closing card
+
+The film ends on the day, not on the journey. `RecapRequest.day` takes the
+totals of the whole day the journey belongs to, which the app reads from
+`daily_totals`, the same view Histórico shows, and the last card leads with
+them: **ganhos do dia** (every ganho plus tips, the word the app uses for
+it, never called profit) and the estimated profit under it. Without the
+totals the card is the brand alone. The card holds for 3.4 s so the figure
+is read rather than glimpsed; the drive gives up the time, so the film's
+length does not change.
+
 The finished file crosses to React Native as base64 in 3-byte-aligned chunks,
 so the host can concatenate without decoding. It is generated entirely on the
 device; nothing is uploaded to render it.

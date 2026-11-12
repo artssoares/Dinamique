@@ -15,7 +15,8 @@ import {
 import { buildStoryboard, sampleFrame } from './storyboard';
 import { buildFilm } from './film';
 import { buildRecapStats, DEFAULT_BRAND, TILELESS_BASEMAP, type RecapScene } from './scene';
-import { renderRecapDocument } from './renderer';
+import { defaultBitrate, renderRecapDocument } from './renderer';
+import { formatCents } from '@dinamique/utils';
 import { PAINTER_SOURCE } from './painter';
 import { MP4_SOURCE } from './mp4';
 
@@ -552,6 +553,25 @@ describe('the numbers the video shows', () => {
     expect(stats.dateLabel).toBe('Sábado, 15 de agosto');
     expect(stats.driverName).toBe('Thiago');
   });
+
+  it("carries the whole day's totals for the closing card, gross under its own name", () => {
+    const stats = buildRecapStats({
+      summary: summaryFor(),
+      date: new Date(2026, 7, 15),
+      day: { grossRevenue: 62_040, netProfit: -1_250 },
+    });
+    expect(stats.day).toEqual({
+      grossRevenue: 62_040,
+      grossLabel: formatCents(62_040),
+      netProfit: -1_250,
+      netProfitLabel: formatCents(-1_250),
+    });
+  });
+
+  it('closes on the brand alone when the day is not known', () => {
+    const stats = buildRecapStats({ summary: summaryFor(), date: new Date(2026, 7, 15) });
+    expect(stats.day).toBeNull();
+  });
 });
 
 describe('the rendered document', () => {
@@ -573,6 +593,12 @@ describe('the rendered document', () => {
     const { film } = buildFilm(scene);
     expect(renderRecapDocument(scene, film)).toContain('object-fit: contain');
     expect(renderRecapDocument(scene, film, { fit: 'cover' })).toContain('object-fit: cover');
+  });
+
+  it('sizes the bitrate to the frame, with a floor', () => {
+    expect(defaultBitrate(1080, 1920)).toBe(6_000_000);
+    expect(defaultBitrate(720, 1280)).toBe(2_700_000);
+    expect(defaultBitrate(540, 960)).toBe(2_500_000);
   });
 
   it('signs off with an address that exists', () => {

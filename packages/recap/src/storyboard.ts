@@ -120,7 +120,12 @@ export interface Storyboard {
 const OPENING_MS = 3_000;
 const REVEAL_MS = 2_200;
 const NUMBERS_MS = 4_200;
-const SIGNATURE_MS = 2_100;
+/**
+ * The closing card carries what the whole day brought in, the figure a
+ * driver wants to be the last thing on screen, so it holds long enough to be
+ * read rather than glimpsed.
+ */
+const SIGNATURE_MS = 3_400;
 const FIXED_MS = OPENING_MS + REVEAL_MS + NUMBERS_MS + SIGNATURE_MS;
 
 /** Under 10s nothing lands; over 30s it stops being a WhatsApp status. */

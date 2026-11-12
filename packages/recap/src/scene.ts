@@ -29,6 +29,22 @@ export interface RecapMetric {
   reason?: string;
 }
 
+/**
+ * The whole day the journey belongs to, for the closing card.
+ *
+ * A driver often splits a day into more than one journey, and what they want
+ * the video to end on is what the day brought in, not one shift of it. The
+ * figures come from the same daily totals the history shows.
+ */
+export interface RecapDay {
+  /** Faturamento of the day: every ganho plus tips. Never called profit. */
+  grossRevenue: Cents;
+  grossLabel: string;
+  /** Faturamento minus the day's costs. */
+  netProfit: Cents;
+  netProfitLabel: string;
+}
+
 export interface RecapStats {
   /** "Sexta, 15 de agosto", already localised; the renderer never formats. */
   dateLabel: string;
@@ -40,6 +56,8 @@ export interface RecapStats {
   /** From the odometer or the manual figure, never from GPS (§6). */
   distance: Metres | null;
   metrics: RecapMetric[];
+  /** The day's totals for the last card; null leaves the card as the brand alone. */
+  day: RecapDay | null;
 }
 
 export interface RecapBrand {
@@ -162,6 +180,7 @@ export function buildRecapStats(input: {
   summary: PeriodSummary;
   date: Date;
   driverName?: string | null;
+  day?: { grossRevenue: Cents; netProfit: Cents } | null;
 }): RecapStats {
   const { summary } = input;
 
@@ -213,5 +232,13 @@ export function buildRecapStats(input: {
     metrics: metrics
       .filter((metric) => chosen.includes(metric))
       .sort((a, b) => metrics.indexOf(a) - metrics.indexOf(b)),
+    day: input.day
+      ? {
+          grossRevenue: input.day.grossRevenue,
+          grossLabel: formatCents(input.day.grossRevenue),
+          netProfit: input.day.netProfit,
+          netProfitLabel: formatCents(input.day.netProfit),
+        }
+      : null,
   };
 }

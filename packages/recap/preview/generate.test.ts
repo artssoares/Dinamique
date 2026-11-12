@@ -76,12 +76,24 @@ it('writes the preview of the demo journey', () => {
     summary,
     date: new Date(2026, 8, 4),
     driverName: 'Arthur',
+    // A second journey later the same day, so the closing card's total is
+    // visibly the day's and not this journey's.
+    day: { grossRevenue: summary.grossRevenue + 18_350, netProfit: summary.netProfit + 15_100 },
     fixes,
     basemap,
+    ...(process.env.PREVIEW_WIDTH
+      ? {
+          width: Number(process.env.PREVIEW_WIDTH),
+          height: Math.round((Number(process.env.PREVIEW_WIDTH) * 16) / 9),
+        }
+      : {}),
   });
 
   const out = process.env.PREVIEW_OUT ?? '/tmp/preview.html';
-  writeFileSync(out, recap.document({ loop: true }));
+  writeFileSync(
+    out,
+    recap.document(process.env.PREVIEW_BAKE ? { bake: true, deliver: 'objectUrl' } : { loop: true }),
+  );
   console.log(
     'lucro', summary.netProfit,
     'km', summary.distance,

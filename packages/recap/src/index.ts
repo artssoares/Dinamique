@@ -1,4 +1,5 @@
 import type { PeriodSummary } from '@dinamique/business-logic';
+import type { Cents } from '@dinamique/types';
 import { buildFilm, type FilmOptions, type RecapFilm } from './film';
 import { renderRecapDocument, type RenderOptions } from './renderer';
 import {
@@ -52,6 +53,11 @@ export interface RecapRequest {
   date: Date;
   driverName?: string | null;
   /**
+   * The totals of the whole day the journey belongs to, which the closing
+   * card shows. Absent, the film closes on the brand alone.
+   */
+  day?: { grossRevenue: Cents; netProfit: Cents } | null;
+  /**
    * The route, already as timed fixes. This is what the app passes: it reads
    * `journey_routes` and runs the polyline through `fixesFromRoute`. Empty
    * or absent produces the mapless variant.
@@ -101,6 +107,7 @@ export function buildRecap(request: RecapRequest): Recap {
       summary: request.summary,
       date: request.date,
       driverName: request.driverName ?? null,
+      day: request.day ?? null,
     }),
     track,
     basemap: request.basemap ?? TILELESS_BASEMAP,
